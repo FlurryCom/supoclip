@@ -4,6 +4,7 @@ The live-recorder service (live/, compose profile "live") reads these rows,
 records broadcasts and sends windows through the normal task pipeline. These
 routes only manage channels and report what happened. docs/live-clipping.md.
 """
+import os
 import re
 import uuid
 from typing import Any, Dict
@@ -20,6 +21,7 @@ from ...feature_flags import client_platform, is_enabled
 router = APIRouter(prefix="/live", tags=["live"])
 
 LIVE_CLIPPING = "live_clipping"
+MAX_CHANNELS_PER_USER = max(1, int(os.getenv("LIVE_MAX_CHANNELS_PER_USER", "5")))
 CHANNEL_RE = re.compile(r"^[a-z0-9_]{3,25}$")
 TWITCH_URL_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?twitch\.tv/([A-Za-z0-9_]{3,25})/?$")
 
@@ -106,6 +108,11 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
     data = await _body(request)
     name = _channel_name(data.get("channel"))
     settings = _settings(data)
+    # Each live channel is a recording process plus disk, so cap how many one account follows.
+    await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:user_id, 2911))"), {"user_id": user_id})
+    count = (await db.execute(text("SELECT count(*) FROM live_channels WHERE user_id = :user_id"), {"user_id": user_id})).scalar()
+    if count >= MAX_CHANNELS_PER_USER:
+        raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
         INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, daily_window_cap)

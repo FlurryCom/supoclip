@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 from typing import Any
@@ -26,6 +27,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+
+logger = logging.getLogger(__name__)
 
 CLAUDE_BIN = os.getenv("CLAUDE_CLI_BIN", "claude")
 TIMEOUT_SECONDS = float(os.getenv("CLAUDE_CLI_TIMEOUT_SECONDS", "900"))
@@ -100,16 +103,21 @@ async def run_cli(command: list[str], prompt: str) -> dict:
     try:
         out, err = await asyncio.wait_for(proc.communicate(prompt.encode()), timeout=TIMEOUT_SECONDS)
     except asyncio.TimeoutError:
-        proc.kill()
-        await proc.wait()
         raise RuntimeError(f"claude CLI timed out after {TIMEOUT_SECONDS:.0f}s") from None
+    finally:
+        if proc.returncode is None:  # timeout or the task was cancelled: never leave it running
+            proc.kill()
+            await proc.wait()
     try:
         data = json.loads(out or b"{}")
     except json.JSONDecodeError:
-        detail = (err or out).decode(errors="replace").strip()[-500:]
-        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {detail}") from None
+        # Raw output can hold transcript text; keep it out of errors and error tracking.
+        logger.debug("claude CLI raw stderr: %s", err.decode(errors="replace")[-500:])
+        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}) without a JSON result") from None
     if data.get("is_error") or proc.returncode != 0:
-        raise RuntimeError(f"claude CLI error: {str(data.get('result') or data)[:500]}")
+        # With is_error, `result` is the CLI's own error text (e.g. "Not logged in"), not model output.
+        reason = str(data.get("result"))[:200] if data.get("is_error") else "no error detail"
+        raise RuntimeError(f"claude CLI error ({data.get('subtype', 'unknown')}, exit {proc.returncode}): {reason}")
     return data
 
 

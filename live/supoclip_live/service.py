@@ -31,6 +31,7 @@ POLICY = Policy(
 )
 TRANSIENT = {409, 429, 502, 503, 504}
 RETRY_DELAY = timedelta(minutes=2)
+MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
 TITLE_ZONE = ZoneInfo(os.getenv("LIVE_TIMEZONE", "UTC"))
 
 # Channels whose owner has the live_clipping flag on (web, or admins via bypass).
@@ -137,6 +138,9 @@ class LiveService:
             return
         if session:  # still live but the pipeline died: resume into the same recording
             await session.recording.start()
+            return
+        if len(self.sessions) >= MAX_RECORDINGS:  # each one is a process plus GBs of disk per hour
+            logger.warning("%s is live but %d recordings already run; waiting for a slot", channel["channel"], MAX_RECORDINGS)
             return
         open_rows = await self.fetch(
             "SELECT id FROM live_recordings WHERE channel_id = %s AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",

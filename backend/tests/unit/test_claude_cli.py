@@ -56,6 +56,41 @@ async def test_cli_error_is_raised(tmp_path, monkeypatch):
         await agent.run("x")
 
 
+@pytest.mark.asyncio
+async def test_cancelled_request_kills_the_cli(tmp_path, monkeypatch):
+    import asyncio
+    import os
+
+    pid_file = tmp_path / "pid"
+    script = tmp_path / "claude"
+    script.write_text(f"#!/bin/sh\necho $$ > {pid_file}\nexec sleep 60\n")
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(claude_cli, "CLAUDE_BIN", str(script))
+
+    task = asyncio.create_task(claude_cli.run_cli([str(script)], "x"))
+    for _ in range(50):
+        if pid_file.exists() and pid_file.read_text().strip():
+            break
+        await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    pid = int(pid_file.read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
+
+
+@pytest.mark.asyncio
+async def test_errors_never_carry_raw_output(tmp_path, monkeypatch):
+    script = tmp_path / "claude"
+    script.write_text("#!/bin/sh\necho 'transcript secret words'\necho 'more secret' >&2\nexit 1\n")
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(claude_cli, "CLAUDE_BIN", str(script))
+    with pytest.raises(RuntimeError) as error:
+        await claude_cli.run_cli([str(script)], "x")
+    assert "secret" not in str(error.value)
+
+
 def test_provider_is_known_and_checks_the_binary(monkeypatch):
     from src.ai import _get_missing_llm_key_error
     from src.config import get_config
