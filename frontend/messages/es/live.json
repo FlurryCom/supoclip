@@ -73,5 +73,7 @@
       "error": "error al publicar en {name}"
     },
     "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_USER_IDS en .env)."
-  }
+  },
+  "confirmYes": "Sí",
+  "confirmNo": "Cancelar"
 }

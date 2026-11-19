@@ -73,5 +73,7 @@
       "error": "gagal memposting ke {name}"
     },
     "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env)."
-  }
+  },
+  "confirmYes": "Ya",
+  "confirmNo": "Batal"
 }

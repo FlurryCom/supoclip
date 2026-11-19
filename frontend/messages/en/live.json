@@ -73,5 +73,7 @@
       "error": "failed to post to {name}"
     },
     "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env)."
-  }
+  },
+  "confirmYes": "Yes",
+  "confirmNo": "Cancel"
 }

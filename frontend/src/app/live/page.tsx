@@ -17,6 +17,7 @@ import { SocialProviderIcon } from "@/components/social-provider-icon";
 import { useLiveAccess } from "@/hooks/use-live-access";
 import { useSession } from "@/lib/auth-client";
 
+import { ConfirmButton } from "./confirm-button";
 import { PostingSection } from "./posting-section";
 
 const PAGE = "mx-auto w-full max-w-3xl px-4 py-8 sm:px-8 md:py-10";
@@ -185,9 +186,9 @@ function ChannelCard({ channel, onChange, onRemove }: {
             <p className="mt-1 truncate text-sm text-muted-foreground">{channel.live_title}</p>
           ) : null}
         </div>
-        <Button variant="ghost" size="sm" onClick={onRemove} aria-label={t("remove", { channel: channel.channel })}>
+        <ConfirmButton variant="ghost" size="sm" question={t("removeConfirm", { channel: channel.channel })} onConfirm={onRemove} aria-label={t("remove", { channel: channel.channel })}>
           <Trash2 className="size-4" />
-        </Button>
+        </ConfirmButton>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -345,11 +346,7 @@ export default function LivePage() {
               key={channel.id}
               channel={channel}
               onChange={(settings) => void request(`channels/${channel.id}`, { method: "PATCH", body: JSON.stringify(settings) }, t("saveError"))}
-              onRemove={() => {
-                if (window.confirm(t("removeConfirm", { channel: channel.channel }))) {
-                  void request(`channels/${channel.id}`, { method: "DELETE" }, t("saveError"));
-                }
-              }}
+              onRemove={() => void request(`channels/${channel.id}`, { method: "DELETE" }, t("saveError"))}
             />
           ))}
         </ul>

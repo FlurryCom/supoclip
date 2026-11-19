@@ -73,5 +73,7 @@
       "error": "发布到 {name} 失败"
     },
     "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。"
-  }
+  },
+  "confirmYes": "是",
+  "confirmNo": "取消"
 }

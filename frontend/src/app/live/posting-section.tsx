@@ -6,12 +6,12 @@ import { AlertTriangle, ShieldCheck, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmButton } from "./confirm-button";
 import { SocialProviderIcon } from "@/components/social-provider-icon";
 import type { SocialProviderId } from "@/lib/social";
 
@@ -100,9 +100,9 @@ function TargetCard({ target, onChange, onRevoke }: {
           <span className="truncate font-medium">{target.name}</span>
           <span className="truncate font-mono text-xs text-muted-foreground">{target.integration_id}</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={onRevoke} aria-label={t("revoke", { name: target.name })}>
+        <ConfirmButton variant="ghost" size="sm" question={t("revokeConfirm", { name: target.name })} onConfirm={onRevoke} aria-label={t("revoke", { name: target.name })}>
           <Trash2 className="size-4" />
-        </Button>
+        </ConfirmButton>
       </div>
       {target.problem ? (
         <p className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
@@ -190,11 +190,7 @@ export function PostingSection() {
                   key={target.id}
                   target={target}
                   onChange={(settings) => void request(`targets/${target.id}`, { method: "PATCH", body: JSON.stringify(settings) })}
-                  onRevoke={() => {
-                    if (window.confirm(t("revokeConfirm", { name: target.name }))) {
-                      void request(`targets/${target.id}`, { method: "DELETE" });
-                    }
-                  }}
+                  onRevoke={() => void request(`targets/${target.id}`, { method: "DELETE" })}
                 />
               ))}
             </ul>
@@ -213,18 +209,15 @@ export function PostingSection() {
                     <span className="truncate font-mono text-xs text-muted-foreground">{account.id}</span>
                     {account.disabled ? <Badge variant="outline">{t("disabled")}</Badge> : null}
                   </div>
-                  <Button
+                  <ConfirmButton
                     size="sm"
                     variant="outline"
                     disabled={account.disabled}
-                    onClick={() => {
-                      if (window.confirm(t("authorizeConfirm", { name: account.name, provider: account.provider }))) {
-                        void request("targets", { method: "POST", body: JSON.stringify({ integration_id: account.id }) });
-                      }
-                    }}
+                    question={t("authorizeConfirm", { name: account.name, provider: account.provider })}
+                    onConfirm={() => void request("targets", { method: "POST", body: JSON.stringify({ integration_id: account.id }) })}
                   >
                     {t("authorize")}
-                  </Button>
+                  </ConfirmButton>
                 </li>
               ))}
             </ul>
