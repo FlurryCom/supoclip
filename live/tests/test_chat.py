@@ -95,9 +95,8 @@ def test_keep_message_filters():
     assert keep_message("KEKW que isso")
     for bad in ("http://x.com", "olha www.site.com", "@fulano olha", "!points", "a" * 61, "", "   "):
         assert not keep_message(bad), bad
-    slur = next(iter(BLOCKLIST))
-    assert not keep_message(f"que {slur.upper()} hein")
-    assert keep_message(f"{slur}xyz")  # whole words only
+    assert not keep_message("que KYS hein")
+    assert keep_message("kysa")  # short stems match whole words (and plurals) only
 
 
 def test_bucket_keeps_a_sample_of_messages():
@@ -160,3 +159,22 @@ def test_sample_stores_the_cleaned_text():
     d.add("ana", "  ＫＫＫ‮ oi​  ", at)
     d.tick(T0 + timedelta(seconds=215))
     assert d.drain()[-1][3] == ["KKK oi"]
+
+
+def test_slur_variants_are_caught():
+    from supoclip_live.chat import keep_message
+    for bad in ("niggers", "viados", "nígger", "nіgger", "n1gger", "niggger", "n i g g e r", "VIADOOO", "f4ggot", "retardados"):
+        assert not keep_message(f"olha {bad} kk"), bad
+
+
+def test_innocent_words_near_short_stems_pass():
+    from supoclip_live.chat import keep_message
+    for ok in ("spicy food", "que fagulha", "bichano fofo", "kkkkk", "gg ez", "LUL LUL"):
+        assert keep_message(ok), ok
+
+
+def test_phone_numbers_and_non_latin_text_are_refused():
+    from supoclip_live.chat import keep_message
+    assert not keep_message("liga 11 98765-4321")
+    assert not keep_message("привет ребята")
+    assert keep_message("10.5 de dano 😂")

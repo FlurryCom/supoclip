@@ -23,7 +23,9 @@ BUCKET = timedelta(seconds=10)
 BOTS = frozenset({"nightbot", "streamelements", "moobot", "streamlabs", "fossabot", "soundalerts", "wizebot", "sery_bot"})
 SAMPLE_SIZE = 20  # chat lines kept per bucket, shown on clips by edit kits
 MAX_MESSAGE_CHARS = 60
-# Whole words that keep a line off a posted video. Start small, extend from what shows up.
+# Stems that keep a line off a posted video. Start small, extend from what shows up.
+# Checked on a folded skeleton (no accents, leet undone, repeats collapsed), so one
+# stem catches plurals and spelling games; stems of 5+ letters also match as prefixes.
 BLOCKLIST = frozenset({
     "nigger", "nigga", "faggot", "fag", "retard", "tranny", "chink", "spic", "kike", "kys",
     "viado", "bicha", "traveco", "retardado", "crioulo", "macaco", "macaca",
@@ -45,9 +47,49 @@ def clean_message(text: str) -> str | None:
     text = " ".join(text.split())
     if not text or len(text) > MAX_MESSAGE_CHARS or text.startswith("!") or "@" in text or _LINK.search(text):
         return None
-    if any(word in BLOCKLIST for word in re.findall(r"\w+", text.lower())):
+    if _PHONE.search(text) or _non_latin(text) or _has_slur(text):
         return None
     return text
+
+
+_PHONE = re.compile(r"(?:\d[\s.()-]?){8,}")
+_LEET = str.maketrans("103457!@$", "ioeastias")
+
+
+def _skeleton(word: str) -> str:
+    word = "".join(c for c in unicodedata.normalize("NFKD", word.lower()) if unicodedata.category(c) != "Mn")
+    return re.sub(r"(.)\1+", r"\1", word.translate(_LEET))
+
+
+_STEMS = frozenset(_skeleton(w) for w in BLOCKLIST)
+# Everyday words that start with a long stem.
+_INNOCENT = frozenset(_skeleton(w) for w in ("bichano", "bichanos", "retardar", "retardo", "retardou"))
+
+
+def _non_latin(text: str) -> bool:
+    """Letters from other scripts (Cyrillic, Greek...) are how lookalike spellings sneak through."""
+    return any(c.isalpha() and not unicodedata.name(c, "").startswith("LATIN") for c in text)
+
+
+def _has_slur(text: str) -> bool:
+    tokens = re.findall(r"[\w@$!]+", text.lower())
+    words = [_skeleton(t) for t in tokens]
+    # "n i g g e r": runs of single letters read as one word.
+    run: list[str] = []
+    for token in tokens + [""]:
+        if len(token) == 1:
+            run.append(token)
+        else:
+            if len(run) > 2:
+                words.append(_skeleton("".join(run)))
+            run = []
+    for word in words:
+        if word in _INNOCENT:
+            continue
+        for stem in _STEMS:
+            if word in (stem, stem + "s", stem + "es") or (len(stem) >= 5 and word.startswith(stem)):
+                return True
+    return False
 
 
 def keep_message(text: str) -> bool:
