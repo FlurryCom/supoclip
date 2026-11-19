@@ -7,8 +7,12 @@ services:
   worker:
     devices:
       - nvidia.com/gpu=all
-    # SELinux hosts deny containers the /dev/nvidia* devices unless the
-    # container_use_devices boolean is on; this lifts the label for the worker
-    # only. Drop it if you `setsebool -P container_use_devices=1` instead.
+    # SELinux hosts deny container_t the /dev/nvidia* devices unless the
+    # container_use_devices boolean is on. spc_t may use them; level s0 keeps
+    # the files the worker writes (clips are made in /tmp, then moved) shared
+    # with the backend. label=disable would label them for the worker only and
+    # the backend could not serve them. Drop both lines if you
+    # `setsebool -P container_use_devices=1` instead.
     security_opt:
-      - label=disable
+      - label=type:spc_t
+      - label=level:s0
