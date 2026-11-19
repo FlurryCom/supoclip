@@ -52,14 +52,18 @@ State lives in `live_channels`, `live_recordings`, `live_windows` and
 - Local Whisper `medium` on CPU is far slower than real time: on a 16-core
   machine a 3-minute window took 16.5 minutes to transcribe (part of it sharing
   the CPU with another transcription). It cannot keep up with a live channel.
-  Use `TRANSCRIPTION_PROVIDER=assemblyai`, or a smaller `WHISPER_MODEL_SIZE`,
-  and keep the chat filter on.
+  Run Whisper on an NVIDIA GPU (`docker-compose.gpu.yml`, where `small`
+  transcribed the same 3 minutes in about 12 seconds), use
+  `TRANSCRIPTION_PROVIDER=assemblyai`, and keep the chat filter on.
+- Recording is capped: `LIVE_MAX_CHANNELS_PER_USER` (default 5) channels per
+  account and `LIVE_MAX_RECORDINGS` (default 3) broadcasts at once, shared
+  fairly between the accounts that follow channels.
+- The SupoClip license forbids commercial use without permission from Shiori
+  LLC, and clipping someone else's stream is subject to Twitch's terms and the
+  streamer's rights.
 
 ## Tests
 
 ```bash
-cd live && uv run --no-project --with pytest python -m pytest -q tests
+cd live && uv run --no-project --with pytest --with httpx --with "psycopg[binary]" python -m pytest -q tests
 ```
-- The SupoClip license forbids commercial use without permission from Shiori
-  LLC, and clipping someone else's stream is subject to Twitch's terms and the
-  streamer's rights.

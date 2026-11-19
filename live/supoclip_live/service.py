@@ -47,6 +47,11 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def fair_share(slots: int, owners: int) -> int:
+    """Recordings one account may hold while ``owners`` accounts follow channels."""
+    return max(1, -(-slots // max(owners, 1)))
+
+
 class Session:
     """A channel that is live right now: its recording process and chat."""
 
@@ -84,6 +89,7 @@ class LiveService:
         self.sessions: dict[str, Session] = {}  # channel id -> live session
         self.last_probe: dict[str, datetime] = {}
         self.retry_after: dict[str, datetime] = {}  # recording id -> next submit attempt
+        self.owners = 1  # accounts with enabled channels, refreshed each cycle
 
     async def run(self) -> None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -98,6 +104,7 @@ class LiveService:
 
     async def cycle(self) -> None:
         channels = {c["id"]: c for c in await self.fetch(CHANNELS_SQL)}
+        self.owners = len({c["user_id"] for c in channels.values()})
         for channel_id in list(self.sessions):
             if channel_id not in channels:  # disabled, deleted or flag off
                 await self.end(channel_id)
@@ -139,8 +146,11 @@ class LiveService:
         if session:  # still live but the pipeline died: resume into the same recording
             await session.recording.start()
             return
-        if len(self.sessions) >= MAX_RECORDINGS:  # each one is a process plus GBs of disk per hour
-            logger.warning("%s is live but %d recordings already run; waiting for a slot", channel["channel"], MAX_RECORDINGS)
+        # Each recording is a process plus GBs of disk per hour: cap them all,
+        # and give every account following channels a fair share of the slots.
+        mine = sum(1 for s in self.sessions.values() if s.channel["user_id"] == channel["user_id"])
+        if len(self.sessions) >= MAX_RECORDINGS or mine >= fair_share(MAX_RECORDINGS, self.owners):
+            logger.warning("%s is live but no recording slot is free; waiting", channel["channel"])
             return
         open_rows = await self.fetch(
             "SELECT id FROM live_recordings WHERE channel_id = %s AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
