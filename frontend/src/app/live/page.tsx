@@ -19,6 +19,7 @@ import { useLiveAccess } from "@/hooks/use-live-access";
 import { useSession } from "@/lib/auth-client";
 
 import { ConfirmButton } from "./confirm-button";
+import { TrendingSection } from "./trending-section";
 import { PostingSection } from "./posting-section";
 
 const PAGE = "mx-auto w-full max-w-3xl px-4 py-8 sm:px-8 md:py-10";
@@ -410,6 +411,8 @@ export default function LivePage() {
       </div>
 
       <PostingSection />
+
+      <TrendingSection onAdded={() => void load().catch((err: Error) => setError(err.message))} />
 
       <form onSubmit={add} className="mb-6 flex gap-2">
         <Label htmlFor="live-channel" className="sr-only">{t("channelLabel")}</Label>

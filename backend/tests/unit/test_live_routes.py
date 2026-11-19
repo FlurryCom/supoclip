@@ -102,3 +102,14 @@ def test_target_settings_accept_the_post_limit_switch():
     assert _target_settings({"limit_posts": True, "daily_cap": 30}) == {"limit_posts": True, "daily_cap": 30}
     with pytest.raises(HTTPException):
         _target_settings({"limit_posts": 1})
+
+
+def test_new_channel_can_copy_the_last_channels_settings():
+    from types import SimpleNamespace
+    from src.api.routes.live import _settings_like
+    last = SimpleNamespace(enabled=True, chat_filter=True, min_score=80, chat_weight=60, daily_window_cap=48,
+                           edit_kit="catclips", post_visibility="default", blur_sensitive=True, limit_windows=False)
+    assert _settings_like(last) == {"enabled": True, "chat_filter": True, "min_score": 80, "chat_weight": 60,
+                                    "daily_window_cap": 48, "edit_kit": "catclips", "post_visibility": "default",
+                                    "blur_sensitive": True, "limit_windows": False}
+    assert _settings_like(None) == {}

@@ -106,5 +106,25 @@
   "limitWindowsCount": "每天片段数",
   "limitWindowsPerDay": "个片段/天",
   "limitWindowsHintOn": "每段直播（约 20 分钟）都会经过 Whisper 和 Claude 处理。此限制可保护你的订阅用量。",
-  "limitWindowsHintOff": "不限制：分析整场直播，会占用更多 Claude 和 GPU。"
+  "limitWindowsHintOff": "不限制：分析整场直播，会占用更多 Claude 和 GPU。",
+  "trending": {
+    "locale": "zh-CN",
+    "title": "热门频道",
+    "game": "游戏",
+    "language": "语言",
+    "allGames": "全部游戏",
+    "english": "英语",
+    "portuguese": "葡萄牙语",
+    "spanish": "西班牙语",
+    "allLanguages": "全部语言",
+    "live": "直播中",
+    "monitoring": "监控中",
+    "add": "添加",
+    "adding": "添加中…",
+    "loading": "加载中…",
+    "loadError": "无法加载热门频道",
+    "addError": "无法添加频道",
+    "atLimit": "已达 {limit} 个监控频道上限",
+    "notConfigured": "配置 Twitch API：在 .env 中填写 TWITCH_CLIENT_ID 和 TWITCH_CLIENT_SECRET，然后重启后端。"
+  }
 }

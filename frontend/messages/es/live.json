@@ -106,5 +106,25 @@
   "limitWindowsCount": "Fragmentos por día",
   "limitWindowsPerDay": "fragmentos por día",
   "limitWindowsHintOn": "Cada fragmento del directo (unos 20 min) pasa por Whisper y Claude. El límite protege el uso de tu suscripción.",
-  "limitWindowsHintOff": "Sin límite: se analiza todo el directo, con más uso de Claude y GPU."
+  "limitWindowsHintOff": "Sin límite: se analiza todo el directo, con más uso de Claude y GPU.",
+  "trending": {
+    "locale": "es-ES",
+    "title": "Canales en tendencia",
+    "game": "Juego",
+    "language": "Idioma",
+    "allGames": "Todos los juegos",
+    "english": "Inglés",
+    "portuguese": "Portugués",
+    "spanish": "Español",
+    "allLanguages": "Todos los idiomas",
+    "live": "EN VIVO",
+    "monitoring": "Monitoreando",
+    "add": "Añadir",
+    "adding": "Añadiendo…",
+    "loading": "Cargando…",
+    "loadError": "No se pudieron cargar los canales en tendencia",
+    "addError": "No se pudo añadir el canal",
+    "atLimit": "Límite de {limit} canales monitoreados",
+    "notConfigured": "Configura la API de Twitch: pon TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET en .env y reinicia el backend."
+  }
 }

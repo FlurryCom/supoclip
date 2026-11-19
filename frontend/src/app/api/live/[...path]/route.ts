@@ -18,7 +18,9 @@ async function proxyLiveRequest(request: Request, { params }: { params: Promise<
   }
 
   const body = request.method === "GET" ? undefined : await request.text();
-  const upstream = await fetchBackend(`/live/${path.join("/")}`, {
+  // Query filters (e.g. trending game/language) pass through; the backend validates them.
+  const search = new URL(request.url).search;
+  const upstream = await fetchBackend(`/live/${path.join("/")}${search}`, {
     method: request.method,
     userId: session.user.id,
     extraHeaders: body ? { "Content-Type": "application/json" } : {},

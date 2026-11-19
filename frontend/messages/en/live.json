@@ -106,5 +106,25 @@
   "limitWindowsCount": "Windows per day",
   "limitWindowsPerDay": "windows per day",
   "limitWindowsHintOn": "Each live window (about 20 min) goes through Whisper and Claude. The limit protects your subscription usage.",
-  "limitWindowsHintOff": "No limit: the whole live is analysed, using more Claude and GPU."
+  "limitWindowsHintOff": "No limit: the whole live is analysed, using more Claude and GPU.",
+  "trending": {
+    "locale": "en-US",
+    "title": "Trending channels",
+    "game": "Game",
+    "language": "Language",
+    "allGames": "All games",
+    "english": "English",
+    "portuguese": "Portuguese",
+    "spanish": "Spanish",
+    "allLanguages": "All languages",
+    "live": "LIVE",
+    "monitoring": "Monitoring",
+    "add": "Add",
+    "adding": "Adding…",
+    "loading": "Loading…",
+    "loadError": "Couldn't load trending channels",
+    "addError": "Couldn't add the channel",
+    "atLimit": "Limit of {limit} monitored channels",
+    "notConfigured": "Set up the Twitch API: put TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env and restart the backend."
+  }
 }

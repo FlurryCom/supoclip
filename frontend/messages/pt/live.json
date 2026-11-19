@@ -106,5 +106,25 @@
   "limitWindowsCount": "Quantidade de trechos por dia",
   "limitWindowsPerDay": "trechos por dia",
   "limitWindowsHintOn": "Cada trecho de live (cerca de 20 min) passa pelo Whisper e pelo Claude. O limite protege o uso da tua assinatura.",
-  "limitWindowsHintOff": "Sem limite: a live inteira é analisada, o que gasta mais Claude e placa de vídeo."
+  "limitWindowsHintOff": "Sem limite: a live inteira é analisada, o que gasta mais Claude e placa de vídeo.",
+  "trending": {
+    "locale": "pt-BR",
+    "title": "Canais em alta",
+    "game": "Jogo",
+    "language": "Idioma",
+    "allGames": "Todos os jogos",
+    "english": "Inglês",
+    "portuguese": "Português",
+    "spanish": "Espanhol",
+    "allLanguages": "Todos os idiomas",
+    "live": "AO VIVO",
+    "monitoring": "Monitorando",
+    "add": "Adicionar",
+    "adding": "Adicionando…",
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar os canais em alta",
+    "addError": "Não foi possível adicionar o canal",
+    "atLimit": "Limite de {limit} canais monitorados",
+    "notConfigured": "Configure a API da Twitch: coloque TWITCH_CLIENT_ID e TWITCH_CLIENT_SECRET no .env e reinicie o backend."
+  }
 }

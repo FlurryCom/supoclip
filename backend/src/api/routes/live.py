@@ -18,7 +18,7 @@ from ...auth_headers import get_authenticated_user_id
 from ...config import get_config
 from ...database import get_db
 from ...feature_flags import client_platform, is_enabled
-from ... import postiz
+from ... import postiz, twitch_trending
 from ...edit_kits import KITS, kit_choices
 from ...media_storage import MediaStorage
 from ...workers.media_cleanup import _delete_finished_local_upload, _finished_local_upload
@@ -185,12 +185,43 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     }
 
 
+def _settings_like(channel: Any) -> Dict[str, Any]:
+    """The settings of an existing channel, to give a new one the same setup."""
+    if channel is None:
+        return {}
+    keys = ("enabled", "chat_filter", "min_score", "chat_weight", "daily_window_cap", "edit_kit",
+            "post_visibility", "blur_sensitive", "limit_windows")
+    return {key: getattr(channel, key) for key in keys}
+
+
+@router.get("/trending")
+async def trending(request: Request, game: str = "gta6", language: str = "en", db: AsyncSession = Depends(get_db)):
+    """The most watched Twitch lives right now, marking the ones this account already follows."""
+    user_id = await _user(request, db)
+    rows = (await db.execute(text(
+        "SELECT channel FROM live_channels WHERE user_id = :user_id AND platform = 'twitch'"), {"user_id": user_id})).all()
+    count = (await db.execute(text("SELECT count(*) FROM live_channels WHERE user_id = :user_id"), {"user_id": user_id})).scalar()
+    try:
+        channels = await twitch_trending.top_streams(game, language, {r.channel.lower() for r in rows})
+    except twitch_trending.TwitchNotConfigured:
+        return {"configured": False, "channels": [], "at_limit": count >= MAX_CHANNELS_PER_USER}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Couldn't reach Twitch") from None
+    return {"configured": True, "channels": channels, "at_limit": count >= MAX_CHANNELS_PER_USER,
+            "limit": MAX_CHANNELS_PER_USER}
+
+
 @router.post("/channels")
 async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     data = await _body(request)
     platform, name = await _channel(data.get("channel"))
     settings = _settings(data)
+    if data.get("like_last") is True:  # "Adicionar" on trending: same settings as the last channel added
+        last = (await db.execute(text(
+            "SELECT * FROM live_channels WHERE user_id = :user_id ORDER BY created_at DESC LIMIT 1"
+        ), {"user_id": user_id})).first()
+        settings = {**_settings_like(last), **settings}
     # Each live channel is a recording process plus disk, so cap how many one account follows.
     await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:user_id, 2911))"), {"user_id": user_id})
     count = (await db.execute(text("SELECT count(*) FROM live_channels WHERE user_id = :user_id"), {"user_id": user_id})).scalar()
@@ -198,8 +229,8 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
-        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit, post_visibility)
-        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap, :edit_kit, :post_visibility)
+        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit, post_visibility, blur_sensitive, limit_windows)
+        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap, :edit_kit, :post_visibility, :blur_sensitive, :limit_windows)
         ON CONFLICT (user_id, platform, channel) DO NOTHING
         RETURNING id
     """), {
@@ -208,6 +239,7 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
         "daily_window_cap": settings.get("daily_window_cap", 48), "edit_kit": settings.get("edit_kit", "none"),
         "post_visibility": settings.get("post_visibility", "default"),
+        "blur_sensitive": settings.get("blur_sensitive", True), "limit_windows": settings.get("limit_windows", True),
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="You already follow this channel")

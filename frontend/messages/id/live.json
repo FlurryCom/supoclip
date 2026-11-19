@@ -106,5 +106,25 @@
   "limitWindowsCount": "Segmen per hari",
   "limitWindowsPerDay": "segmen per hari",
   "limitWindowsHintOn": "Setiap segmen live (sekitar 20 menit) diproses Whisper dan Claude. Batas ini melindungi pemakaian langgananmu.",
-  "limitWindowsHintOff": "Tanpa batas: seluruh live dianalisis, memakai lebih banyak Claude dan GPU."
+  "limitWindowsHintOff": "Tanpa batas: seluruh live dianalisis, memakai lebih banyak Claude dan GPU.",
+  "trending": {
+    "locale": "id-ID",
+    "title": "Kanal populer",
+    "game": "Game",
+    "language": "Bahasa",
+    "allGames": "Semua game",
+    "english": "Inggris",
+    "portuguese": "Portugis",
+    "spanish": "Spanyol",
+    "allLanguages": "Semua bahasa",
+    "live": "LIVE",
+    "monitoring": "Dipantau",
+    "add": "Tambah",
+    "adding": "Menambahkan…",
+    "loading": "Memuat…",
+    "loadError": "Gagal memuat kanal populer",
+    "addError": "Gagal menambahkan kanal",
+    "atLimit": "Batas {limit} kanal dipantau",
+    "notConfigured": "Atur API Twitch: isi TWITCH_CLIENT_ID dan TWITCH_CLIENT_SECRET di .env lalu restart backend."
+  }
 }

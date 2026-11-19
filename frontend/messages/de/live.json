@@ -106,5 +106,25 @@
   "limitWindowsCount": "Abschnitte pro Tag",
   "limitWindowsPerDay": "Abschnitte pro Tag",
   "limitWindowsHintOn": "Jeder Live-Abschnitt (etwa 20 Min.) läuft durch Whisper und Claude. Das Limit schont dein Abo.",
-  "limitWindowsHintOff": "Ohne Limit: Der ganze Livestream wird analysiert, mit mehr Claude- und GPU-Nutzung."
+  "limitWindowsHintOff": "Ohne Limit: Der ganze Livestream wird analysiert, mit mehr Claude- und GPU-Nutzung.",
+  "trending": {
+    "locale": "de-DE",
+    "title": "Angesagte Kanäle",
+    "game": "Spiel",
+    "language": "Sprache",
+    "allGames": "Alle Spiele",
+    "english": "Englisch",
+    "portuguese": "Portugiesisch",
+    "spanish": "Spanisch",
+    "allLanguages": "Alle Sprachen",
+    "live": "LIVE",
+    "monitoring": "Wird überwacht",
+    "add": "Hinzufügen",
+    "adding": "Wird hinzugefügt…",
+    "loading": "Lädt…",
+    "loadError": "Angesagte Kanäle konnten nicht geladen werden",
+    "addError": "Kanal konnte nicht hinzugefügt werden",
+    "atLimit": "Limit von {limit} überwachten Kanälen",
+    "notConfigured": "Twitch-API einrichten: TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET in .env eintragen und das Backend neu starten."
+  }
 }
