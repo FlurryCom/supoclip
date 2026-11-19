@@ -67,15 +67,16 @@ everything below (caption template, chat overlay on/off, sound effects, end card
 1. **Cat Clips caption template.** A new entry in `caption_templates.py`
    (`"catclips"`), same fields as the others: caps, karaoke with word pop, no
    emojis, cream words with a thick black outline, the active word in black on a
-   yellow pill (`word_box`). The hook title is black text on a yellow band. The
+   yellow pill (`word_box`). The hook title follows the template: brand yellow
+   with a black outline (no new title code). The
    live recorder sends
    `caption_template` (env `LIVE_CAPTION_TEMPLATE`, default `catclips`) when it
    creates a task. Hook title stays on, restyled by the template.
 
 2. **Chat messages are stored.** The recorder already reads every chat line to count
-   chatters. It now also keeps a sample of message texts:
-   `live_chat_messages(recording_id, at, text)`, at most 20 per 10 s bucket,
-   text only, no author. Dropped at write time: links, @mentions, lines over 60
+   chatters. It now also keeps a sample of message texts in a `messages` jsonb
+   column on `live_chat_buckets` (at most 20 per 10 s bucket, text only, no
+   author), so they are deleted with the buckets. Dropped at write time: links, @mentions, lines over 60
    characters, and lines that hit a small blocklist (slurs, PT and EN). Deleted with
    the recording's other data.
 
@@ -93,9 +94,13 @@ everything below (caption template, chat overlay on/off, sound effects, end card
 
 5. **Sound effects.** Two CC0 sounds copied from MotionMoon into
    `backend/assets/sfx/` with their license lines: `cartoon-whoosh` at 0 s and
-   `sfx-impacto-braam` (or `cartoon-pancada`, picked by ear) at `peak_s`, at the
-   levels the MotionMoon catalog lists. Mixed under the original audio with one
-   `amix` in the existing render command.
+   `sfx-golpe-abertura` at `peak_s`, at the
+   levels the MotionMoon catalog lists, mixed under the original audio.
+
+   Chat, sound effects and end card are applied in one extra ffmpeg pass on the
+   finished clip (`apply_edit_kit`), so the existing render stays untouched. That
+   pass costs one re-encode of a ~75 s clip (seconds, CPU only); if it fails the
+   clip is kept without the kit, never lost.
 
 6. **End card.** The last 1.5 s: the yellow card slides over the video with the
    cat mascot and "CAT CLIPS" plus a "Siga pra mais" line (one ffmpeg `overlay`
