@@ -174,16 +174,21 @@ def _assemblyai_speech_models_value(speech_model: str) -> List[str]:
     return ["universal-3-5-pro", "universal-2"]
 
 
-def _get_whisper_model(model_name: str = "base"):
-    """Load and cache a Whisper model by name."""
+def _get_whisper_model(model_name: str = "base", device: Optional[str] = None):
+    """Load and cache a Whisper model by name (and device, when one is forced)."""
     if not _WHISPER_AVAILABLE:
         raise RuntimeError(
             "Whisper is not installed. Install it with: uv add openai-whisper"
         )
-    if model_name not in _WHISPER_MODEL_CACHE:
-        logger.info("Loading Whisper model: %s", model_name)
-        _WHISPER_MODEL_CACHE[model_name] = _whisper.load_model(model_name)
-    return _WHISPER_MODEL_CACHE[model_name]
+    key = f"{model_name}@{device}" if device else model_name
+    if key not in _WHISPER_MODEL_CACHE:
+        logger.info("Loading Whisper model: %s", key)
+        _WHISPER_MODEL_CACHE[key] = _whisper.load_model(model_name, device=device)
+    return _WHISPER_MODEL_CACHE[key]
+
+
+def _is_cuda_out_of_memory(exc: BaseException) -> bool:
+    return type(exc).__name__ == "OutOfMemoryError" or "CUDA out of memory" in str(exc)
 
 
 def transcribe_with_whisper(
@@ -195,14 +200,26 @@ def transcribe_with_whisper(
     ``en_us`` are reduced to the ISO 639-1 base Whisper expects.
     """
     audio_path = _prepare_audio_for_transcription(video_path)
-    model = _get_whisper_model(model_name)
     whisper_language = language.split("_", 1)[0] if language else None
     logger.info(
         "Starting Whisper transcription with model: %s (language: %s)",
         model_name,
         whisper_language or "auto",
     )
-    return model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language)
+    try:
+        model = _get_whisper_model(model_name)
+        return model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language)
+    except RuntimeError as exc:
+        # A shared GPU can be full of other apps' memory. Finish this file on
+        # the CPU (slower) instead of failing; the GPU model stays cached.
+        if not _is_cuda_out_of_memory(exc):
+            raise
+        logger.warning("GPU out of memory for Whisper %s; transcribing this file on the CPU", model_name)
+        import torch
+
+        torch.cuda.empty_cache()
+        cpu_model = _get_whisper_model(model_name, device="cpu")
+        return cpu_model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language, fp16=False)
 
 
 def _whisper_result_to_transcript_data(whisper_result: Dict[str, Any]) -> Dict[str, Any]:
