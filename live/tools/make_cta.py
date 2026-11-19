@@ -183,7 +183,7 @@ def soundtrack(provider: str) -> np.ndarray:
     track = np.zeros(int(RATE * SECONDS), dtype=np.float32)
     cues = [("click.wav", PRESS, 0.8), ("pop.wav", TOGGLE, 0.6)]
     if provider == "youtube":
-        cues.append(("bell.wav", TOGGLE + 0.2, 0.6))
+        cues.append(("bell.wav", TOGGLE + 0.2, 1.0))
     for name, at, volume in cues:
         sound = read_wav(name) * volume
         start = int(at * RATE)

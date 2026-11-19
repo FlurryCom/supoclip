@@ -29,7 +29,7 @@ KITS: dict[str, dict[str, Any]] = {
         "caption_template": "catclips",
         "chat_overlay": True,
         "sfx": [
-            {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 0.6},
+            {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
             {"path": ASSETS_DIR / "sfx" / "boom.wav", "at": "peak", "volume": 0.8},
         ],

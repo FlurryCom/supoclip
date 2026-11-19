@@ -1,4 +1,7 @@
-"""Synthesize the edit kits' sounds (CC0, ours): bell, boom, click, pop.
+"""Synthesize the edit kits' sounds (CC0, ours): boom, click, pop.
+
+bell.wav is not synthesized any more: the owner picked a real notification bell
+(see LICENSES.md); bell() stays as a fallback recipe.
 
 Run once after changing a recipe: python make_sfx.py
 Everything is generated from math, so no third-party audio can trigger a
@@ -65,5 +68,5 @@ def write_wav(path: Path, samples: np.ndarray) -> None:
 
 
 if __name__ == "__main__":
-    for name, make in (("bell", bell), ("boom", boom), ("click", click), ("pop", pop)):
+    for name, make in (("boom", boom), ("click", click), ("pop", pop)):
         write_wav(HERE / f"{name}.wav", make())
