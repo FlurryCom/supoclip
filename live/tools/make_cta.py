@@ -31,10 +31,12 @@ TIKTOK_RED = (254, 44, 85, 255)
 DONE_GREY = (63, 63, 63, 255)
 WHITE, BLACK = (255, 255, 255, 255), (17, 17, 17, 255)
 
-# Owner: the CTA took too much screen. It is drawn at full size, then shrunk and
-# moved to the bottom centre, just under the burned-in captions.
-SCALE = 0.65
-FINAL_CY = H * 0.85
+# Owner: the CTA sits in the gap between the video and our captions, never over
+# either. Measured on a real live clip: the video band ends at 1265 px and the
+# caption pill starts at 1458 px (about 1410 px for a two-line caption). The card
+# is drawn at 1x, then scaled and centred in that gap.
+SCALE = 0.8
+FINAL_CY = 1338
 
 # Timeline (seconds).
 CARD_IN, POINTER_FROM, POINTER_TO, PRESS, TOGGLE, FADE_FROM = 0.30, 0.30, 1.05, 1.05, 1.10, 2.20
@@ -87,21 +89,21 @@ def bell_icon(size: int, angle: float) -> Image.Image:
 
 def pointer(draw, tip, scale):
     shape = [(0, 0), (0, 100), (24, 77), (42, 116), (58, 109), (40, 71), (72, 71)]
-    k = 1.1 * scale * SS
+    k = 0.7 * scale * SS
     pts = [(tip[0] + x * k, tip[1] + y * k) for x, y in shape]
     draw.polygon(pts, fill=WHITE, outline=BLACK, width=int(6 * SS))
 
 
 def layout(provider: str) -> dict:
     """Card box and the button's target point, at 1x."""
-    cx, cy = W / 2, H * 0.58  # clear of the burned-in captions at 0.74 of the height
+    cx, cy = W / 2, H * 0.58  # drawing position; place() moves the card into the gap
     if provider == "tiktok":
-        cy = H * 0.55
-        return {"card": (cx - 210, cy - 210, cx + 210, cy + 210), "avatar": (cx, cy - 30, 110), "target": (cx, cy + 80),
-                "tip": (cx + 22, cy + 100)}
-    return {"card": (cx - 380, cy - 110, cx + 380, cy + 110), "avatar": (cx - 270, cy, 60),
-            "pill": (cx - 175, cy - 55, cx + 345, cy + 55), "target": (cx + 85, cy),
-            "tip": (cx + 285, cy + 20)}  # the pointer rests on the pill's end, clear of the label
+        # Avatar with the red "+" on its lower right, like a profile badge.
+        return {"card": (cx - 110, cy - 75, cx + 110, cy + 75), "avatar": (cx - 22, cy - 6, 54), "target": (cx + 46, cy + 12),
+                "tip": (cx + 52, cy + 6)}
+    return {"card": (cx - 380, cy - 75, cx + 380, cy + 75), "avatar": (cx - 290, cy, 52),
+            "pill": (cx - 210, cy - 48, cx + 355, cy + 48), "target": (cx + 72, cy),
+            "tip": (cx + 305, cy - 4)}  # the pointer rests on the pill's end, clear of the label
 
 
 def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image:
@@ -116,7 +118,7 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
 
     x0, y0 = at(L["card"][0], L["card"][1])
     x1, y1 = at(L["card"][2], L["card"][3])
-    d.rounded_rectangle((x0, y0, x1, y1), radius=int(48 * SS * grow), fill=CARD)
+    d.rounded_rectangle((x0, y0, x1, y1), radius=int(36 * SS * grow), fill=CARD)
     done = t >= TOGGLE
 
     ax, ay, ar = L["avatar"]
@@ -127,7 +129,7 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
 
     if provider == "tiktok":
         bx, by = at(*L["target"])
-        r = 44 * grow * SS
+        r = 26 * grow * SS
         d.ellipse((bx - r, by - r, bx + r, by + r), fill=DONE_GREY if done else TIKTOK_RED, outline=WHITE, width=int(4 * SS))
         w = int(7 * SS)
         if done:
@@ -161,12 +163,12 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
     if t >= POINTER_FROM:
         tx, ty = L["tip"]
         k = ease_in_out((t - POINTER_FROM) / (POINTER_TO - POINTER_FROM))
-        sx, sy = W * 1.6, H * 1.4  # far enough out that it still enters from off-screen once shrunk
+        sx, sy = W * 1.4, ty  # slides in from the right edge along the gap, never over video or captions
         tip = ((sx + (tx - sx) * k) * SS, (sy + (ty - sy) * k) * SS)
         press = 0.85 if PRESS <= t < PRESS + 0.12 else 1.0
         if PRESS <= t < PRESS + 0.35:
             p = (t - PRESS) / 0.35
-            rr = (40 + 120 * ease_out(p)) * SS
+            rr = (30 + 50 * ease_out(p)) * SS  # small ring: stays inside the gap
             ring = Image.new("RGBA", img.size, (0, 0, 0, 0))
             ImageDraw.Draw(ring).ellipse((tx * SS - rr, ty * SS - rr, tx * SS + rr, ty * SS + rr), outline=(255, 255, 255, int(255 * (1 - p))), width=int(6 * SS))
             img.alpha_composite(ring)

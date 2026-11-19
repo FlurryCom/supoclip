@@ -34,8 +34,13 @@ def alpha_rows(provider: str, top: int, height: int, at: float = 1.5) -> bytes:
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
 @pytest.mark.parametrize("provider", ["tiktok", "youtube", "instagram"])
-def test_cta_sits_low_and_small_below_the_captions(provider):
-    """Owner: the CTA took too much screen; it goes at the bottom, centred, under the captions (to ~1490 px)."""
-    assert max(alpha_rows(provider, 0, 1490)) == 0  # nothing over the video or the captions
-    assert max(alpha_rows(provider, 1810, 110)) == 0  # clear of the very bottom edge
-    assert max(alpha_rows(provider, 1490, 320)) > 0  # the card is there
+@pytest.mark.parametrize("at", [0.2, 0.6, 1.0, 1.15, 1.3, 1.5, 2.0, 2.4])
+def test_cta_sits_between_the_video_and_the_captions(provider, at):
+    """Owner: in the gap under the video and above our captions, never over either.
+
+    Measured on a real live clip: the video band ends at 1265 px and a one-line
+    caption pill starts at 1458 px (a two-line caption reaches about 1410 px).
+    """
+    assert max(alpha_rows(provider, 0, 1265, at)) == 0  # nothing over the video, at any moment
+    assert max(alpha_rows(provider, 1410, 510, at)) == 0  # nothing over the captions or the app's own UI
+    assert max(alpha_rows(provider, 1265, 145, at)) > 0  # the card is in the gap
