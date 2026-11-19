@@ -76,8 +76,10 @@ class Session:
         """Record, and store every 10 s of chat (spikes included) in the database."""
         await self.recording.start()
 
+        store = self.safe_store(store_bucket, self.recording_id, self.channel["channel"])
+
         async def on_bucket(at: datetime, chatters: int, spike: bool, messages: list[str]) -> None:
-            await store_bucket(self.recording_id, at, chatters, spike, messages)
+            await store(at, chatters, spike, messages)
             if spike:
                 logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
 
@@ -87,6 +89,16 @@ class Session:
         else:
             reader = watch_chat(self.channel["channel"], on_bucket, self.stop_chat)
         self.chat_task = asyncio.create_task(reader)
+
+    @staticmethod
+    def safe_store(store_bucket, recording_id: str, channel: str):
+        """``store_bucket`` for one recording that logs failures, so a bad bucket can't end the chat reader."""
+        async def store(at: datetime, chatters: int, spike: bool, messages: list[str]) -> None:
+            try:
+                await store_bucket(recording_id, at, chatters, spike, messages)
+            except Exception:
+                logger.exception("could not store a chat bucket for %s", channel)
+        return store
 
     async def stop(self) -> None:
         await self.recording.stop()

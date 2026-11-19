@@ -12,6 +12,7 @@ import logging
 import random
 import re
 import statistics
+import unicodedata
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,12 +28,20 @@ BLOCKLIST = frozenset({
     "nigger", "nigga", "faggot", "fag", "retard", "tranny", "chink", "spic", "kike", "kys",
     "viado", "bicha", "traveco", "retardado", "crioulo", "macaco", "macaca",
 })
-_LINK = re.compile(r"https?://|www\.|\.(com|net|org|tv|gg|br|io)\b", re.IGNORECASE)
+# Any "name.tld" or "name dot tld", not a fixed TLD list: viewers get creative.
+_LINK = re.compile(r"https?://|www\.|\b[\w-]+\s*(?:\.|\bdot\b)\s*[a-z]{2,}\b", re.IGNORECASE)
 
 
 def keep_message(text: str) -> bool:
-    """Whether a chat line may be shown on a clip: no links, mentions, commands or slurs."""
-    text = text.strip()
+    """Whether a chat line may be shown on a clip: no links, mentions, commands or slurs.
+
+    Control characters and lone surrogates are refused (Postgres jsonb rejects
+    some of them); lookalike letters and invisible characters are folded away
+    before the checks so they can't smuggle a link or a slur through.
+    """
+    if any(unicodedata.category(c) in ("Cc", "Cs") for c in text):
+        return False
+    text = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf").strip()
     if not text or len(text) > MAX_MESSAGE_CHARS or text.startswith("!") or "@" in text or _LINK.search(text):
         return False
     return not any(word in BLOCKLIST for word in re.findall(r"\w+", text.lower()))

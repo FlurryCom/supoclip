@@ -120,3 +120,33 @@ def test_spammer_lines_count_once_in_sample():
         d.add("spammer", f"spam {i}", at + timedelta(milliseconds=i))
     d.tick(T0 + timedelta(seconds=215))
     assert d.drain()[-1][3] == ["spam 0"]
+
+
+def test_keep_message_rejects_control_and_surrogate_characters():
+    from supoclip_live.chat import keep_message
+    assert not keep_message("oi\x00tudo")
+    assert not keep_message("oi\ud800")
+    assert not keep_message("linha\nquebrada")
+
+
+def test_keep_message_sees_through_disguises():
+    from supoclip_live.chat import BLOCKLIST, keep_message
+    slur = next(iter(sorted(BLOCKLIST)))
+    assert not keep_message(slur[0] + "​" + slur[1:])  # zero-width space inside the word
+    assert not keep_message("".join(chr(ord(c) + 0xFEE0) for c in slur))  # fullwidth letters
+    assert not keep_message("entra em meusite.xyz")
+    assert not keep_message("meusite dot xyz")
+    assert not keep_message("meusite . shop")
+    assert keep_message("gg wp")
+    assert keep_message("kkkk 10.5 de dano")
+
+
+def test_a_failing_bucket_store_does_not_stop_the_chat_reader():
+    import asyncio
+    from supoclip_live.service import Session
+
+    async def broken_store(*_):
+        raise RuntimeError("db down")
+
+    stored = Session.safe_store(broken_store, "rec", "chan")
+    asyncio.run(stored(T0, 3, False, ["oi"]))  # must not raise
