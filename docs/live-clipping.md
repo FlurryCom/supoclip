@@ -80,3 +80,30 @@ State lives in `live_channels`, `live_recordings`, `live_windows` and
 ```bash
 cd live && uv run --no-project --with pytest --with httpx --with "psycopg[binary]" python -m pytest -q tests
 ```
+
+## Posting
+
+Kept live clips can be posted through [Postiz](https://postiz.com) to TikTok,
+YouTube Shorts and Instagram.
+
+1. In `.env`, set `POSTIZ_URL` (your Postiz base URL) and `POSTIZ_API_KEY`
+   (Postiz **Settings → Public API**), then restart the backend and recorder.
+2. On the Live page, **Auto-posting** lists the accounts connected in Postiz.
+   Only accounts you **authorize** there ever receive posts.
+
+Safety rules, enforced by the recorder before every post:
+
+- A post goes only to the authorized integration id; there is no default or
+  fallback account.
+- Authorizing stores the provider and name Postiz reports for that id. If the
+  id disappears, changes network, is renamed or is disabled, the post is
+  refused and shown as refused; posting there resumes only after you authorize
+  it again.
+- Each clip is posted at most once per account, only clips made after the
+  account was authorized are posted, and an account gets at most `daily_cap`
+  (10) posts per 24 h.
+
+Per account: on/off, **mode** (`draft` lands in Postiz for approval, the
+default; `now` publishes immediately) and the **minimum final score** to post
+(default 80). The caption is the clip's hook title, a credit line
+(`twitch.tv/<channel>`) and hashtags.

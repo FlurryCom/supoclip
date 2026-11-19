@@ -40,5 +40,37 @@
   "scores": {
     "detail": "KI {ai} · Chat {heat}",
     "noChat": "KI {ai} · keine Chatdaten"
+  },
+  "posting": {
+    "title": "Automatisches Posten",
+    "description": "Live-Clips mit hoher Wertung gehen an die Postiz-Konten, die du hier freigibst. Kein anderes Konto erhält Posts.",
+    "notConfigured": "Postiz ist auf diesem Server nicht eingerichtet (POSTIZ_URL und POSTIZ_API_KEY in .env).",
+    "authorized": "Freigegebene Konten",
+    "noneAuthorized": "Kein Konto freigegeben: es wird nichts gepostet.",
+    "available": "Konten in Postiz",
+    "noneAvailable": "Kein weiteres TikTok-, YouTube- oder Instagram-Konto in Postiz verbunden.",
+    "authorize": "Freigeben",
+    "authorizeConfirm": "{name} ({provider}) für Live-Clips freigeben?",
+    "revoke": "{name} entziehen",
+    "revokeConfirm": "Nicht mehr an {name} posten? Bisherige Posts bleiben bestehen.",
+    "disabled": "deaktiviert",
+    "enabled": "Postet",
+    "mode": "Modus",
+    "modeDraft": "Entwurf (ich gebe in Postiz frei)",
+    "modeNow": "Sofort veröffentlichen",
+    "minScore": "Mindestwert zum Posten",
+    "today": "{posted} von {cap} Posts in den letzten 24 h",
+    "loadError": "Die Postiz-Konten konnten nicht geladen werden.",
+    "saveError": "Konnte nicht speichern.",
+    "problem": {
+      "missing": "Dieses Konto existiert in Postiz nicht mehr. Es wird nichts dorthin gepostet.",
+      "changed": "Dieses Konto hat sich in Postiz geändert (Name oder Netzwerk). Bis zur erneuten Freigabe wird nichts gepostet.",
+      "disabled": "Dieses Konto ist in Postiz deaktiviert. Es wird nichts dorthin gepostet."
+    },
+    "status": {
+      "posted": "an {name} gepostet",
+      "refused": "für {name} abgelehnt",
+      "error": "Posten an {name} fehlgeschlagen"
+    }
   }
 }

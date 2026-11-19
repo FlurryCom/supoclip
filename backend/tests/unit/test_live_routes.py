@@ -24,3 +24,12 @@ def test_settings_keeps_only_known_valid_keys():
 def test_settings_rejects_bad_values(data):
     with pytest.raises(HTTPException):
         _settings(data)
+
+
+def test_target_settings_accept_only_known_values():
+    from src.api.routes.live import _target_settings
+
+    assert _target_settings({"mode": "now", "min_score": 85, "integration_id": "x"}) == {"mode": "now", "min_score": 85}
+    for bad in ({"mode": "schedule"}, {"min_score": 120}, {"daily_cap": 0}, {"enabled": "yes"}):
+        with pytest.raises(HTTPException):
+            _target_settings(bad)

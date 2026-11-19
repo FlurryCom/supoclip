@@ -16,6 +16,8 @@ import { Switch } from "@/components/ui/switch";
 import { useLiveAccess } from "@/hooks/use-live-access";
 import { useSession } from "@/lib/auth-client";
 
+import { PostingSection } from "./posting-section";
+
 const PAGE = "mx-auto w-full max-w-3xl px-4 py-8 sm:px-8 md:py-10";
 const REFRESH_MS = 30_000;
 
@@ -36,6 +38,7 @@ interface LiveClip {
   ai_score: number | null;
   chat_heat: number | null;
   final_score: number | null;
+  posts: { provider: string; name: string; status: "posted" | "refused" | "error"; detail: string | null }[];
 }
 
 interface LiveChannel {
@@ -105,6 +108,15 @@ function WindowRow({ window }: { window: LiveWindow }) {
                   ? t("scores.noChat", { ai: clip.ai_score ?? 0 })
                   : t("scores.detail", { ai: clip.ai_score ?? 0, heat: clip.chat_heat })}
               </span>
+              {clip.posts.map((post) => (
+                <span
+                  key={`${post.provider}-${post.name}`}
+                  title={post.detail ?? undefined}
+                  className={post.status === "posted" ? "shrink-0 text-foreground" : "shrink-0 text-destructive"}
+                >
+                  · {t(`posting.status.${post.status}`, { name: post.name })}
+                </span>
+              ))}
             </li>
           ))}
         </ul>
@@ -289,6 +301,8 @@ export default function LivePage() {
         <h1 className="font-display text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("description")}</p>
       </div>
+
+      <PostingSection />
 
       <form onSubmit={add} className="mb-6 flex gap-2">
         <Label htmlFor="live-channel" className="sr-only">{t("channelLabel")}</Label>

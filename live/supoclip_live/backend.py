@@ -53,6 +53,13 @@ class Backend:
         if response.status_code != 404:
             response.raise_for_status()
 
+    async def download_clip(self, user_id: str, task_id: str, clip_id: str, dest: Path) -> None:
+        async with self.http.stream("GET", f"/tasks/{task_id}/clips/{clip_id}/file", headers=self._headers(user_id)) as response:
+            response.raise_for_status()
+            with dest.open("wb") as out:
+                async for block in response.aiter_bytes(1 << 20):
+                    out.write(block)
+
     async def release_source(self, user_id: str, window_id: str) -> None:
         """Delete a finished window's uploaded copy on the backend (its clips stay)."""
         response = await self.http.post(f"/live/windows/{window_id}/release-source", headers=self._headers(user_id))

@@ -40,5 +40,37 @@
   "scores": {
     "detail": "AI {ai} · chat {heat}",
     "noChat": "AI {ai} · tanpa data chat"
+  },
+  "posting": {
+    "title": "Posting otomatis",
+    "description": "Klip live dengan skor tinggi dikirim ke akun Postiz yang Anda izinkan di sini. Akun lain tidak menerima postingan.",
+    "notConfigured": "Postiz belum diatur di server ini (POSTIZ_URL dan POSTIZ_API_KEY di .env).",
+    "authorized": "Akun yang diizinkan",
+    "noneAuthorized": "Belum ada akun yang diizinkan: tidak ada yang diposting.",
+    "available": "Akun di Postiz",
+    "noneAvailable": "Tidak ada akun TikTok, YouTube, atau Instagram lain yang terhubung di Postiz.",
+    "authorize": "Izinkan",
+    "authorizeConfirm": "Izinkan {name} ({provider}) menerima klip live?",
+    "revoke": "Cabut izin {name}",
+    "revokeConfirm": "Berhenti memposting ke {name}? Postingan yang sudah dibuat tetap ada.",
+    "disabled": "nonaktif",
+    "enabled": "Memposting",
+    "mode": "Mode",
+    "modeDraft": "Draf (saya setujui di Postiz)",
+    "modeNow": "Langsung terbitkan",
+    "minScore": "Skor minimum untuk posting",
+    "today": "{posted} dari {cap} postingan dalam 24 jam terakhir",
+    "loadError": "Tidak dapat memuat akun Postiz.",
+    "saveError": "Tidak dapat menyimpan.",
+    "problem": {
+      "missing": "Akun ini sudah tidak ada di Postiz. Tidak ada yang akan diposting ke sana.",
+      "changed": "Akun ini berubah di Postiz (nama atau jaringan). Tidak ada yang diposting sampai Anda mengizinkannya lagi.",
+      "disabled": "Akun ini nonaktif di Postiz. Tidak ada yang akan diposting ke sana."
+    },
+    "status": {
+      "posted": "diposting ke {name}",
+      "refused": "ditolak untuk {name}",
+      "error": "gagal memposting ke {name}"
+    }
   }
 }

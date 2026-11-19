@@ -220,6 +220,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
       - LIVE_MAX_CHANNELS_PER_USER=${LIVE_MAX_CHANNELS_PER_USER:-5}
+      - POSTIZ_URL=${POSTIZ_URL:-}
+      - POSTIZ_API_KEY=${POSTIZ_API_KEY:-}
       - AI_EDIT_MODEL=${AI_EDIT_MODEL:-claude-sonnet-5-5}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
@@ -350,6 +352,8 @@ services:
       - LIVE_CLIP_LENGTH=${LIVE_CLIP_LENGTH:-long}
       - LIVE_MIN_CLIP_SECONDS=${LIVE_MIN_CLIP_SECONDS:-61}
       - LIVE_MIN_FREE_GB=${LIVE_MIN_FREE_GB:-10}
+      - POSTIZ_URL=${POSTIZ_URL:-}
+      - POSTIZ_API_KEY=${POSTIZ_API_KEY:-}
     restart: unless-stopped
     depends_on:
       backend:

@@ -17,6 +17,7 @@ from ...auth_headers import get_authenticated_user_id
 from ...config import get_config
 from ...database import get_db
 from ...feature_flags import client_platform, is_enabled
+from ... import postiz
 from ...media_storage import MediaStorage
 from ...workers.media_cleanup import _delete_finished_local_upload, _finished_local_upload
 
@@ -97,7 +98,11 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
         SELECT lc.window_id, g.id, g.task_id, g.hook_title,
             -- Clips kept before chat heat existed only have the AI's score.
             COALESCE(lc.ai_score, g.virality_score) AS ai_score, lc.chat_heat,
-            COALESCE(lc.final_score, g.virality_score) AS final_score
+            COALESCE(lc.final_score, g.virality_score) AS final_score,
+            COALESCE((
+                SELECT json_agg(json_build_object('provider', t.provider, 'name', t.name, 'status', p.status, 'detail', p.detail))
+                FROM live_posts p JOIN live_post_targets t ON t.id = p.target_id WHERE p.clip_id = g.id
+            ), '[]'::json) AS posts
         FROM live_clips lc
         JOIN generated_clips g ON g.id = lc.clip_id
         JOIN live_windows w ON w.id = lc.window_id
@@ -166,6 +171,130 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Channel not found")
     await db.commit()
     return {"id": channel_id, **settings}
+
+
+async def _postiz_accounts() -> list[Dict[str, Any]]:
+    try:
+        return await postiz.list_integrations()
+    except postiz.PostizNotConfigured:
+        raise HTTPException(status_code=409, detail="Postiz is not configured on this server") from None
+    except Exception:
+        raise HTTPException(status_code=502, detail="Couldn't reach Postiz") from None
+
+
+@router.get("/postiz/accounts")
+async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_db)):
+    """Postiz accounts beside this user's authorizations, flagging any that changed."""
+    user_id = await _user(request, db)
+    if not postiz.configured():
+        return {"configured": False, "accounts": [], "targets": []}
+    accounts = await _postiz_accounts()
+    targets = (await db.execute(text("""
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.daily_cap,
+            (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
+                AND p.created_at > now() - interval '1 day') AS posted_today
+        FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
+    """), {"user_id": user_id})).mappings().all()
+    by_id = {a["id"]: a for a in accounts}
+    result = []
+    for target in targets:
+        account = by_id.get(target["integration_id"])
+        problem = None
+        if account is None:
+            problem = "missing"
+        elif account["provider"] != target["provider"] or account["name"] != target["name"]:
+            problem = "changed"
+        elif account["disabled"]:
+            problem = "disabled"
+        result.append({**target, "problem": problem})
+    authorized = {t["integration_id"] for t in targets}
+    return {
+        "configured": True,
+        "accounts": [
+            {**a, "supported": a["provider"] in postiz.SUPPORTED_PROVIDERS, "authorized": a["id"] in authorized}
+            for a in accounts
+        ],
+        "targets": result,
+    }
+
+
+@router.post("/postiz/targets")
+async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(get_db)):
+    """Authorize one Postiz account to receive live clips. Provider and name come from Postiz."""
+    user_id = await _user(request, db)
+    data = await _body(request)
+    integration_id = str(data.get("integration_id") or "").strip()
+    account = next((a for a in await _postiz_accounts() if a["id"] == integration_id), None)
+    if account is None:
+        raise HTTPException(status_code=404, detail="That account isn't connected in Postiz")
+    if account["provider"] not in postiz.SUPPORTED_PROVIDERS:
+        raise HTTPException(status_code=422, detail="Only TikTok, YouTube and Instagram accounts can receive clips")
+    settings = _target_settings(data)
+    target_id = str(uuid.uuid4())
+    row = (await db.execute(text("""
+        INSERT INTO live_post_targets (id, user_id, integration_id, provider, name, min_score, mode, daily_cap)
+        VALUES (:id, :user_id, :integration_id, :provider, :name, :min_score, :mode, :daily_cap)
+        ON CONFLICT (user_id, integration_id) DO NOTHING RETURNING id
+    """), {
+        "id": target_id, "user_id": user_id, "integration_id": integration_id,
+        "provider": account["provider"], "name": account["name"],
+        "min_score": settings.get("min_score", 80), "mode": settings.get("mode", "draft"),
+        "daily_cap": settings.get("daily_cap", 10),
+    })).first()
+    if row is None:
+        raise HTTPException(status_code=409, detail="This account is already authorized")
+    await db.commit()
+    return {"id": target_id, "provider": account["provider"], "name": account["name"]}
+
+
+def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
+    settings: Dict[str, Any] = {}
+    if "enabled" in data:
+        if not isinstance(data["enabled"], bool):
+            raise HTTPException(status_code=422, detail="enabled must be true or false")
+        settings["enabled"] = data["enabled"]
+    if "mode" in data:
+        if data["mode"] not in ("draft", "now"):
+            raise HTTPException(status_code=422, detail="mode must be draft or now")
+        settings["mode"] = data["mode"]
+    for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100)):
+        if key in data:
+            value = data[key]
+            if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+                raise HTTPException(status_code=422, detail=f"{key} must be a whole number from {low} to {high}")
+            settings[key] = value
+    return settings
+
+
+@router.patch("/postiz/targets/{target_id}")
+async def update_postiz_target(target_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = await _user(request, db)
+    settings = _target_settings(await _body(request))
+    if not settings:
+        raise HTTPException(status_code=422, detail="Nothing to update")
+    assignments = ", ".join(f"{key} = :{key}" for key in settings)  # keys come from _target_settings' allowlist
+    result = await db.execute(
+        text(f"UPDATE live_post_targets SET {assignments} WHERE id = :id AND user_id = :user_id"),
+        {**settings, "id": target_id, "user_id": user_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    await db.commit()
+    return {"id": target_id, **settings}
+
+
+@router.delete("/postiz/targets/{target_id}")
+async def revoke_postiz_target(target_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Stop posting to this account. Posts already made stay on the platform."""
+    user_id = await _user(request, db)
+    result = await db.execute(
+        text("DELETE FROM live_post_targets WHERE id = :id AND user_id = :user_id"),
+        {"id": target_id, "user_id": user_id},
+    )
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Account not found")
+    await db.commit()
+    return {"revoked": target_id}
 
 
 @router.post("/windows/{window_id}/release-source")

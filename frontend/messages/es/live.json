@@ -40,5 +40,37 @@
   "scores": {
     "detail": "IA {ai} · chat {heat}",
     "noChat": "IA {ai} · sin datos del chat"
+  },
+  "posting": {
+    "title": "Publicación automática",
+    "description": "Los clips de directo con buena puntuación van a las cuentas de Postiz que autorices aquí. Ninguna otra cuenta recibe publicaciones.",
+    "notConfigured": "Postiz no está configurado en este servidor (POSTIZ_URL y POSTIZ_API_KEY en .env).",
+    "authorized": "Cuentas autorizadas",
+    "noneAuthorized": "Ninguna cuenta autorizada: no se publica nada.",
+    "available": "Cuentas en Postiz",
+    "noneAvailable": "No hay otras cuentas de TikTok, YouTube o Instagram conectadas en Postiz.",
+    "authorize": "Autorizar",
+    "authorizeConfirm": "¿Autorizar a {name} ({provider}) a recibir clips de directos?",
+    "revoke": "Revocar {name}",
+    "revokeConfirm": "¿Dejar de publicar en {name}? Las publicaciones ya hechas se quedan.",
+    "disabled": "desactivada",
+    "enabled": "Publicando",
+    "mode": "Modo",
+    "modeDraft": "Borrador (apruebo en Postiz)",
+    "modeNow": "Publicar al momento",
+    "minScore": "Puntuación mínima para publicar",
+    "today": "{posted} de {cap} publicaciones en las últimas 24 h",
+    "loadError": "No se pudieron cargar las cuentas de Postiz.",
+    "saveError": "No se pudo guardar.",
+    "problem": {
+      "missing": "Esta cuenta ya no existe en Postiz. No se publicará nada en ella.",
+      "changed": "Esta cuenta cambió en Postiz (nombre o red). No se publicará nada hasta que la autorices de nuevo.",
+      "disabled": "Esta cuenta está desactivada en Postiz. No se publicará nada en ella."
+    },
+    "status": {
+      "posted": "publicado en {name}",
+      "refused": "rechazado para {name}",
+      "error": "error al publicar en {name}"
+    }
   }
 }

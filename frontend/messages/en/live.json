@@ -40,5 +40,37 @@
   "scores": {
     "detail": "AI {ai} · chat {heat}",
     "noChat": "AI {ai} · no chat data"
+  },
+  "posting": {
+    "title": "Auto-posting",
+    "description": "High-scoring live clips go to the Postiz accounts you authorize here. No other account receives posts.",
+    "notConfigured": "Postiz isn't configured on this server (POSTIZ_URL and POSTIZ_API_KEY in .env).",
+    "authorized": "Authorized accounts",
+    "noneAuthorized": "No account authorized: nothing is posted.",
+    "available": "Accounts in Postiz",
+    "noneAvailable": "No other TikTok, YouTube or Instagram account is connected in Postiz.",
+    "authorize": "Authorize",
+    "authorizeConfirm": "Authorize {name} ({provider}) to receive live clips?",
+    "revoke": "Revoke {name}",
+    "revokeConfirm": "Stop posting to {name}? Posts already made stay there.",
+    "disabled": "disabled",
+    "enabled": "Posting",
+    "mode": "Mode",
+    "modeDraft": "Draft (I approve in Postiz)",
+    "modeNow": "Publish right away",
+    "minScore": "Minimum score to post",
+    "today": "{posted} of {cap} posts in the last 24 h",
+    "loadError": "Couldn't load the Postiz accounts.",
+    "saveError": "Couldn't save.",
+    "problem": {
+      "missing": "This account no longer exists in Postiz. Nothing will be posted to it.",
+      "changed": "This account changed in Postiz (name or network). Nothing will be posted until you authorize it again.",
+      "disabled": "This account is disabled in Postiz. Nothing will be posted to it."
+    },
+    "status": {
+      "posted": "posted to {name}",
+      "refused": "refused for {name}",
+      "error": "failed to post to {name}"
+    }
   }
 }

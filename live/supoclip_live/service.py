@@ -15,7 +15,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from . import recorder
+from . import postiz, recorder
 from .backend import Backend
 from .chat import watch_chat
 from .heat import chat_heat, chat_hints, final_score
@@ -88,9 +88,10 @@ class Session:
 
 
 class LiveService:
-    def __init__(self, dsn: str, backend: Backend):
+    def __init__(self, dsn: str, backend: Backend, postiz_client: "postiz.Postiz | None" = None):
         self.dsn = dsn
         self.backend = backend
+        self.postiz = postiz_client  # None: posting is off
         self.sessions: dict[str, Session] = {}  # channel id -> live session
         self.last_probe: dict[str, datetime] = {}
         self.retry_after: dict[str, datetime] = {}  # recording id -> next submit attempt
@@ -118,6 +119,7 @@ class LiveService:
         for recording in await self.fetch("SELECT r.*, c.user_id, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
+        await self.post_clips()
         await self.cleanup()
 
     async def fetch(self, sql: str, params: dict | tuple = ()) -> list[dict]:
@@ -318,6 +320,75 @@ class LiveService:
             status = "done" if window["task_status"] == "completed" else "error"
             reason = f"kept {len(clips) - dropped} of {len(clips)} clips" if status == "done" else f"task {window['task_status']}"
             await self.fetch("UPDATE live_windows SET status = %s, reason = %s WHERE id = %s", (status, reason, window["id"]))
+
+    async def post_clips(self) -> None:
+        """Send kept clips to the Postiz accounts the user authorized, at most once each.
+
+        Only clips made after an account was authorized go to it, so authorizing
+        an account never floods it with old clips.
+        """
+        if self.postiz is None:
+            return
+        candidates = await self.fetch("""
+            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.channel, r.title AS live_title,
+                t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap
+            FROM live_clips lc
+            JOIN generated_clips g ON g.id = lc.clip_id
+            JOIN live_recordings r ON r.id = lc.recording_id
+            JOIN live_channels c ON c.id = r.channel_id
+            JOIN live_post_targets t ON t.user_id = c.user_id AND t.enabled
+            WHERE lc.final_score >= t.min_score
+              AND g.created_at >= t.created_at AND g.created_at > now() - interval '1 day'
+              AND NOT EXISTS (SELECT 1 FROM live_posts p WHERE p.clip_id = lc.clip_id AND p.target_id = t.id)
+            ORDER BY lc.final_score DESC LIMIT 5
+        """)
+        if not candidates:
+            return
+        try:
+            integrations = await self.postiz.integrations()
+        except httpx.HTTPError as exc:
+            logger.warning("Postiz unreachable (%s); posting later", exc)
+            return
+        for row in candidates:
+            target = {k: row[k] for k in ("integration_id", "provider", "name", "mode")}
+            reason = postiz.refusal_reason(target, integrations)
+            if reason:
+                logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], reason)
+                await self.record_post(row, "refused", None, reason)
+                continue
+            posted_today = (await self.fetch(
+                "SELECT count(*) AS n FROM live_posts WHERE target_id = %s AND status = 'posted' AND created_at > now() - interval '1 day'",
+                (row["target_id"],),
+            ))[0]["n"]
+            if posted_today >= row["daily_cap"]:
+                continue  # stays a candidate; posts when the 24 h window frees up (if still within a day)
+            clip_file = DATA_DIR / f"post-{row['clip_id']}.mp4"
+            try:
+                await self.backend.download_clip(row["user_id"], row["task_id"], row["clip_id"], clip_file)
+                media = await self.postiz.upload(clip_file)
+                title = row["hook_title"] or f"{row['channel']} live"
+                body = postiz.build_post(target, media, title, postiz.caption(title, row["channel"], row["live_title"]))
+                post_id = await self.postiz.create_post(body)
+                logger.info("clip %s posted to %s %s as %s (%s)", row["clip_id"], row["provider"], row["name"], row["mode"], post_id)
+                await self.record_post(row, "posted", post_id, row["mode"])
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code >= 500 or exc.response.status_code == 429:
+                    logger.warning("Postiz busy (%s); posting clip %s later", exc.response.status_code, row["clip_id"])
+                else:
+                    await self.record_post(row, "error", None, f"{exc.response.status_code}: {exc.response.text[:300]}")
+            except httpx.TransportError as exc:
+                logger.warning("Postiz unreachable (%s); posting clip %s later", exc, row["clip_id"])
+            except Exception as exc:
+                logger.exception("posting clip %s failed", row["clip_id"])
+                await self.record_post(row, "error", None, str(exc)[:300])
+            finally:
+                clip_file.unlink(missing_ok=True)
+
+    async def record_post(self, row: dict, status: str, post_id: str | None, detail: str | None) -> None:
+        await self.fetch(
+            "INSERT INTO live_posts (id, clip_id, target_id, status, postiz_post_id, detail) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            (str(uuid.uuid4()), row["clip_id"], row["target_id"], status, post_id, detail),
+        )
 
     async def release_sources(self) -> None:
         """Ask the backend to delete finished windows' uploaded copies (1-2 GB each)."""
