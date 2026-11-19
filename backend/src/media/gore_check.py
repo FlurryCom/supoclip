@@ -84,7 +84,8 @@ def gore_regions(answer: dict[str, Any], sheets_times: list[list[float]]) -> lis
             if not isinstance(cell, int) or not 1 <= cell <= GRID * GRID:
                 continue
             row, col = divmod(cell - 1, GRID)
-            regions.append({"kind": "gore", "start": second, "end": second + 1.0,
+            # Frames are one second apart: gore seen here may be on screen from the previous frame to the next.
+            regions.append({"kind": "gore", "start": max(0.0, second - 1.0), "end": second + 1.0,
                             "x": col / GRID, "y": row / GRID, "w": 1 / GRID, "h": 1 / GRID})
     return regions
 

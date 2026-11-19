@@ -103,7 +103,8 @@ def merge_regions(samples: list[tuple[float, list[tuple[float, float, float, flo
                 open_regions.append({"start": second, "last": second, "box": box})
     done += open_regions
     return [
-        {"kind": "nudity", "start": r["start"], "end": r["last"] + step,
+        # Start one sample early: the content may have appeared any time since the previous sample.
+        {"kind": "nudity", "start": max(0.0, r["start"] - step), "end": r["last"] + step,
          "x": r["box"][0], "y": r["box"][1], "w": r["box"][2], "h": r["box"][3]}
         for r in sorted(done, key=lambda r: r["start"])
     ]

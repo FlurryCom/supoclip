@@ -7,7 +7,8 @@ from src.media.gore_check import contact_sheets, find_gore, gore_regions
 def test_gore_regions_map_cells_to_frame_fractions():
     answer = {"gore": [{"sheet": 1, "tile": 3, "cells": [6]}]}
     assert gore_regions(answer, [[0.0, 1.0, 2.0, 3.0]]) == [
-        {"kind": "gore", "start": 2.0, "end": 3.0, "x": 0.25, "y": 0.25, "w": 0.25, "h": 0.25}
+        # Covers the second before and after the sampled frame: gore seen at 2 s may be on screen from 1 s to 3 s.
+        {"kind": "gore", "start": 1.0, "end": 3.0, "x": 0.25, "y": 0.25, "w": 0.25, "h": 0.25}
     ]
 
 
