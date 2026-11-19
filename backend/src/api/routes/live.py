@@ -306,7 +306,7 @@ async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(
         "id": target_id, "user_id": user_id, "integration_id": integration_id,
         "provider": account["provider"], "name": account["name"],
         "min_score": settings.get("min_score", 80), "mode": settings.get("mode", "draft"),
-        "daily_cap": settings.get("daily_cap", 10),
+        "daily_cap": settings.get("daily_cap", 100),  # owner: up to 100 posts a day per account
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="This account is already authorized")
