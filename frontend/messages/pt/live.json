@@ -74,12 +74,22 @@
     },
     "notAllowed": "Esta conta não pode usar o Postiz deste servidor (POSTIZ_ALLOWED_USER_IDS no .env).",
     "blurSensitive": "Borrar nudez e gore",
-    "blurSensitiveHint": "Borra nudez e gore pesado nos clipes antes de postar nesta conta"
+    "blurSensitiveHint": "Borra nudez e gore pesado nos clipes antes de postar nesta conta",
+    "visibility": "Visibilidade",
+    "visibilityPublic": "Público",
+    "visibilityPrivate": "Privado (só eu)",
+    "visibilityHint": "Um canal de origem em Não listado ou Privado continua segurando os clipes nesta conta.",
+    "visibilityHintInstagram": "Um canal de origem em Não listado ou Privado envia os clipes para cá como rascunho no Postiz, porque o Instagram não esconde posts."
   },
   "confirmYes": "Sim",
   "confirmNo": "Cancelar",
   "editKit": "Kit de edição",
   "editKitHint": "Visual aplicado nos próximos clipes deste canal",
   "blurSensitive": "Borrar nudez e gore",
-  "blurSensitiveHint": "Analisa os clipes deste canal e borra nudez e gore pesado antes de postar"
+  "blurSensitiveHint": "Analisa os clipes deste canal e borra nudez e gore pesado antes de postar",
+  "postVisibility": "Visibilidade das postagens",
+  "postVisibilityDefault": "Seguir a configuração de cada conta",
+  "postVisibilityUnlisted": "Não listado",
+  "postVisibilityPrivate": "Privado (só eu)",
+  "postVisibilityHint": "Vale o mais restritivo entre esta opção e a de cada conta: ela só segura os clipes, nunca deixa algo mais público. O Instagram não esconde posts, então os clipes dele ficam como rascunho no Postiz."
 }

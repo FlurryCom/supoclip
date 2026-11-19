@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from supoclip_live.postiz import build_post, caption, provider_settings, refusal_reason
+from supoclip_live.postiz import build_post, caption, effective_visibility, provider_settings, refusal_reason
 
 TARGET = {"integration_id": "abc", "provider": "tiktok", "name": "Dossiê", "mode": "draft"}
 
@@ -52,3 +52,39 @@ def test_caption_credits_the_streamer():
 def test_caption_credits_a_youtube_channel():
     text = caption("Big moment", "@loudcoringa", "GTA VI ESTÁ ENTRE NÓS", "youtube")
     assert "youtube.com/@loudcoringa" in text and "#youtube" in text and "#loudcoringa" in text
+
+
+def test_private_visibility_reaches_each_platform():
+    assert provider_settings("tiktok", "t", "private")["privacy_level"] == "SELF_ONLY"
+    assert provider_settings("tiktok", "t")["privacy_level"] == "PUBLIC_TO_EVERYONE"
+    assert provider_settings("youtube", "t", "private")["type"] == "private"
+    assert provider_settings("youtube", "t")["type"] == "public"
+
+
+def test_post_uses_the_targets_visibility():
+    body = build_post({**TARGET, "visibility": "private"}, {"id": "m1", "path": "p"}, "T", "c")
+    assert body["posts"][0]["settings"]["privacy_level"] == "SELF_ONLY"
+
+
+@pytest.mark.parametrize("account,channel,expected", [
+    ("public", "default", "public"),
+    ("public", "unlisted", "unlisted"),
+    ("public", "private", "private"),
+    ("private", "default", "private"),
+    ("private", "unlisted", "private"),
+    ("unlisted", "default", "unlisted"),
+])
+def test_the_more_restrictive_visibility_wins(account, channel, expected):
+    assert effective_visibility(account, channel) == expected
+
+
+def test_unlisted_means_unlisted_on_youtube_and_only_me_on_tiktok():
+    assert provider_settings("youtube", "t", "unlisted")["type"] == "unlisted"
+    assert provider_settings("tiktok", "t", "unlisted")["privacy_level"] == "SELF_ONLY"
+
+
+def test_held_back_instagram_clips_wait_as_drafts():
+    target = {**TARGET, "provider": "instagram", "mode": "now"}
+    media = {"id": "m1", "path": "p"}
+    assert build_post({**target, "visibility": "unlisted"}, media, "T", "c")["type"] == "draft"
+    assert build_post({**target, "visibility": "public"}, media, "T", "c")["type"] == "now"

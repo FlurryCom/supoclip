@@ -74,12 +74,22 @@
     },
     "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_USER_IDS en .env).",
     "blurSensitive": "Difuminar desnudez y gore",
-    "blurSensitiveHint": "Difumina desnudez y gore fuerte en los clips antes de publicar en esta cuenta"
+    "blurSensitiveHint": "Difumina desnudez y gore fuerte en los clips antes de publicar en esta cuenta",
+    "visibility": "Visibilidad",
+    "visibilityPublic": "Público",
+    "visibilityPrivate": "Privado (solo yo)",
+    "visibilityHint": "Un canal de origen en No listado o Privado sigue reteniendo sus clips en esta cuenta.",
+    "visibilityHintInstagram": "Un canal de origen en No listado o Privado envía sus clips aquí como borrador en Postiz, porque Instagram no puede ocultar publicaciones."
   },
   "confirmYes": "Sí",
   "confirmNo": "Cancelar",
   "editKit": "Kit de edición",
   "editKitHint": "Estilo aplicado a los próximos clips de este canal",
   "blurSensitive": "Difuminar desnudez y gore",
-  "blurSensitiveHint": "Analiza los clips de este canal y difumina desnudez y gore fuerte antes de publicar"
+  "blurSensitiveHint": "Analiza los clips de este canal y difumina desnudez y gore fuerte antes de publicar",
+  "postVisibility": "Visibilidad de las publicaciones",
+  "postVisibilityDefault": "Seguir la configuración de cada cuenta",
+  "postVisibilityUnlisted": "No listado",
+  "postVisibilityPrivate": "Privado (solo yo)",
+  "postVisibilityHint": "Prevalece la opción más restrictiva entre esta y la de cada cuenta: solo puede retener clips, nunca hacerlos más públicos. Instagram no puede ocultar publicaciones, así que sus clips quedan como borrador en Postiz."
 }

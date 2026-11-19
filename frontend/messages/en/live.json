@@ -74,12 +74,22 @@
     },
     "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env).",
     "blurSensitive": "Blur nudity and gore",
-    "blurSensitiveHint": "Blurs nudity and heavy gore in clips before posting to this account"
+    "blurSensitiveHint": "Blurs nudity and heavy gore in clips before posting to this account",
+    "visibility": "Visibility",
+    "visibilityPublic": "Public",
+    "visibilityPrivate": "Private (only me)",
+    "visibilityHint": "A source channel set to Unlisted or Private still holds its clips back on this account.",
+    "visibilityHintInstagram": "A source channel set to Unlisted or Private sends its clips here as drafts in Postiz, since Instagram can't hide a post."
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",
   "editKit": "Edit kit",
   "editKitHint": "Look applied to this channel's next clips",
   "blurSensitive": "Blur nudity and gore",
-  "blurSensitiveHint": "Checks this channel's clips and blurs nudity and heavy gore before posting"
+  "blurSensitiveHint": "Checks this channel's clips and blurs nudity and heavy gore before posting",
+  "postVisibility": "Posting visibility",
+  "postVisibilityDefault": "Follow each account's setting",
+  "postVisibilityUnlisted": "Unlisted",
+  "postVisibilityPrivate": "Private (only me)",
+  "postVisibilityHint": "The more restrictive of this and each account's setting wins, so this can only hold clips back, never make them more public. Instagram can't hide a post, so its clips wait as drafts in Postiz."
 }

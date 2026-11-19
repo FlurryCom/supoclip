@@ -74,12 +74,22 @@
     },
     "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env).",
     "blurSensitive": "Blur ketelanjangan dan gore",
-    "blurSensitiveHint": "Mem-blur ketelanjangan dan gore berat sebelum diposting ke akun ini"
+    "blurSensitiveHint": "Mem-blur ketelanjangan dan gore berat sebelum diposting ke akun ini",
+    "visibility": "Visibilitas",
+    "visibilityPublic": "Publik",
+    "visibilityPrivate": "Pribadi (hanya saya)",
+    "visibilityHint": "Kanal sumber berstatus Tidak terdaftar atau Pribadi tetap menahan kliknya di akun ini.",
+    "visibilityHintInstagram": "Kanal sumber berstatus Tidak terdaftar atau Pribadi mengirim kliknya ke sini sebagai draf di Postiz, karena Instagram tidak bisa menyembunyikan posting."
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",
   "editKit": "Kit edit",
   "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini",
   "blurSensitive": "Blur ketelanjangan dan gore",
-  "blurSensitiveHint": "Memeriksa klip kanal ini dan mem-blur ketelanjangan dan gore berat sebelum diposting"
+  "blurSensitiveHint": "Memeriksa klip kanal ini dan mem-blur ketelanjangan dan gore berat sebelum diposting",
+  "postVisibility": "Visibilitas posting",
+  "postVisibilityDefault": "Ikuti pengaturan tiap akun",
+  "postVisibilityUnlisted": "Tidak terdaftar",
+  "postVisibilityPrivate": "Pribadi (hanya saya)",
+  "postVisibilityHint": "Pengaturan yang lebih ketat antara ini dan tiap akun yang berlaku: ini hanya bisa menahan klip, tidak pernah membuatnya lebih publik. Instagram tidak bisa menyembunyikan posting, jadi kliknya menunggu sebagai draf di Postiz."
 }

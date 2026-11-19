@@ -33,6 +33,9 @@ POLICY = Policy(
 )
 TRANSIENT = {409, 429, 502, 503, 504}
 RETRY_DELAY = timedelta(minutes=2)
+# Postiz's public API allows ~30 calls/hour, so posts are re-checked sparingly.
+CONFIRM_EVERY = timedelta(minutes=10)
+CONFIRM_WINDOW = timedelta(hours=2)
 MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
 MIN_FREE_GB = float(os.getenv("LIVE_MIN_FREE_GB", "10"))  # don't start recordings below this
 # One Postiz key serves the server: only these SupoClip user ids may post through it.
@@ -116,6 +119,7 @@ class LiveService:
         self.last_probe: dict[str, datetime] = {}
         self.retry_after: dict[str, datetime] = {}  # recording id -> next submit attempt
         self.owners = 1  # accounts with enabled channels, refreshed each cycle
+        self.last_confirm = datetime.min.replace(tzinfo=timezone.utc)
 
     async def run(self) -> None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -141,6 +145,7 @@ class LiveService:
             await self.advance(recording)
             await self.collect(recording)
         await self.post_clips()
+        await self.confirm_posts()
         await self.cleanup()
 
     async def fetch(self, sql: str, params: dict | tuple = ()) -> list[dict]:
@@ -351,8 +356,8 @@ class LiveService:
         if self.postiz is None:
             return
         candidates = await self.fetch("""
-            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, r.title AS live_title,
-                t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap,
+            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, c.post_visibility, r.title AS live_title,
+                t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap,
                 t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created,
                 s.duration AS checked_duration, s.regions, s.error AS check_error
             FROM live_clips lc
@@ -377,6 +382,7 @@ class LiveService:
         blur_since = marks[0]["at"] if marks else datetime.min.replace(tzinfo=timezone.utc)
         for row in candidates:
             target = {k: row[k] for k in ("integration_id", "provider", "name", "mode")}
+            target["visibility"] = postiz.effective_visibility(row["visibility"], row["post_visibility"])
             reason = postiz.refusal_reason(target, integrations)
             if reason:
                 logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], reason)
@@ -426,6 +432,30 @@ class LiveService:
             finally:
                 clip_file.unlink(missing_ok=True)
                 upload_file.unlink(missing_ok=True)
+
+    async def confirm_posts(self) -> None:
+        """Postiz accepts a post before the platform does. Posts it later marks ERROR become
+        errors here too, so they don't count as posted (nor against the daily cap)."""
+        if self.postiz is None or now() - self.last_confirm < CONFIRM_EVERY:
+            return
+        recent = await self.fetch(
+            "SELECT id, postiz_post_id FROM live_posts WHERE status = 'posted' AND detail = 'now' "
+            "AND postiz_post_id <> '' AND created_at > now() - %s", (CONFIRM_WINDOW,),
+        )
+        if not recent:
+            return
+        self.last_confirm = now()
+        try:
+            states = await self.postiz.states(now() - CONFIRM_WINDOW - timedelta(hours=1))
+        except httpx.HTTPError as exc:
+            logger.warning("could not check Postiz post states (%s); trying later", exc)
+            return
+        for post in recent:
+            if states.get(post["postiz_post_id"]) == "ERROR":
+                await self.fetch(
+                    "UPDATE live_posts SET status = 'error', detail = %s WHERE id = %s",
+                    ("Postiz could not publish this post; see the account in Postiz", post["id"]),
+                )
 
     async def record_post(self, row: dict, status: str, post_id: str | None, detail: str | None) -> None:
         await self.fetch(

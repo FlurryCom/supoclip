@@ -54,12 +54,13 @@ interface LiveChannel {
   chat_weight: number;
   edit_kit: string;
   blur_sensitive: boolean;
+  post_visibility: "default" | "unlisted" | "private";
   is_live: boolean;
   live_title: string | null;
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility">>;
 
 interface EditKit {
   id: string;
@@ -244,6 +245,19 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
           <p className="text-xs text-muted-foreground">{t("editKitHint")}</p>
         </div>
       ) : null}
+
+      <div className="mt-5 space-y-1.5">
+        <Label htmlFor={`vis-${channel.id}`}>{t("postVisibility")}</Label>
+        <Select value={channel.post_visibility} onValueChange={(post_visibility) => onChange({ post_visibility: post_visibility as LiveChannel["post_visibility"] })}>
+          <SelectTrigger id={`vis-${channel.id}`} className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">{t("postVisibilityDefault")}</SelectItem>
+            <SelectItem value="unlisted">{t("postVisibilityUnlisted")}</SelectItem>
+            <SelectItem value="private">{t("postVisibilityPrivate")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">{t("postVisibilityHint")}</p>
+      </div>
 
       <div className="mt-4 flex items-center gap-2">
         <Switch id={`blur-${channel.id}`} checked={channel.blur_sensitive} onCheckedChange={(blur_sensitive) => onChange({ blur_sensitive })} />

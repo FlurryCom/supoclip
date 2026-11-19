@@ -74,12 +74,22 @@
     },
     "notAllowed": "Dieses Konto darf das Postiz dieses Servers nicht nutzen (POSTIZ_ALLOWED_USER_IDS in .env).",
     "blurSensitive": "Nacktheit und Gore verpixeln",
-    "blurSensitiveHint": "Verpixelt Nacktheit und starkes Gore vor dem Posten auf diesem Konto"
+    "blurSensitiveHint": "Verpixelt Nacktheit und starkes Gore vor dem Posten auf diesem Konto",
+    "visibility": "Sichtbarkeit",
+    "visibilityPublic": "Öffentlich",
+    "visibilityPrivate": "Privat (nur ich)",
+    "visibilityHint": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ hält seine Clips auch auf diesem Konto zurück.",
+    "visibilityHintInstagram": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ schickt seine Clips als Entwurf in Postiz hierher, da Instagram Posts nicht verbergen kann."
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
   "editKit": "Schnitt-Kit",
   "editKitHint": "Look für die nächsten Clips dieses Kanals",
   "blurSensitive": "Nacktheit und Gore verpixeln",
-  "blurSensitiveHint": "Prüft die Clips dieses Kanals und verpixelt Nacktheit und starkes Gore vor dem Posten"
+  "blurSensitiveHint": "Prüft die Clips dieses Kanals und verpixelt Nacktheit und starkes Gore vor dem Posten",
+  "postVisibility": "Sichtbarkeit der Posts",
+  "postVisibilityDefault": "Einstellung jedes Kontos übernehmen",
+  "postVisibilityUnlisted": "Nicht gelistet",
+  "postVisibilityPrivate": "Privat (nur ich)",
+  "postVisibilityHint": "Es gilt die restriktivere Einstellung aus dieser und der jedes Kontos: Sie kann Clips nur zurückhalten, nie öffentlicher machen. Instagram kann Posts nicht verbergen, daher bleiben die Clips dort als Entwurf in Postiz."
 }

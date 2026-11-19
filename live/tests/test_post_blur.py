@@ -16,6 +16,7 @@ def candidate(**over):
         "clip_id": "c1", "final_score": 90, "task_id": "t1", "hook_title": "hook", "platform": "twitch",
         "channel": "streamer", "edit_kit": "catclips", "live_title": "live", "target_id": "tg1", "user_id": "u1",
         "integration_id": "i1", "provider": "tiktok", "name": "Cat Clips", "mode": "now", "daily_cap": 10,
+        "visibility": "private", "post_visibility": "default",
         "target_blur": True, "channel_blur": True, "clip_created": SINCE + timedelta(hours=1),
         "checked_duration": 60.0, "regions": [REGION], "check_error": None,
     }
