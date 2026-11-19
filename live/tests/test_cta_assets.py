@@ -22,3 +22,15 @@ def test_each_cta_is_a_short_alpha_movie_with_sound(provider):
     assert int(video["nb_read_frames"]) == 75
     assert any(s["codec_type"] == "audio" for s in probe["streams"])
     assert abs(float(probe["format"]["duration"]) - 2.5) < 0.05
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
+@pytest.mark.parametrize("provider", ["tiktok", "youtube", "instagram"])
+def test_cta_stays_above_the_captions(provider, tmp_path):
+    """Captions sit at 0.74 of the height (about 1330 px and down): the CTA must not cover them."""
+    alpha = subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-ss", "1.5", "-i", str(CTA / f"{provider}.mov"), "-frames:v", "1",
+         "-vf", "crop=1080:590:0:1330,format=rgba,alphaextract", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        capture_output=True, check=True,
+    ).stdout
+    assert len(alpha) == 1080 * 590 and max(alpha) == 0

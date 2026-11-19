@@ -89,8 +89,9 @@ def pointer(draw, tip, scale):
 
 def layout(provider: str) -> dict:
     """Card box and the button's target point, at 1x."""
-    cx, cy = W / 2, H * 0.62
+    cx, cy = W / 2, H * 0.58  # clear of the burned-in captions at 0.74 of the height
     if provider == "tiktok":
+        cy = H * 0.55
         return {"card": (cx - 210, cy - 210, cx + 210, cy + 210), "avatar": (cx, cy - 30, 110), "target": (cx, cy + 80),
                 "tip": (cx + 22, cy + 100)}
     return {"card": (cx - 380, cy - 110, cx + 380, cy + 110), "avatar": (cx - 270, cy, 60),
@@ -115,7 +116,7 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
 
     ax, ay, ar = L["avatar"]
     size = max(2, int(2 * ar * grow * SS))
-    face = faces.setdefault(size, avatar(size))
+    face = faces.get(size) or faces.setdefault(size, avatar(size))
     px, py = at(ax, ay)
     img.alpha_composite(face, (int(px - size / 2), int(py - size / 2)))
 
