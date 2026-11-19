@@ -42,3 +42,41 @@ def test_kept_segments_are_best_first():
 def test_final_score_matches_the_recorder():
     assert final_score(58, 95, 60) == 80
     assert final_score(70, None, 60) == 70
+
+
+def with_messages(peak_messages, neighbour_messages=()):
+    out = []
+    for at, count in BUCKETS:
+        i = int((at - T0).total_seconds() // 10)
+        msgs = peak_messages if i == 30 else list(neighbour_messages) if i in (29, 31) else []
+        out.append((at, count, msgs))
+    return out
+
+
+def test_peak_overlay_picks_hottest_bucket_and_shifts_for_lag():
+    from src.live_scoring import peak_overlay
+    overlay = peak_overlay(segment("04:10", "05:10", 62), CHUNKS, with_messages(["a", "b"]))
+    assert overlay == {"peak_s": 42.0, "chat": ["a", "b"]}
+
+
+def test_peak_overlay_takes_neighbours_up_to_eight():
+    from src.live_scoring import peak_overlay
+    peak = [f"p{i}" for i in range(6)]
+    overlay = peak_overlay(segment("04:10", "05:10", 62), CHUNKS, with_messages(peak, ["n1", "n2", "n3", "n4"]))
+    assert overlay["chat"][:6] == peak and len(overlay["chat"]) == 8
+
+
+def test_gate_without_messages_attaches_kit_without_chat():
+    from src.live_scoring import peak_overlay, segment_kit
+    no_text = [(at, count, []) for at, count in BUCKETS]
+    overlay = peak_overlay(segment("04:10", "05:10", 62), CHUNKS, no_text)
+    assert overlay == {"peak_s": 42.0, "chat": []}  # the hit sound still lands on the peak
+    assert peak_overlay(segment("04:10", "05:10", 62), CHUNKS, []) is None
+    assert segment_kit("catclips", None) == {"id": "catclips", "peak_s": None, "chat": []}
+    assert segment_kit("catclips", overlay) == {"id": "catclips", "peak_s": 42.0, "chat": []}
+
+
+def test_peak_overlay_never_before_clip_start():
+    from src.live_scoring import peak_overlay
+    overlay = peak_overlay(segment("04:58", "06:10", 62), CHUNKS, with_messages(["a"]))
+    assert overlay["peak_s"] == 0.5

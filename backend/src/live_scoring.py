@@ -17,11 +17,14 @@ from typing import Any
 from sqlalchemy import text
 
 from .database import get_session_maker
+from .edit_kits import get_kit
 
 logger = logging.getLogger(__name__)
 
 LAG = timedelta(seconds=15)  # chat reacts 5-15 s after the moment
 MIN_BUCKETS = 18
+CHAT_LAG_S = 8  # an edit kit's chat and hit sound land this long before the chat peak
+MAX_CHAT_SHOWN = 8
 
 
 class NothingAboveScore(Exception):
@@ -88,6 +91,39 @@ def keep_segments(
     return [segment for score, segment in scored if score >= min_score]
 
 
+def peak_overlay(
+    segment: dict[str, Any],
+    chunks: list[tuple[datetime, float]],
+    buckets: list[tuple[datetime, int, list[str]]],
+) -> dict[str, Any] | None:
+    """Where in the clip chat blew up, and what it said there; None without chat data.
+
+    shortcut: clip time ignores silence cuts inside keep_ranges, fine for 1-2 s
+    drift; map through keep_ranges if bubbles land visibly late.
+    """
+    try:
+        start = to_wall_clock(chunks, parse_clip_time(segment["start_time"]))
+        end = to_wall_clock(chunks, parse_clip_time(segment["end_time"]))
+    except (KeyError, ValueError, IndexError):
+        return None
+    inside = [i for i, (at, _, _) in enumerate(buckets) if start <= at < end + LAG]
+    if not inside:
+        return None
+    peak = max(inside, key=lambda i: buckets[i][1])
+    chat = list(buckets[peak][2])
+    for i in (peak - 1, peak + 1):
+        if 0 <= i < len(buckets):
+            chat += buckets[i][2]
+    peak_s = (buckets[peak][0] - start).total_seconds() - CHAT_LAG_S
+    return {"peak_s": max(0.5, peak_s), "chat": chat[:MAX_CHAT_SHOWN]}
+
+
+def segment_kit(kit_id: str, overlay: dict[str, Any] | None) -> dict[str, Any]:
+    """What a kept segment carries to the render for its channel's edit kit."""
+    overlay = overlay or {}
+    return {"id": kit_id, "peak_s": overlay.get("peak_s"), "chat": overlay.get("chat", [])}
+
+
 async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Only the segments worth rendering, for a live window's task; others pass unchanged.
 
@@ -95,7 +131,7 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     """
     async with get_session_maker()() as db:
         row = (await db.execute(text("""
-            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight
+            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit
             FROM live_windows w
             JOIN live_recordings r ON r.id = w.recording_id
             JOIN live_channels c ON c.id = r.channel_id
@@ -103,9 +139,10 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
         """), {"task_id": task_id})).first()
         if row is None:
             return segments  # not a live window
-        buckets = [(b.at, b.chatters) for b in (await db.execute(text(
-            "SELECT at, chatters FROM live_chat_buckets WHERE recording_id = :id ORDER BY at"
-        ), {"id": row.recording_id})).all()]
+        rows = (await db.execute(text(
+            "SELECT at, chatters, messages FROM live_chat_buckets WHERE recording_id = :id ORDER BY at"
+        ), {"id": row.recording_id})).all()
+    buckets = [(b.at, b.chatters) for b in rows]
     chunks = [(datetime.fromisoformat(c["start"]), float(c["duration"])) for c in row.chunks or []]
     if not chunks:
         return segments
@@ -113,4 +150,9 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     logger.info("Live window %s: %d of %d moments reach score %d", task_id, len(kept), len(segments), row.min_score)
     if not kept:
         raise NothingAboveScore(f"No moment reached the minimum score of {row.min_score}")
+    kit = get_kit(row.edit_kit)
+    if kit["id"] != "none":
+        with_text = [(b.at, b.chatters, b.messages or []) for b in rows]
+        for segment in kept:
+            segment["edit_kit"] = segment_kit(kit["id"], peak_overlay(segment, chunks, with_text))
     return kept
