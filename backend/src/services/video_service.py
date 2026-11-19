@@ -12,6 +12,7 @@ import subprocess
 import uuid
 
 from ..stream_transfer import run_stream_download
+from ..live_scoring import gate_live_segments
 from ..utils.async_helpers import run_in_thread
 from ..download_progress import (
     DownloadRecovery,
@@ -1630,6 +1631,8 @@ class VideoService:
                 relevant_parts = None
 
             if workflow == "highlights" and not final_plan:
+                # Fork: a live window renders only moments that reach its channel's score.
+                segments_json = await gate_live_segments(task_id, segments_json)
                 await save_checkpoint({"candidates": segments_json})
 
             if audio_first:

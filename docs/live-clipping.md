@@ -44,6 +44,10 @@ the Library about 15 minutes after the moment.
   broadcast. Its **final score** is
   `(100 - chat_weight)% × AI score + chat_weight% × chat heat`
   (`chat_weight` per channel, default 60%); without chat data the AI score stands.
+- Before rendering, each moment the AI picked in a live window is scored the
+  same way (`backend/src/live_scoring.py`); only those reaching the channel's
+  minimum score are rendered. A window with none completes with zero clips
+  ("No moment reached the minimum score") instead of failing.
 - When a task finishes, clips shorter than `LIVE_MIN_CLIP_SECONDS` (61), clips
   whose final score is below the channel's **minimum score**, and clips
   that overlap more than half of an already-kept clip (on the broadcast clock)

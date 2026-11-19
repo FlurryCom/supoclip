@@ -19,6 +19,7 @@ from time import perf_counter
 from arq.constants import job_key_prefix, in_progress_key_prefix, expires_extra_ms
 from ..analytics import capture_event, elapsed_seconds, source_kind
 from ..broll import BRollSession
+from ..live_scoring import NothingAboveScore
 from ..workers.job_queue import JobQueue
 from ..repositories.task_repository import TaskRepository
 from ..repositories.task_idempotency_repository import TaskIdempotencyReplay
@@ -1016,6 +1017,14 @@ class TaskService(ClipEditingMixin):
                         pending_clip_path.with_suffix(".source_map.json").unlink(missing_ok=True)
                 except OSError:
                     logger.warning("Could not remove unfinished clip %s", pending_clip_path)
+            if isinstance(e, NothingAboveScore):
+                # A live window with no good moment is a normal outcome, not a failure.
+                await self.task_repo.update_task_status(
+                    self.db, task_id, "completed", progress=100,
+                    progress_message="No moment reached the minimum score",
+                    expected_statuses=["queued", "processing"],
+                )
+                return {"task_id": task_id, "clips_count": 0, "segments": [], "summary": None, "key_topics": None}
             if str(e) == "Task cancelled":
                 await self.task_repo.update_task_status(
                     self.db,
