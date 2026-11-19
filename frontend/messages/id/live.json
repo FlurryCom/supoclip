@@ -2,7 +2,7 @@
   "title": "Live",
   "description": "Ikuti kanal Twitch. Saat mereka siaran langsung, SupoClip merekam siaran dan memotong momen terbaiknya. Klip muncul di Pustaka sekitar 15 menit kemudian.",
   "channelLabel": "Kanal Twitch",
-  "channelPlaceholder": "Nama kanal atau tautan twitch.tv",
+  "channelPlaceholder": "Nama kanal Twitch, tautan twitch.tv, atau tautan YouTube",
   "follow": "Ikuti",
   "empty": "Belum ada kanal. Ikuti kanal Twitch untuk mulai memotong siaran langsungnya.",
   "live": "Live",
@@ -73,5 +73,6 @@
       "error": "gagal memposting ke {name}"
     },
     "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env)."
-  }
+  },
+  "youtubeNoChat": "Chat YouTube belum dibaca: setiap bagian siaran dipotong, dan skornya hanya skor AI."
 }

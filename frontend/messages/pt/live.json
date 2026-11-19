@@ -2,7 +2,7 @@
   "title": "Live",
   "description": "Siga canais da Twitch. Enquanto estão ao vivo, o SupoClip grava a transmissão e corta os melhores momentos. Os clipes aparecem na Biblioteca uns 15 minutos depois do momento.",
   "channelLabel": "Canal da Twitch",
-  "channelPlaceholder": "Nome do canal ou link twitch.tv",
+  "channelPlaceholder": "Nome do canal da Twitch, link twitch.tv ou link do YouTube",
   "follow": "Seguir",
   "empty": "Nenhum canal ainda. Siga um canal da Twitch para começar a clipar as lives dele.",
   "live": "Ao vivo",
@@ -73,5 +73,6 @@
       "error": "erro ao postar em {name}"
     },
     "notAllowed": "Esta conta não pode usar o Postiz deste servidor (POSTIZ_ALLOWED_USER_IDS no .env)."
-  }
+  },
+  "youtubeNoChat": "O chat do YouTube ainda não é lido: todo trecho da live é cortado, e a nota é só a da IA."
 }

@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { SocialProviderIcon } from "@/components/social-provider-icon";
 import { useLiveAccess } from "@/hooks/use-live-access";
 import { useSession } from "@/lib/auth-client";
 
@@ -43,6 +44,7 @@ interface LiveClip {
 
 interface LiveChannel {
   id: string;
+  platform: "twitch" | "youtube";
   channel: string;
   enabled: boolean;
   chat_filter: boolean;
@@ -162,13 +164,20 @@ function ChannelCard({ channel, onChange, onRemove }: {
   onRemove: () => void;
 }) {
   const t = useTranslations("live");
+  const youtube = channel.platform === "youtube";
 
   return (
     <li className="rounded-xl border bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <a href={`https://www.twitch.tv/${channel.channel}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+            {channel.platform === "youtube" ? <SocialProviderIcon provider="youtube" className="size-4 shrink-0" /> : null}
+            <a
+              href={channel.platform === "youtube" ? `https://www.youtube.com/${channel.channel}` : `https://www.twitch.tv/${channel.channel}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium hover:underline"
+            >
               {channel.channel}
             </a>
             {channel.is_live ? <Badge variant="destructive">{t("live")}</Badge> : <Badge variant="outline">{t("offline")}</Badge>}
@@ -188,11 +197,18 @@ function ChannelCard({ channel, onChange, onRemove }: {
           <Label htmlFor={`enabled-${channel.id}`}>{t("enabled")}</Label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch id={`chat-${channel.id}`} checked={channel.chat_filter} onCheckedChange={(chat_filter) => onChange({ chat_filter })} />
+          <Switch
+            id={`chat-${channel.id}`}
+            checked={youtube ? false : channel.chat_filter}
+            disabled={youtube}
+            onCheckedChange={(chat_filter) => onChange({ chat_filter })}
+          />
           <Label htmlFor={`chat-${channel.id}`}>{t("chatFilter")}</Label>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">{channel.chat_filter ? t("chatFilterOn") : t("chatFilterOff")}</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {youtube ? t("youtubeNoChat") : channel.chat_filter ? t("chatFilterOn") : t("chatFilterOff")}
+      </p>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <SliderSetting

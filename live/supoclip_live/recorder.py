@@ -20,11 +20,17 @@ from .windows import Chunk
 logger = logging.getLogger(__name__)
 
 CHANNEL_RE = re.compile(r"^[a-z0-9_]{3,25}$")
+YOUTUBE_CHANNEL_RE = re.compile(r"^(@[a-z0-9._-]{3,30}|channel/UC[A-Za-z0-9_-]{22})$")
 CHUNK_FORMAT = "%Y%m%dT%H%M%SZ"
 QUALITY = os.getenv("LIVE_QUALITY", "1080p60,1080p,720p60,720p,best")
 
 
-def channel_url(channel: str) -> str:
+def channel_url(channel: str, platform: str = "twitch") -> str:
+    """Where streamlink finds the channel's current live."""
+    if platform == "youtube":
+        if not YOUTUBE_CHANNEL_RE.fullmatch(channel):
+            raise ValueError(f"invalid YouTube channel {channel!r}")
+        return f"https://www.youtube.com/{channel}/live"
     if not CHANNEL_RE.fullmatch(channel):
         raise ValueError(f"invalid Twitch channel {channel!r}")
     return f"https://www.twitch.tv/{channel}"
@@ -34,13 +40,13 @@ class ProbeFailed(Exception):
     """Could not tell whether the channel is live (network, Twitch, timeout)."""
 
 
-async def probe(channel: str) -> dict | None:
+async def probe(channel: str, platform: str = "twitch") -> dict | None:
     """Stream metadata when live, None when Twitch says offline. Anonymous.
 
     Raises ProbeFailed when unsure: ending a recording on a hiccup would drop it.
     """
     proc = await asyncio.create_subprocess_exec(
-        "streamlink", "--json", channel_url(channel),
+        "streamlink", "--json", channel_url(channel, platform),
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
     )
     try:
@@ -60,8 +66,9 @@ async def probe(channel: str) -> dict | None:
 
 
 class Recording:
-    def __init__(self, channel: str, directory: Path):
+    def __init__(self, channel: str, directory: Path, platform: str = "twitch"):
         self.channel = channel
+        self.platform = platform
         self.directory = directory
         self.process: asyncio.subprocess.Process | None = None
 
@@ -72,7 +79,7 @@ class Recording:
         # the wall clock through chunk names. No login token is ever used.
         command = (
             f"streamlink --stdout --retry-open 3 --stream-segment-threads 2 "
-            f"{shlex.quote(channel_url(self.channel))} {shlex.quote(QUALITY)} "
+            f"{shlex.quote(channel_url(self.channel, self.platform))} {shlex.quote(QUALITY)} "
             f"| ffmpeg -hide_banner -loglevel error -i pipe:0 -map 0:v:0 -map 0:a:0? -c copy "
             f"-f segment -segment_time 60 -reset_timestamps 1 -strftime 1 {shlex.quote(pattern)}"
         )

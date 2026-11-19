@@ -67,7 +67,7 @@ class Session:
         self.channel = channel
         self.recording_id = recording_id
         self.directory = DATA_DIR / recording_id
-        self.recording = recorder.Recording(channel["channel"], self.directory)
+        self.recording = recorder.Recording(channel["channel"], self.directory, channel["platform"])
         self.stop_chat = asyncio.Event()
         self.chat_task: asyncio.Task | None = None
 
@@ -80,7 +80,8 @@ class Session:
             if spike:
                 logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
 
-        self.chat_task = asyncio.create_task(watch_chat(self.channel["channel"], on_bucket, self.stop_chat))
+        if self.channel["platform"] == "twitch":  # YouTube chat isn't read yet
+            self.chat_task = asyncio.create_task(watch_chat(self.channel["channel"], on_bucket, self.stop_chat))
 
     async def stop(self) -> None:
         await self.recording.stop()
@@ -118,7 +119,7 @@ class LiveService:
                 await self.end(channel_id)
         for channel in channels.values():
             await self.watch(channel)
-        for recording in await self.fetch("SELECT r.*, c.user_id, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
+        for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
         await self.post_clips()
@@ -142,7 +143,7 @@ class LiveService:
         if session:
             logger.warning("recording of %s stopped (%s)", channel["channel"], session.recording.exit_report())
         try:
-            live = await recorder.probe(channel["channel"])
+            live = await recorder.probe(channel["channel"], channel["platform"])
         except recorder.ProbeFailed as exc:
             logger.warning("could not check %s: %s; trying again", channel["channel"], exc)
             return
@@ -225,7 +226,7 @@ class LiveService:
         )
         decision = decide(
             pending_from=rec["pending_from"], content_end=content_end, ended=ended, busy=busy,
-            chat_filter=rec["chat_filter"], spikes=[r["at"] for r in await self.fetch(
+            chat_filter=rec["chat_filter"] and rec["platform"] == "twitch", spikes=[r["at"] for r in await self.fetch(
                 "SELECT at FROM live_chat_buckets WHERE recording_id = %s AND spike", (rec["id"],))],
             sent_last_day=sent[0]["n"], daily_cap=rec["daily_window_cap"], policy=POLICY,
         )
@@ -332,7 +333,7 @@ class LiveService:
         if self.postiz is None:
             return
         candidates = await self.fetch("""
-            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.channel, r.title AS live_title,
+            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -369,7 +370,7 @@ class LiveService:
                 await self.backend.download_clip(row["user_id"], row["task_id"], row["clip_id"], clip_file)
                 media = await self.postiz.upload(clip_file)
                 title = row["hook_title"] or f"{row['channel']} live"
-                body = postiz.build_post(target, media, title, postiz.caption(title, row["channel"], row["live_title"]))
+                body = postiz.build_post(target, media, title, postiz.caption(title, row["channel"], row["live_title"], row["platform"]))
                 post_id = await self.postiz.create_post(body)
                 logger.info("clip %s posted to %s %s as %s (%s)", row["clip_id"], row["provider"], row["name"], row["mode"], post_id)
                 await self.record_post(row, "posted", post_id, row["mode"])

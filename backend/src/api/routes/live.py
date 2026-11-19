@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,11 @@ LIVE_CLIPPING = "live_clipping"
 MAX_CHANNELS_PER_USER = max(1, int(os.getenv("LIVE_MAX_CHANNELS_PER_USER", "5")))
 CHANNEL_RE = re.compile(r"^[a-z0-9_]{3,25}$")
 TWITCH_URL_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?twitch\.tv/([A-Za-z0-9_]{3,25})/?$")
+YOUTUBE_HANDLE_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?youtube\.com/(@[A-Za-z0-9._-]{3,30})(?:/(?:live|streams|videos|featured))?/?(?:\?.*)?$")
+YOUTUBE_CHANNEL_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?youtube\.com/channel/(UC[A-Za-z0-9_-]{22})(?:/.*)?$")
+YOUTUBE_VIDEO_RE = re.compile(
+    r"^(?:https?://)?(?:(?:www\.|m\.)?youtube\.com/(?:watch\?(?:.*&)?v=|live/|shorts/)|youtu\.be/)([A-Za-z0-9_-]{11})"
+)
 
 
 async def _user(request: Request, db: AsyncSession) -> str:
@@ -36,14 +42,51 @@ async def _user(request: Request, db: AsyncSession) -> str:
     return user_id
 
 
+CHANNEL_HELP = "Enter a Twitch channel name or link, or a YouTube channel (youtube.com/@name) or live link"
+
+
 def _channel_name(raw: Any) -> str:
     """A Twitch login from ``name``, ``@name`` or a twitch.tv link."""
     value = str(raw or "").strip()
     match = TWITCH_URL_RE.match(value)
     name = (match.group(1) if match else value.lstrip("@")).lower()
     if not CHANNEL_RE.fullmatch(name):
-        raise HTTPException(status_code=422, detail="Enter a Twitch channel name or twitch.tv link")
+        raise HTTPException(status_code=422, detail=CHANNEL_HELP)
     return name
+
+
+def _youtube_channel_of_video(video_id: str) -> str:
+    """The channel a YouTube video or live belongs to: ``@handle`` or ``channel/UC...``."""
+    import yt_dlp
+
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False, process=False)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Couldn't find the YouTube channel of that link") from None
+    handle = str(info.get("uploader_id") or "")
+    if re.fullmatch(r"@[A-Za-z0-9._-]{3,30}", handle):
+        return handle.lower()
+    channel_id = str(info.get("channel_id") or "")
+    if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel_id):
+        return f"channel/{channel_id}"
+    raise HTTPException(status_code=422, detail="Couldn't find the YouTube channel of that link")
+
+
+async def _channel(raw: Any) -> tuple[str, str]:
+    """(platform, channel) from a Twitch name/link or a YouTube channel/video link.
+
+    A YouTube video or live link is resolved to its channel, so every later live
+    of that channel is followed, not just this one.
+    """
+    value = str(raw or "").strip()
+    if match := YOUTUBE_HANDLE_RE.match(value):
+        return "youtube", match.group(1).lower()
+    if match := YOUTUBE_CHANNEL_RE.match(value):
+        return "youtube", f"channel/{match.group(1)}"
+    if match := YOUTUBE_VIDEO_RE.match(value):
+        return "youtube", await run_in_threadpool(_youtube_channel_of_video, match.group(1))
+    return "twitch", _channel_name(value)
 
 
 def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,7 +174,7 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
 async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     data = await _body(request)
-    name = _channel_name(data.get("channel"))
+    platform, name = await _channel(data.get("channel"))
     settings = _settings(data)
     # Each live channel is a recording process plus disk, so cap how many one account follows.
     await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:user_id, 2911))"), {"user_id": user_id})
@@ -141,19 +184,19 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
         INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap)
-        VALUES (:id, :user_id, 'twitch', :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap)
+        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap)
         ON CONFLICT (user_id, platform, channel) DO NOTHING
         RETURNING id
     """), {
-        "id": channel_id, "user_id": user_id, "channel": name,
-        "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", True),
+        "id": channel_id, "user_id": user_id, "platform": platform, "channel": name,
+        "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", platform == "twitch"),  # YouTube chat is not read yet
         "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
         "daily_window_cap": settings.get("daily_window_cap", 12),
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="You already follow this channel")
     await db.commit()
-    return {"id": channel_id, "channel": name}
+    return {"id": channel_id, "platform": platform, "channel": name}
 
 
 @router.patch("/channels/{channel_id}")

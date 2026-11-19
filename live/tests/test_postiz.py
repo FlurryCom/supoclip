@@ -47,3 +47,8 @@ def test_provider_settings_respect_title_limits():
 def test_caption_credits_the_streamer():
     text = caption("Wheelie through traffic", "caseoh_", "GTA 6 FIRST TIME")
     assert "twitch.tv/caseoh_" in text and "#gta6" in text and "#caseoh" in text
+
+
+def test_caption_credits_a_youtube_channel():
+    text = caption("Big moment", "@loudcoringa", "GTA VI ESTÁ ENTRE NÓS", "youtube")
+    assert "youtube.com/@loudcoringa" in text and "#youtube" in text and "#loudcoringa" in text

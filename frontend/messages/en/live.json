@@ -2,7 +2,7 @@
   "title": "Live",
   "description": "Follow Twitch channels. While they are live, SupoClip records the stream and clips its best moments. Clips appear in your Library about 15 minutes after they happen.",
   "channelLabel": "Twitch channel",
-  "channelPlaceholder": "Channel name or twitch.tv link",
+  "channelPlaceholder": "Twitch channel name, twitch.tv link or YouTube link",
   "follow": "Follow",
   "empty": "No channels yet. Follow a Twitch channel to start clipping its lives.",
   "live": "Live",
@@ -73,5 +73,6 @@
       "error": "failed to post to {name}"
     },
     "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env)."
-  }
+  },
+  "youtubeNoChat": "YouTube chat isn't read yet: every stretch of the live is clipped, and the score is the AI's only."
 }

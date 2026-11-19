@@ -87,3 +87,12 @@ def test_duplicate_needs_more_than_half_of_the_shorter_clip():
     kept = [(m(0), m(1))]
     assert is_duplicate((m(0.4), m(1.4)), kept)
     assert not is_duplicate((m(0.6), m(1.6)), kept)
+
+
+def test_channel_urls_per_platform():
+    import pytest
+    from supoclip_live.recorder import channel_url
+    assert channel_url("gaules") == "https://www.twitch.tv/gaules"
+    assert channel_url("@loudcoringa", "youtube") == "https://www.youtube.com/@loudcoringa/live"
+    with pytest.raises(ValueError):
+        channel_url("../x", "youtube")

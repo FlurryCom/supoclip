@@ -2,7 +2,7 @@
   "title": "直播",
   "description": "关注 Twitch 频道。频道开播时，SupoClip 会录制直播并剪出最精彩的片段。片段约在 15 分钟后出现在你的素材库中。",
   "channelLabel": "Twitch 频道",
-  "channelPlaceholder": "频道名称或 twitch.tv 链接",
+  "channelPlaceholder": "Twitch 频道名、twitch.tv 链接或 YouTube 链接",
   "follow": "关注",
   "empty": "还没有频道。关注一个 Twitch 频道即可开始剪辑其直播。",
   "live": "直播中",
@@ -73,5 +73,6 @@
       "error": "发布到 {name} 失败"
     },
     "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。"
-  }
+  },
+  "youtubeNoChat": "暂不读取 YouTube 聊天：直播的每一段都会剪辑，得分仅为 AI 得分。"
 }

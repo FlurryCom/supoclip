@@ -1,7 +1,8 @@
 import pytest
 from fastapi import HTTPException
 
-from src.api.routes.live import _channel_name, _settings
+from src.api.routes import live
+from src.api.routes.live import _channel, _channel_name, _settings
 
 
 @pytest.mark.parametrize("raw", ["Gaules", "@gaules", "https://www.twitch.tv/gaules", "twitch.tv/gaules/", "m.twitch.tv/Gaules"])
@@ -33,3 +34,24 @@ def test_target_settings_accept_only_known_values():
     for bad in ({"mode": "schedule"}, {"min_score": 120}, {"daily_cap": 0}, {"enabled": "yes"}):
         with pytest.raises(HTTPException):
             _target_settings(bad)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw,expected", [
+    ("https://www.youtube.com/@LOUDCoringa", ("youtube", "@loudcoringa")),
+    ("youtube.com/@LOUDCoringa/live", ("youtube", "@loudcoringa")),
+    ("https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv", ("youtube", "channel/UCabcdefghijklmnopqrstuv")),
+    ("Gaules", ("twitch", "gaules")),
+    ("https://www.twitch.tv/gaules", ("twitch", "gaules")),
+])
+async def test_channel_detects_the_platform(raw, expected):
+    assert await _channel(raw) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", ["https://www.youtube.com/watch?v=QhKWnCPIhiU", "https://youtu.be/QhKWnCPIhiU", "youtube.com/live/QhKWnCPIhiU"])
+async def test_video_links_follow_their_channel(raw, monkeypatch):
+    seen = []
+    monkeypatch.setattr(live, "_youtube_channel_of_video", lambda video_id: seen.append(video_id) or "@loudcoringa")
+    assert await _channel(raw) == ("youtube", "@loudcoringa")
+    assert seen == ["QhKWnCPIhiU"]

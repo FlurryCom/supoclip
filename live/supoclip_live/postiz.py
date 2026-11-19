@@ -7,6 +7,7 @@ somewhere else.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -64,11 +65,13 @@ def refusal_reason(target: dict, integrations: list[dict]) -> str | None:
     return None
 
 
-def caption(hook_title: str, channel: str, live_title: str | None) -> str:
-    tags = ["#twitch", "#clips", f"#{channel.replace('_', '')}"]
+def caption(hook_title: str, channel: str, live_title: str | None, platform: str = "twitch") -> str:
+    name = channel.split("/")[-1].lstrip("@")
+    source = f"youtube.com/{channel}" if platform == "youtube" else f"twitch.tv/{channel}"
+    tags = [f"#{platform}", "#clips", f"#{re.sub(r'[^A-Za-z0-9]', '', name).lower()}"]
     if live_title and "gta" in live_title.lower():
         tags.insert(0, "#gta6")
-    return f"{hook_title}\n\n🎮 twitch.tv/{channel}\n{' '.join(tags)}"
+    return f"{hook_title}\n\n🎮 {source}\n{' '.join(tags)}"
 
 
 def provider_settings(provider: str, title: str) -> dict:
