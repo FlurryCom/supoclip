@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from src.live_scoring import final_score, keep_segments
@@ -80,3 +81,44 @@ def test_peak_overlay_never_before_clip_start():
     from src.live_scoring import peak_overlay
     overlay = peak_overlay(segment("04:58", "06:10", 62), CHUNKS, with_messages(["a"]))
     assert overlay["peak_s"] == 0.5
+
+
+class _Rows:
+    def __init__(self, first=None, rows=()):
+        self._first, self._rows = first, list(rows)
+
+    def first(self):
+        return self._first
+
+    def all(self):
+        return self._rows
+
+
+class _FakeDb:
+    def __init__(self, window, buckets):
+        self.window, self.buckets = window, buckets
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def execute(self, query, params=None):
+        sql = str(query)
+        return _Rows(first=self.window) if "FROM live_windows" in sql else _Rows(rows=self.buckets)
+
+
+@pytest.mark.parametrize("blur", [True, False])
+def test_gate_marks_segments_for_the_sensitive_check_only_when_on(monkeypatch, blur):
+    import asyncio
+    from types import SimpleNamespace
+    from src import live_scoring
+
+    window = SimpleNamespace(chunks=[{"start": T0.isoformat(), "duration": 600.0}], recording_id="r1",
+                             min_score=80, chat_weight=60, edit_kit="none", blur_sensitive=blur)
+    buckets = [SimpleNamespace(at=at, chatters=c, messages=[]) for at, c in BUCKETS]
+    monkeypatch.setattr(live_scoring, "get_session_maker", lambda: (lambda: _FakeDb(window, buckets)))
+    kept = asyncio.run(live_scoring.gate_live_segments("t1", [segment("04:10", "05:10", 62)]))
+    assert len(kept) == 1
+    assert kept[0].get("sensitive_check", False) is blur
