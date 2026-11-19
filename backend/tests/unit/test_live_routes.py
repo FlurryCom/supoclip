@@ -55,3 +55,15 @@ async def test_video_links_follow_their_channel(raw, monkeypatch):
     monkeypatch.setattr(live, "_youtube_channel_of_video", lambda video_id: seen.append(video_id) or "@loudcoringa")
     assert await _channel(raw) == ("youtube", "@loudcoringa")
     assert seen == ["QhKWnCPIhiU"]
+
+
+def test_patch_accepts_known_kit():
+    assert _settings({"edit_kit": "catclips"}) == {"edit_kit": "catclips"}
+    assert _settings({"edit_kit": "none"}) == {"edit_kit": "none"}
+
+
+@pytest.mark.parametrize("bad", ["nope", "", 3, None])
+def test_patch_rejects_unknown_kit(bad):
+    with pytest.raises(HTTPException) as caught:
+        _settings({"edit_kit": bad})
+    assert caught.value.status_code == 422

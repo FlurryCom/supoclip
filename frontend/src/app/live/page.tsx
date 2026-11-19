@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { SocialProviderIcon } from "@/components/social-provider-icon";
@@ -51,12 +52,18 @@ interface LiveChannel {
   chat_filter: boolean;
   min_score: number;
   chat_weight: number;
+  edit_kit: string;
   is_live: boolean;
   live_title: string | null;
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit">>;
+
+interface EditKit {
+  id: string;
+  name: string;
+}
 
 async function errorMessage(response: Response, fallback: string) {
   try {
@@ -159,8 +166,9 @@ function SliderSetting({ id, label, hint, value, suffix = "", onCommit }: {
   );
 }
 
-function ChannelCard({ channel, onChange, onRemove }: {
+function ChannelCard({ channel, kits, onChange, onRemove }: {
   channel: LiveChannel;
+  kits: EditKit[];
   onChange: (settings: Settings) => void;
   onRemove: () => void;
 }) {
@@ -223,6 +231,19 @@ function ChannelCard({ channel, onChange, onRemove }: {
         />
       </div>
 
+      {kits.length > 0 ? (
+        <div className="mt-5 space-y-1.5">
+          <Label htmlFor={`kit-${channel.id}`}>{t("editKit")}</Label>
+          <Select value={channel.edit_kit} onValueChange={(edit_kit) => onChange({ edit_kit })}>
+            <SelectTrigger id={`kit-${channel.id}`} className="w-full sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {kits.map((kit) => <SelectItem key={kit.id} value={kit.id}>{kit.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{t("editKitHint")}</p>
+        </div>
+      ) : null}
+
       {channel.windows.length > 0 ? (
         <div className="mt-4 border-t pt-2">
           <h3 className="pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("recent")}</h3>
@@ -249,6 +270,15 @@ export default function LivePage() {
     if (!response.ok) throw new Error(await errorMessage(response, t("loadError")));
     setChannels(((await response.json()) as { channels: LiveChannel[] }).channels);
   }, [t]);
+
+  const [kits, setKits] = useState<EditKit[]>([]);
+  useEffect(() => {
+    if (!access) return;
+    fetch("/api/live/edit-kits", { cache: "no-store" })
+      .then((response) => (response.ok ? (response.json() as Promise<EditKit[]>) : []))
+      .then(setKits)
+      .catch(() => setKits([]));  // no kits: the card just hides the picker
+  }, [access]);
 
   useEffect(() => {
     if (!access) return;
@@ -345,6 +375,7 @@ export default function LivePage() {
             <ChannelCard
               key={channel.id}
               channel={channel}
+              kits={kits}
               onChange={(settings) => void request(`channels/${channel.id}`, { method: "PATCH", body: JSON.stringify(settings) }, t("saveError"))}
               onRemove={() => void request(`channels/${channel.id}`, { method: "DELETE" }, t("saveError"))}
             />

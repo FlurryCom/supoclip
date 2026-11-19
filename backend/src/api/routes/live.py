@@ -19,6 +19,7 @@ from ...config import get_config
 from ...database import get_db
 from ...feature_flags import client_platform, is_enabled
 from ... import postiz
+from ...edit_kits import KITS, kit_choices
 from ...media_storage import MediaStorage
 from ...workers.media_cleanup import _delete_finished_local_upload, _finished_local_upload
 
@@ -103,6 +104,10 @@ def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
                 raise HTTPException(status_code=422, detail=f"{key} must be a whole number from {low} to {high}")
             settings[key] = value
+    if "edit_kit" in data:
+        if not isinstance(data["edit_kit"], str) or data["edit_kit"] not in KITS:
+            raise HTTPException(status_code=422, detail=f"edit_kit must be one of: {', '.join(KITS)}")
+        settings["edit_kit"] = data["edit_kit"]
     return settings
 
 
@@ -116,12 +121,18 @@ async def _body(request: Request) -> Dict[str, Any]:
     return data
 
 
+@router.get("/edit-kits")
+async def list_edit_kits(request: Request, db: AsyncSession = Depends(get_db)):
+    await _user(request, db)
+    return kit_choices()
+
+
 @router.get("/channels")
 async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
         SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap,
-            r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
+            c.edit_kit, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
             SELECT id, title, started_at FROM live_recordings
@@ -183,15 +194,15 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
-        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap)
-        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap)
+        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit)
+        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap, :edit_kit)
         ON CONFLICT (user_id, platform, channel) DO NOTHING
         RETURNING id
     """), {
         "id": channel_id, "user_id": user_id, "platform": platform, "channel": name,
         "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", True),
         "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
-        "daily_window_cap": settings.get("daily_window_cap", 12),
+        "daily_window_cap": settings.get("daily_window_cap", 12), "edit_kit": settings.get("edit_kit", "none"),
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="You already follow this channel")

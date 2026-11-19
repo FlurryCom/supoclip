@@ -75,5 +75,7 @@
     "notAllowed": "Esta conta não pode usar o Postiz deste servidor (POSTIZ_ALLOWED_USER_IDS no .env)."
   },
   "confirmYes": "Sim",
-  "confirmNo": "Cancelar"
+  "confirmNo": "Cancelar",
+  "editKit": "Kit de edição",
+  "editKitHint": "Visual aplicado nos próximos clipes deste canal"
 }

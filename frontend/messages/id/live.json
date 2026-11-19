@@ -75,5 +75,7 @@
     "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env)."
   },
   "confirmYes": "Ya",
-  "confirmNo": "Batal"
+  "confirmNo": "Batal",
+  "editKit": "Kit edit",
+  "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini"
 }

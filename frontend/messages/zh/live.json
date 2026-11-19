@@ -75,5 +75,7 @@
     "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。"
   },
   "confirmYes": "是",
-  "confirmNo": "取消"
+  "confirmNo": "取消",
+  "editKit": "剪辑套件",
+  "editKitHint": "应用于该频道之后的片段"
 }

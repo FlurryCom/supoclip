@@ -12,6 +12,8 @@ import subprocess
 import uuid
 
 from ..stream_transfer import run_stream_download
+from ..edit_kits import get_kit
+from ..media.edit_kit_render import apply_edit_kit
 from ..live_scoring import gate_live_segments
 from ..utils.async_helpers import run_in_thread
 from ..download_progress import (
@@ -1028,6 +1030,7 @@ class VideoService:
             broll_overlays = await broll_overlays_for(broll_placements)
             render_report: Dict[str, Any] = {}
             point_labels = point_labels_for(segment.get("workflow_meta"), resolved.group_output_starts)
+            kit = get_kit((segment.get("edit_kit") or {}).get("id"))
 
             success = await run_in_thread(
                 create_optimized_clip,
@@ -1039,7 +1042,7 @@ class VideoService:
                 font_family,
                 font_size,
                 font_color,
-                caption_template,
+                kit["caption_template"] or caption_template,
                 output_format,
                 keep_ranges,
                 burned_hook_title(segment),
@@ -1055,6 +1058,10 @@ class VideoService:
                 return None
             if not render_report.get("broll_applied"):
                 broll_placements = []
+            if segment.get("edit_kit") and kit["id"] != "none":
+                # Fork: the live channel's edit kit (chat at the peak, sounds, end card).
+                if not await run_in_thread(apply_edit_kit, clip_path, segment["edit_kit"]):
+                    logger.warning(f"Clip {clip_index + 1} kept without its {kit['id']} edit kit")
 
             if max_short_side:
                 try:

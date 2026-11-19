@@ -75,5 +75,7 @@
     "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env)."
   },
   "confirmYes": "Yes",
-  "confirmNo": "Cancel"
+  "confirmNo": "Cancel",
+  "editKit": "Edit kit",
+  "editKitHint": "Look applied to this channel's next clips"
 }
