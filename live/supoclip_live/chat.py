@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import random
+import re
 import statistics
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 BUCKET = timedelta(seconds=10)
 BOTS = frozenset({"nightbot", "streamelements", "moobot", "streamlabs", "fossabot", "soundalerts", "wizebot", "sery_bot"})
+SAMPLE_SIZE = 20  # chat lines kept per bucket, shown on clips by edit kits
+MAX_MESSAGE_CHARS = 60
+# Whole words that keep a line off a posted video. Start small, extend from what shows up.
+BLOCKLIST = frozenset({
+    "nigger", "nigga", "faggot", "fag", "retard", "tranny", "chink", "spic", "kike", "kys",
+    "viado", "bicha", "traveco", "retardado", "crioulo", "macaco", "macaca",
+})
+_LINK = re.compile(r"https?://|www\.|\.(com|net|org|tv|gg|br|io)\b", re.IGNORECASE)
+
+
+def keep_message(text: str) -> bool:
+    """Whether a chat line may be shown on a clip: no links, mentions, commands or slurs."""
+    text = text.strip()
+    if not text or len(text) > MAX_MESSAGE_CHARS or text.startswith("!") or "@" in text or _LINK.search(text):
+        return False
+    return not any(word in BLOCKLIST for word in re.findall(r"\w+", text.lower()))
 
 
 class SpikeDetector:
@@ -39,9 +56,11 @@ class SpikeDetector:
         self.bucket_start: datetime | None = None
         self.bucket_users: set[str] = set()
         self.last_spike: datetime | None = None
-        self.closed: list[tuple[datetime, int, bool]] = []  # (start, distinct chatters, spike)
+        self.sample: list[str] = []  # this bucket's showable lines, one per user
+        self.sampled_users: set[str] = set()
+        self.closed: list[tuple[datetime, int, bool, list[str]]] = []  # (start, distinct chatters, spike, sample)
 
-    def drain(self) -> list[tuple[datetime, int, bool]]:
+    def drain(self) -> list[tuple[datetime, int, bool, list[str]]]:
         """Buckets closed since the last call, oldest first."""
         closed, self.closed = self.closed, []
         return closed
@@ -52,6 +71,9 @@ class SpikeDetector:
         user = user.lower()
         if user not in BOTS and not message.startswith("!"):
             self.bucket_users.add(user)
+            if user not in self.sampled_users and len(self.sample) < SAMPLE_SIZE and keep_message(message):
+                self.sampled_users.add(user)
+                self.sample.append(message.strip())
         return spike
 
     def tick(self, at: datetime) -> datetime | None:
@@ -72,9 +94,10 @@ class SpikeDetector:
                     self.last_spike = when
                     spike = when
                     hot = True
-            self.closed.append((self.bucket_start, count, hot))
+            self.closed.append((self.bucket_start, count, hot, self.sample))
             self.history.append(count)
             self.bucket_users = set()
+            self.sample, self.sampled_users = [], set()
             self.bucket_start += BUCKET
         return spike
 

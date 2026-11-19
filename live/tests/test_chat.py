@@ -88,3 +88,35 @@ def test_youtube_chat_line_survives_garbage():
     from supoclip_live.chat import parse_youtube_chat_line
     assert parse_youtube_chat_line("not json") == []
     assert parse_youtube_chat_line('{"replayChatItemAction": {"actions": [{}]}}') == []
+
+
+def test_keep_message_filters():
+    from supoclip_live.chat import BLOCKLIST, keep_message
+    assert keep_message("KEKW que isso")
+    for bad in ("http://x.com", "olha www.site.com", "@fulano olha", "!points", "a" * 61, "", "   "):
+        assert not keep_message(bad), bad
+    slur = next(iter(BLOCKLIST))
+    assert not keep_message(f"que {slur.upper()} hein")
+    assert keep_message(f"{slur}xyz")  # whole words only
+
+
+def test_bucket_keeps_a_sample_of_messages():
+    d = SpikeDetector()
+    warm(d)
+    d.drain()
+    feed(d, 20, 25, message="LOL")
+    d.tick(T0 + timedelta(seconds=215))
+    start, count, spike, messages = d.drain()[-1]
+    assert count == 25
+    assert len(messages) == 20 and all(m == "LOL" for m in messages)
+
+
+def test_spammer_lines_count_once_in_sample():
+    d = SpikeDetector()
+    warm(d)
+    d.drain()
+    at = T0 + timedelta(seconds=200)
+    for i in range(10):
+        d.add("spammer", f"spam {i}", at + timedelta(milliseconds=i))
+    d.tick(T0 + timedelta(seconds=215))
+    assert d.drain()[-1][3] == ["spam 0"]

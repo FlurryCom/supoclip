@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import shutil
@@ -75,8 +76,8 @@ class Session:
         """Record, and store every 10 s of chat (spikes included) in the database."""
         await self.recording.start()
 
-        async def on_bucket(at: datetime, chatters: int, spike: bool) -> None:
-            await store_bucket(self.recording_id, at, chatters, spike)
+        async def on_bucket(at: datetime, chatters: int, spike: bool, messages: list[str]) -> None:
+            await store_bucket(self.recording_id, at, chatters, spike, messages)
             if spike:
                 logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
 
@@ -187,10 +188,10 @@ class LiveService:
         self.sessions[channel["id"]] = session
         await session.start(self.store_bucket)
 
-    async def store_bucket(self, recording_id: str, at: datetime, chatters: int, spike: bool) -> None:
+    async def store_bucket(self, recording_id: str, at: datetime, chatters: int, spike: bool, messages: list[str]) -> None:
         await self.fetch(
-            "INSERT INTO live_chat_buckets (recording_id, at, chatters, spike) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (recording_id, at, chatters, spike),
+            "INSERT INTO live_chat_buckets (recording_id, at, chatters, spike, messages) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            (recording_id, at, chatters, spike, json.dumps(messages)),
         )
 
     async def chat_buckets(self, recording_id: str) -> list[tuple[datetime, int]]:
