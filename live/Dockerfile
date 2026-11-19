@@ -15,5 +15,6 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY supoclip_live/ ./supoclip_live/
+COPY assets/ ./assets/
 
 CMD ["python", "-m", "supoclip_live"]

@@ -16,7 +16,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from . import postiz, recorder
+from . import cta, postiz, recorder
 from .backend import Backend
 from .chat import watch_chat, watch_youtube_chat
 from .heat import chat_heat, chat_hints, final_score
@@ -351,7 +351,7 @@ class LiveService:
         if self.postiz is None:
             return
         candidates = await self.fetch("""
-            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, r.title AS live_title,
+            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -384,9 +384,12 @@ class LiveService:
             if posted_today >= row["daily_cap"]:
                 continue  # stays a candidate; posts when the 24 h window frees up (if still within a day)
             clip_file = DATA_DIR / f"post-{row['clip_id']}.mp4"
+            upload_file = clip_file
             try:
                 await self.backend.download_clip(row["user_id"], row["task_id"], row["clip_id"], clip_file)
-                media = await self.postiz.upload(clip_file)
+                # The channel's edit kit adds this platform's follow CTA on the tail (or posts the plain clip).
+                upload_file = await asyncio.to_thread(cta.with_cta, clip_file, row["edit_kit"], row["provider"])
+                media = await self.postiz.upload(upload_file)
                 title = row["hook_title"] or f"{row['channel']} live"
                 body = postiz.build_post(target, media, title, postiz.caption(title, row["channel"], row["live_title"], row["platform"]))
                 post_id = await self.postiz.create_post(body)
@@ -404,6 +407,7 @@ class LiveService:
                 await self.record_post(row, "error", None, str(exc)[:300])
             finally:
                 clip_file.unlink(missing_ok=True)
+                upload_file.unlink(missing_ok=True)
 
     async def record_post(self, row: dict, status: str, post_id: str | None, detail: str | None) -> None:
         await self.fetch(
