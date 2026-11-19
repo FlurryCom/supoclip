@@ -20,7 +20,7 @@
 - The kit never costs a clip: any failure in the post-pass keeps the clip rendered without it.
 - No GPU use in the kit (Whisper keeps the GPU).
 - Backend tests: `scripts/backend-test.sh <test paths>` (runs in a throwaway backend container). Recorder tests: `docker run --rm -v ./live:/app:z --entrypoint sh supoclip-live-recorder -c "pip install -q pytest >/dev/null; cd /app && python -m pytest -q tests"`.
-- Never commit the Postiz URL or key: `git grep -c 'ed4ef9aa\|postiz-production'` must print nothing.
+- Never commit the Postiz URL or key: grep the diff for the values in `.env` (POSTIZ_URL, POSTIZ_API_KEY) before committing.
 
 ## Review Focus
 
