@@ -1,0 +1,14 @@
+# NVIDIA GPU for the video worker (Whisper transcription), fork addition.
+# Needs BACKEND_CPU_ONLY=false and a CDI spec for the GPU
+# (`nvidia-ctk cdi generate`). Enable it with
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+# in .env, then `docker compose up -d worker`.
+services:
+  worker:
+    devices:
+      - nvidia.com/gpu=all
+    # SELinux hosts deny containers the /dev/nvidia* devices unless the
+    # container_use_devices boolean is on; this lifts the label for the worker
+    # only. Drop it if you `setsebool -P container_use_devices=1` instead.
+    security_opt:
+      - label=disable
