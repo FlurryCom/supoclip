@@ -144,3 +144,41 @@ def claude_cli_model(model: str) -> FunctionModel:
         return ModelResponse(parts=[TextPart(str(data.get("result", "")))], model_name=f"claude-cli:{model}")
 
     return FunctionModel(respond, model_name=f"claude-cli:{model}")
+
+
+def run_cli_images(prompt: str, images: list[bytes], schema: dict, model: str = "haiku", timeout: int = 180) -> dict:
+    """One ``claude -p`` request with JPEG images; returns the structured output.
+
+    Fork feature (sensitive blur). Synchronous so it can run inside the worker's
+    render threads. Images go in through ``--input-format stream-json``, which
+    needs ``--output-format stream-json``; the answer is the ``result`` line.
+    """
+    import base64
+    import subprocess
+
+    content: list[dict] = [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(image).decode()}}
+        for image in images
+    ]
+    content.append({"type": "text", "text": prompt})
+    message = json.dumps({"type": "user", "message": {"role": "user", "content": content}}) + "\n"
+    command = build_command(model, "", schema)
+    command[command.index("--output-format") + 1] = "stream-json"
+    command += ["--input-format", "stream-json", "--verbose"]
+    env = {k: v for k, v in os.environ.items() if k not in _API_CREDENTIALS}
+    env.setdefault("DISABLE_AUTOUPDATER", "1")
+    try:
+        proc = subprocess.run(command, input=message.encode(), capture_output=True, timeout=timeout, env=env, cwd="/tmp")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"claude CLI timed out after {timeout}s") from None
+    result = None
+    for line in proc.stdout.decode(errors="replace").splitlines():
+        if line.startswith("{") and '"type":"result"' in line.replace(" ", ""):
+            result = json.loads(line)
+    if result is None or result.get("is_error") or proc.returncode != 0:
+        subtype = (result or {}).get("subtype", "unknown")
+        raise RuntimeError(f"claude CLI image request failed ({subtype}, exit {proc.returncode})")
+    structured = result.get("structured_output")
+    if not isinstance(structured, dict):
+        raise RuntimeError("claude CLI returned no structured output")
+    return structured
