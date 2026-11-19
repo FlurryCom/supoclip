@@ -5,8 +5,9 @@ from src.edit_kits import KITS, get_kit, kit_choices
 def test_catclips_kit_points_at_existing_assets():
     kit = get_kit("catclips")
     assert kit["caption_template"] == "catclips"
-    assert kit["end_card"].exists()
-    assert [s["at"] for s in kit["sfx"]] == ["start", "peak"]
+    assert kit["end_card"] is None and kit["cta_seconds"] == 2.5
+    assert [(s["path"].name, s["at"]) for s in kit["sfx"]] == [
+        ("bell.wav", "start"), ("cartoon-whoosh.wav", "start"), ("boom.wav", "peak")]
     assert all(s["path"].exists() for s in kit["sfx"])
 
 
@@ -15,6 +16,7 @@ def test_unknown_kit_is_none():
     assert get_kit(None) is KITS["none"]
     none = KITS["none"]
     assert none["chat_overlay"] is False and none["sfx"] == [] and none["end_card"] is None
+    assert none["cta_seconds"] == 0
 
 
 def test_kit_choices_lists_every_kit():
@@ -28,4 +30,16 @@ def test_catclips_caption_template():
     assert t["highlight_color"] == "#111111"
     assert t["font_color"] == "#F3E9D2"
     assert t["stroke_color"] == "#111111"
-    assert t["font_family"] == "GochiHand-Regular"
+    assert t["font_family"] == "ArchivoBlack-Regular"
+
+
+def test_sfx_files_are_short_and_loud_enough():
+    import wave
+    import numpy as np
+    from src.edit_kits import ASSETS_DIR
+    for name, longest in (("bell.wav", 2.5), ("boom.wav", 3.0), ("click.wav", 2.5), ("pop.wav", 2.5)):
+        with wave.open(str(ASSETS_DIR / "sfx" / name)) as w:
+            assert w.getframerate() == 48000 and w.getnchannels() == 1, name
+            samples = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16) / 32768
+            assert w.getnframes() / 48000 <= longest, name
+        assert 0.3 <= np.abs(samples).max() <= 1.0, name

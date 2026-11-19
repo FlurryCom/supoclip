@@ -2,7 +2,7 @@
 
 A kit names a caption template plus the extras burned on the finished clip by
 ``media/edit_kit_render.apply_edit_kit``: real chat at the chat peak, sound
-effects and an end card. Each live channel picks one; ``none`` is SupoClip's
+effects and an optional end card. Each live channel picks one; ``none`` is SupoClip's
 normal look. A new kit is one more entry here plus its assets folder.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ KITS: dict[str, dict[str, Any]] = {
         "chat_overlay": False,
         "sfx": [],
         "end_card": None,
-        "end_card_seconds": 0.0,
+        "cta_seconds": 0.0,
         "colors": {},
     },
     "catclips": {
@@ -29,11 +29,13 @@ KITS: dict[str, dict[str, Any]] = {
         "caption_template": "catclips",
         "chat_overlay": True,
         "sfx": [
+            {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 0.6},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
-            {"path": ASSETS_DIR / "sfx" / "sfx-golpe-abertura.wav", "at": "peak", "volume": 0.7},
+            {"path": ASSETS_DIR / "sfx" / "boom.wav", "at": "peak", "volume": 0.8},
         ],
-        "end_card": ASSETS_DIR / "brand" / "catclips" / "end_card.png",
-        "end_card_seconds": 1.5,
+        "end_card": None,
+        # The recorder adds each platform's follow CTA over the last seconds at posting time.
+        "cta_seconds": 2.5,
         "colors": {"yellow": "#FEC803", "black": "#111111", "cream": "#F3E9D2"},
     },
 }

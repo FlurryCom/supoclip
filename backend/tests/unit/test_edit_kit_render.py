@@ -41,15 +41,26 @@ def test_chat_text_is_escaped():
     assert "\\{\\\u2060b1\\}oi" in text  # braces escaped, backslash defused, no live override tag
 
 
-def test_kit_args_without_chat_still_mix_whoosh_and_card(tmp_path):
+def test_kit_args_without_chat_still_mix_intro_sounds(tmp_path):
     kit = get_kit("catclips")
     args = kit_ffmpeg_args(tmp_path / "in.mp4", tmp_path / "out.mp4", kit, None, None, 70.0, tmp_path, True)
     joined = " ".join(map(str, args))
     graph = args[args.index("-filter_complex") + 1]
-    assert str(kit["end_card"]) in joined
-    assert "cartoon-whoosh.wav" in joined and "sfx-golpe-abertura.wav" not in joined
-    assert "subtitles=" not in graph
-    assert "amix" in graph and "overlay" in graph and "gte(t,68.5)" in graph
+    assert "bell.wav" in joined and "cartoon-whoosh.wav" in joined and "boom.wav" not in joined
+    assert "subtitles=" not in graph and "amix=inputs=3" in graph
+
+
+def test_kit_args_without_end_card_have_no_overlay(tmp_path):
+    kit = get_kit("catclips")
+    args = kit_ffmpeg_args(tmp_path / "in.mp4", tmp_path / "out.mp4", kit, None, 10.0, 70.0, tmp_path, True)
+    graph = args[args.index("-filter_complex") + 1]
+    assert "overlay" not in graph and ".png" not in " ".join(map(str, args))
+    assert "boom.wav" in " ".join(map(str, args))
+
+
+def test_chat_events_end_before_cta():
+    events = chat_events(["a", "b", "c"], 68.0, 70.0, 1080, 1920, COLORS, 2.5)
+    assert all(end <= 67.5 + 1e-6 for _, end in starts(events))
 
 
 def make_clip(path: Path, seconds: int = 4) -> None:

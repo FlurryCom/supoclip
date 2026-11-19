@@ -17,7 +17,7 @@ from .ffmpeg import ffprobe_duration, ffprobe_has_audio, ffprobe_video_size, run
 
 logger = logging.getLogger(__name__)
 
-BUBBLE_FONT = "GochiHand-Regular"
+BUBBLE_FONT = "ArchivoBlack-Regular"
 STEP_S = 0.4  # one message pops in after another
 LIFE_S = 2.5  # how long each message stays
 MAX_BUBBLE_CHARS = 32  # longer lines run off a 9:16 frame at this font size
@@ -51,13 +51,13 @@ def chat_events(
     width: int,
     height: int,
     colors: dict[str, str],
-    end_card_seconds: float,
+    tail_seconds: float,
 ) -> list[str]:
-    """ASS dialogue lines: each message pops in on the left, one row each, before the end card."""
+    """ASS dialogue lines: each message pops in on the left, one row each, before the kit's tail (CTA)."""
     chat = [line for line in chat if len(line) <= MAX_BUBBLE_CHARS]
     if not chat or peak_s is None:
         return []
-    last_end = duration - end_card_seconds
+    last_end = duration - tail_seconds
     first = max(0.0, min(peak_s, last_end - STEP_S * (len(chat) - 1) - LIFE_S))
     font_px = round(height * 0.03)
     row = round(font_px * 1.6)
@@ -105,24 +105,30 @@ def kit_ffmpeg_args(
     fonts_dir: Path | None,
     has_audio: bool,
 ) -> list[str]:
-    """One ffmpeg command: chat subtitles, end card overlay, sound effects mixed under the clip audio."""
-    card_at = duration - kit["end_card_seconds"]
-    inputs = ["-i", str(clip), "-loop", "1", "-t", _num(duration), "-i", str(kit["end_card"])]
+    """One ffmpeg command: chat subtitles, optional end card overlay, sound effects mixed under the clip audio."""
+    inputs = ["-i", str(clip)]
+    subtitles = f"{subtitles_filter_fragment(ass_path, fonts_dir)}," if ass_path else ""
+    if kit["end_card"]:
+        card_at = duration - kit["cta_seconds"]
+        inputs += ["-loop", "1", "-t", _num(duration), "-i", str(kit["end_card"])]
+        parts = [
+            f"[0:v]{subtitles}setsar=1[base]",
+            "[1:v][base]scale2ref=w=iw:h=ih[cardraw][base2]",
+            f"[cardraw]format=rgba,fade=in:st={_num(card_at)}:d=0.3:alpha=1[card]",
+            f"[base2][card]overlay=0:0:enable='gte(t,{_num(card_at)})':shortest=1[v]",
+        ]
+    else:
+        parts = [f"[0:v]{subtitles}setsar=1[v]"]
+    parts.append("[0:a]anull[a0]" if has_audio else f"aevalsrc=0:d={_num(duration)}:s=48000[a0]")
     sounds = []
+    next_input = 2 if kit["end_card"] else 1
     for sfx in kit["sfx"]:
         at = 0.0 if sfx["at"] == "start" else peak_s
         if at is None:
             continue
-        sounds.append((len(sounds) + 2, at, sfx["volume"]))
+        sounds.append((next_input, at, sfx["volume"]))
+        next_input += 1
         inputs += ["-i", str(sfx["path"])]
-    subtitles = f"{subtitles_filter_fragment(ass_path, fonts_dir)}," if ass_path else ""
-    parts = [
-        f"[0:v]{subtitles}setsar=1[base]",
-        "[1:v][base]scale2ref=w=iw:h=ih[cardraw][base2]",
-        f"[cardraw]format=rgba,fade=in:st={_num(card_at)}:d=0.3:alpha=1[card]",
-        f"[base2][card]overlay=0:0:enable='gte(t,{_num(card_at)})':shortest=1[v]",
-        "[0:a]anull[a0]" if has_audio else f"aevalsrc=0:d={_num(duration)}:s=48000[a0]",
-    ]
     labels = "[a0]"
     for index, at, volume in sounds:
         ms = int(at * 1000)
@@ -149,10 +155,10 @@ def apply_edit_kit(clip_path: Path, edit_kit: dict[str, Any]) -> bool:
     try:
         duration = ffprobe_duration(clip_path)
         width, height = ffprobe_video_size(clip_path)
-        if duration <= kit["end_card_seconds"] or not width or not height:
+        if duration <= kit["cta_seconds"] or not width or not height:
             return False
         peak_s = edit_kit.get("peak_s")
-        events = chat_events(edit_kit.get("chat") or [], peak_s, duration, width, height, kit["colors"], kit["end_card_seconds"]) if kit["chat_overlay"] else []
+        events = chat_events(edit_kit.get("chat") or [], peak_s, duration, width, height, kit["colors"], kit["cta_seconds"]) if kit["chat_overlay"] else []
         if events:
             ass_path.write_text(chat_ass(events, width, height, kit["colors"]), encoding="utf-8")
         command = kit_ffmpeg_args(

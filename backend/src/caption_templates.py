@@ -159,8 +159,8 @@ CAPTION_TEMPLATES: Dict[str, Dict[str, Any]] = {
     },
     "catclips": {
         "name": "Cat Clips",
-        "description": "Cat Clips edit kit: cream hand-lettered caps, black word on a yellow pill",
-        "font_family": "GochiHand-Regular",
+        "description": "Cat Clips edit kit: cream heavy caps, black word on a yellow pill",
+        "font_family": "ArchivoBlack-Regular",
         "font_size": 34,
         "font_color": "#F3E9D2",
         "highlight_color": "#111111",
