@@ -131,7 +131,7 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     """
     async with get_session_maker()() as db:
         row = (await db.execute(text("""
-            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit
+            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit, c.blur_sensitive
             FROM live_windows w
             JOIN live_recordings r ON r.id = w.recording_id
             JOIN live_channels c ON c.id = r.channel_id
@@ -150,6 +150,9 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     logger.info("Live window %s: %d of %d moments reach score %d", task_id, len(kept), len(segments), row.min_score)
     if not kept:
         raise NothingAboveScore(f"No moment reached the minimum score of {row.min_score}")
+    if row.blur_sensitive:
+        for segment in kept:
+            segment["sensitive_check"] = True  # analyse the rendered clip for nudity and gore
     kit = get_kit(row.edit_kit)
     if kit["id"] != "none":
         with_text = [(b.at, b.chatters, b.messages or []) for b in rows]

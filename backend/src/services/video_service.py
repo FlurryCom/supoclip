@@ -1079,6 +1079,19 @@ class VideoService:
                 except Exception as e:
                     # A higher-resolution clip beats losing the clip entirely.
                     logger.warning(f"Keeping full-size clip {clip_index + 1}: {e}")
+            if segment.get("sensitive_check"):
+                # Fork: find nudity and heavy gore once; the recorder blurs per posting account.
+                from ..media.sensitive_check import analyze_clip, save_analysis
+                check = await run_in_thread(analyze_clip, clip_path)
+                try:
+                    await save_analysis(str(clip_path), check)
+                except Exception as exc:  # unsaved = unchecked: the recorder won't post it where blur is required
+                    logger.warning(f"Could not save the sensitive check for {clip_path.name}: {exc}")
+                logger.info(
+                    f"Sensitive check {clip_path.name}: "
+                    f"{sum(r['kind'] == 'nudity' for r in check['regions'])} nudity, "
+                    f"{sum(r['kind'] == 'gore' for r in check['regions'])} gore, error={check['error']}"
+                )
 
             from ..media.ffmpeg import output_offsets_for_ranges
             save_clip_source_ranges(
