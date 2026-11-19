@@ -128,3 +128,31 @@ def test_post_clips_skips_an_account_inside_the_gap(monkeypatch, tmp_path):
     live.fetch = fetch
     asyncio.run(live.post_clips())
     assert postiz.uploads == []  # waits; the clip stays in the queue
+
+
+def run_with_count(monkeypatch, tmp_path, row, posted_today):
+    monkeypatch.setattr(service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(service, "POSTIZ_ALLOWED_USER_IDS", ["u1"])
+    monkeypatch.setattr(cta, "_probe", lambda path: (60.0, True, (720, 1280)))
+    monkeypatch.setattr(cta, "finish_clip", lambda clip, *args: clip)
+    postiz = FakePostiz()
+    live = service.LiveService("", FakeBackend(), postiz)
+
+    async def fetch(sql, params=()):
+        if "FROM live_clips lc" in sql:
+            return [row]
+        if "live_feature_marks" in sql:
+            return [{"at": SINCE}]
+        if "count(*) AS n" in sql:
+            return [{"n": posted_today, "last_posted": None}]
+        return []
+
+    live.fetch = fetch
+    asyncio.run(live.post_clips())
+    return postiz.uploads
+
+
+def test_daily_post_limit_applies_only_when_switched_on(monkeypatch, tmp_path):
+    full = dict(target_blur=False, daily_cap=10)
+    assert run_with_count(monkeypatch, tmp_path, candidate(limit_posts=True, **full), 10) == []
+    assert run_with_count(monkeypatch, tmp_path, candidate(limit_posts=False, **full), 10) != []

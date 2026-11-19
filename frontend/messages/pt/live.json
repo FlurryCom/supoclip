@@ -85,7 +85,11 @@
     "safePostingOffTitle": "Desligar a postagem segura?",
     "safePostingOffBody": "Com a postagem segura ligada, esta conta espera 15 minutos entre um vídeo e outro. Isso evita que vários cortes saiam de uma vez, em rajada, que é o que as plataformas tratam como spam: os vídeos competem entre si e cada um alcança menos gente, e a conta pode ser limitada (no TikTok, a postagem chega a ser bloqueada por um tempo). Desligando, os clipes saem assim que ficam prontos.",
     "safePostingKeep": "Manter ligado",
-    "safePostingTurnOff": "Desligar mesmo assim"
+    "safePostingTurnOff": "Desligar mesmo assim",
+    "limitPosts": "Limitar vídeos por dia",
+    "limitPostsCount": "Vídeos por dia",
+    "limitPostsPerDay": "vídeos por dia",
+    "todayNoLimit": "{posted} posts nas últimas 24 h, sem limite diário"
   },
   "confirmYes": "Sim",
   "confirmNo": "Cancelar",
@@ -98,7 +102,7 @@
   "postVisibilityUnlisted": "Não listado",
   "postVisibilityPrivate": "Privado (só eu)",
   "postVisibilityHint": "Vale o mais restritivo entre esta opção e a de cada conta: ela só segura os clipes, nunca deixa algo mais público. O Instagram não esconde posts, então os clipes dele ficam como rascunho no Postiz.",
-  "limitWindows": "Limitar trechos por dia",
+  "limitWindows": "Limitar trechos analisados por dia",
   "limitWindowsCount": "Quantidade de trechos por dia",
   "limitWindowsPerDay": "trechos por dia",
   "limitWindowsHintOn": "Cada trecho de live (cerca de 20 min) passa pelo Whisper e pelo Claude. O limite protege o uso da tua assinatura.",

@@ -85,7 +85,11 @@
     "safePostingOffTitle": "¿Desactivar la publicación segura?",
     "safePostingOffBody": "Con la publicación segura activada, esta cuenta espera 15 minutos entre un video y otro. Así evita que varios clips salgan de golpe, en ráfaga, algo que las plataformas tratan como spam: los videos compiten entre sí y cada uno llega a menos gente, y la cuenta puede quedar limitada (en TikTok, incluso se bloquea la publicación por un tiempo). Al desactivarla, los clips salen en cuanto están listos.",
     "safePostingKeep": "Mantener activada",
-    "safePostingTurnOff": "Desactivar igualmente"
+    "safePostingTurnOff": "Desactivar igualmente",
+    "limitPosts": "Limitar videos por día",
+    "limitPostsCount": "Videos por día",
+    "limitPostsPerDay": "videos por día",
+    "todayNoLimit": "{posted} publicaciones en las últimas 24 h, sin límite diario"
   },
   "confirmYes": "Sí",
   "confirmNo": "Cancelar",
@@ -98,7 +102,7 @@
   "postVisibilityUnlisted": "No listado",
   "postVisibilityPrivate": "Privado (solo yo)",
   "postVisibilityHint": "Prevalece la opción más restrictiva entre esta y la de cada cuenta: solo puede retener clips, nunca hacerlos más públicos. Instagram no puede ocultar publicaciones, así que sus clips quedan como borrador en Postiz.",
-  "limitWindows": "Limitar fragmentos por día",
+  "limitWindows": "Limitar fragmentos analizados por día",
   "limitWindowsCount": "Fragmentos por día",
   "limitWindowsPerDay": "fragmentos por día",
   "limitWindowsHintOn": "Cada fragmento del directo (unos 20 min) pasa por Whisper y Claude. El límite protege el uso de tu suscripción.",

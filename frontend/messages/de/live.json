@@ -85,7 +85,11 @@
     "safePostingOffTitle": "Sicheres Posten ausschalten?",
     "safePostingOffBody": "Mit sicherem Posten wartet dieses Konto 15 Minuten zwischen zwei Posts. So gehen nie mehrere Clips auf einmal raus, was Plattformen als Spam werten: Die Videos konkurrieren miteinander, jedes erreicht weniger Leute, und das Konto kann eingeschränkt werden (bei TikTok wird das Posten sogar zeitweise gesperrt). Ausgeschaltet gehen Clips raus, sobald sie fertig sind.",
     "safePostingKeep": "Eingeschaltet lassen",
-    "safePostingTurnOff": "Trotzdem ausschalten"
+    "safePostingTurnOff": "Trotzdem ausschalten",
+    "limitPosts": "Videos pro Tag begrenzen",
+    "limitPostsCount": "Videos pro Tag",
+    "limitPostsPerDay": "Videos pro Tag",
+    "todayNoLimit": "{posted} Posts in den letzten 24 h, kein Tageslimit"
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
@@ -98,7 +102,7 @@
   "postVisibilityUnlisted": "Nicht gelistet",
   "postVisibilityPrivate": "Privat (nur ich)",
   "postVisibilityHint": "Es gilt die restriktivere Einstellung aus dieser und der jedes Kontos: Sie kann Clips nur zurückhalten, nie öffentlicher machen. Instagram kann Posts nicht verbergen, daher bleiben die Clips dort als Entwurf in Postiz.",
-  "limitWindows": "Abschnitte pro Tag begrenzen",
+  "limitWindows": "Analysierte Abschnitte pro Tag begrenzen",
   "limitWindowsCount": "Abschnitte pro Tag",
   "limitWindowsPerDay": "Abschnitte pro Tag",
   "limitWindowsHintOn": "Jeder Live-Abschnitt (etwa 20 Min.) läuft durch Whisper und Claude. Das Limit schont dein Abo.",

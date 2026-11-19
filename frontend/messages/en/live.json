@@ -85,7 +85,11 @@
     "safePostingOffTitle": "Turn off safe posting?",
     "safePostingOffBody": "With safe posting on, this account waits 15 minutes between posts. That keeps several clips from going out at once, in a burst, which platforms treat as spam: the videos compete with each other so each reaches fewer people, and the account can get limited (on TikTok, posting can even be blocked for a while). With it off, clips go out as soon as they're ready.",
     "safePostingKeep": "Keep it on",
-    "safePostingTurnOff": "Turn off anyway"
+    "safePostingTurnOff": "Turn off anyway",
+    "limitPosts": "Limit videos per day",
+    "limitPostsCount": "Videos per day",
+    "limitPostsPerDay": "videos per day",
+    "todayNoLimit": "{posted} posts in the last 24 h, no daily limit"
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",
@@ -98,7 +102,7 @@
   "postVisibilityUnlisted": "Unlisted",
   "postVisibilityPrivate": "Private (only me)",
   "postVisibilityHint": "The more restrictive of this and each account's setting wins, so this can only hold clips back, never make them more public. Instagram can't hide a post, so its clips wait as drafts in Postiz.",
-  "limitWindows": "Limit windows per day",
+  "limitWindows": "Limit analysed windows per day",
   "limitWindowsCount": "Windows per day",
   "limitWindowsPerDay": "windows per day",
   "limitWindowsHintOn": "Each live window (about 20 min) goes through Whisper and Claude. The limit protects your subscription usage.",

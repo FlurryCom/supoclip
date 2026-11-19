@@ -374,7 +374,7 @@ class LiveService:
         candidates = await self.fetch("""
             SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, c.post_visibility, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap,
-                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting,
+                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting, t.limit_posts,
                 s.duration AS checked_duration, s.regions, s.error AS check_error
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -409,8 +409,8 @@ class LiveService:
                 "WHERE target_id = %s AND status = 'posted' AND created_at > now() - interval '1 day'",
                 (row["target_id"],),
             ))[0]
-            if recent["n"] >= row["daily_cap"]:
-                continue  # stays a candidate; posts when the 24 h window frees up (if still within a day)
+            if row.get("limit_posts") and recent["n"] >= row["daily_cap"]:
+                continue  # owner's daily limit for this account; stays a candidate until the 24 h window frees up
             if not safe_to_post(row.get("safe_posting", True), recent.get("last_posted"), datetime.now(timezone.utc)):
                 continue  # safe posting: this account waits 15 minutes between posts; the clip stays queued
             clip_file = DATA_DIR / f"post-{row['clip_id']}.mp4"

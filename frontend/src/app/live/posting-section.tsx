@@ -6,6 +6,7 @@ import { AlertTriangle, ShieldCheck, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +47,7 @@ interface PostTarget {
   daily_cap: number;
   blur_sensitive: boolean;
   safe_posting: boolean;
+  limit_posts: boolean;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
 }
@@ -57,7 +59,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting" | "limit_posts" | "daily_cap">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -95,6 +97,45 @@ function MinScore({ target, onCommit }: { target: PostTarget; onCommit: (value: 
         onValueChange={([next]) => setDraft(next)}
         onValueCommit={([next]) => next !== target.min_score && onCommit(next)}
       />
+    </div>
+  );
+}
+
+// Owner's daily post limit for this account: off means no limit; on shows the number.
+function PostLimit({ target, onChange }: { target: PostTarget; onChange: (settings: TargetSettings) => void }) {
+  const t = useTranslations("live.posting");
+  const [draft, setDraft] = useState(String(target.daily_cap));
+  useEffect(() => setDraft(String(target.daily_cap)), [target.daily_cap]);
+  const commit = () => {
+    const value = Math.round(Number(draft));
+    if (Number.isFinite(value) && value >= 1 && value <= 100 && value !== target.daily_cap) {
+      onChange({ daily_cap: value });
+    } else {
+      setDraft(String(target.daily_cap));
+    }
+  };
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Switch id={`post-limit-${target.id}`} checked={target.limit_posts} onCheckedChange={(limit_posts) => onChange({ limit_posts })} />
+        <Label htmlFor={`post-limit-${target.id}`}>{t("limitPosts")}</Label>
+      </div>
+      {target.limit_posts ? (
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label={t("limitPostsCount")}
+            type="number"
+            min={1}
+            max={100}
+            className="h-8 w-20"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => { if (event.key === "Enter") commit(); }}
+          />
+          <span className="text-sm text-muted-foreground">{t("limitPostsPerDay")}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -192,8 +233,11 @@ function TargetCard({ target, onChange, onRevoke }: {
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
       <SafePostingSwitch target={target} onChange={onChange} />
+      <PostLimit target={target} onChange={onChange} />
       <p className="mt-2 text-xs text-muted-foreground">
-        {t("today", { posted: target.posted_today, cap: target.daily_cap })}
+        {target.limit_posts
+          ? t("today", { posted: target.posted_today, cap: target.daily_cap })
+          : t("todayNoLimit", { posted: target.posted_today })}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {target.provider.startsWith("instagram") ? t("visibilityHintInstagram") : t("visibilityHint")}

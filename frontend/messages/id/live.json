@@ -85,7 +85,11 @@
     "safePostingOffTitle": "Matikan posting aman?",
     "safePostingOffBody": "Dengan posting aman aktif, akun ini menunggu 15 menit di antara posting. Ini mencegah banyak klip keluar sekaligus, yang dianggap spam oleh platform: video saling bersaing sehingga jangkauan tiap video turun, dan akun bisa dibatasi (di TikTok, posting bahkan bisa diblokir sementara). Jika dimatikan, klip langsung diposting begitu siap.",
     "safePostingKeep": "Tetap aktifkan",
-    "safePostingTurnOff": "Matikan saja"
+    "safePostingTurnOff": "Matikan saja",
+    "limitPosts": "Batasi video per hari",
+    "limitPostsCount": "Video per hari",
+    "limitPostsPerDay": "video per hari",
+    "todayNoLimit": "{posted} posting dalam 24 jam terakhir, tanpa batas harian"
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",
@@ -98,7 +102,7 @@
   "postVisibilityUnlisted": "Tidak terdaftar",
   "postVisibilityPrivate": "Pribadi (hanya saya)",
   "postVisibilityHint": "Pengaturan yang lebih ketat antara ini dan tiap akun yang berlaku: ini hanya bisa menahan klip, tidak pernah membuatnya lebih publik. Instagram tidak bisa menyembunyikan posting, jadi kliknya menunggu sebagai draf di Postiz.",
-  "limitWindows": "Batasi segmen per hari",
+  "limitWindows": "Batasi segmen yang dianalisis per hari",
   "limitWindowsCount": "Segmen per hari",
   "limitWindowsPerDay": "segmen per hari",
   "limitWindowsHintOn": "Setiap segmen live (sekitar 20 menit) diproses Whisper dan Claude. Batas ini melindungi pemakaian langgananmu.",

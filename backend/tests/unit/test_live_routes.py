@@ -95,3 +95,10 @@ def test_settings_accept_the_window_limit_switch():
     assert _settings({"limit_windows": False, "daily_window_cap": 48}) == {"limit_windows": False, "daily_window_cap": 48}
     with pytest.raises(HTTPException):
         _settings({"limit_windows": "no"})
+
+
+def test_target_settings_accept_the_post_limit_switch():
+    from src.api.routes.live import _target_settings
+    assert _target_settings({"limit_posts": True, "daily_cap": 30}) == {"limit_posts": True, "daily_cap": 30}
+    with pytest.raises(HTTPException):
+        _target_settings({"limit_posts": 1})
