@@ -106,14 +106,15 @@ class LiveService:
 
     async def run(self) -> None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        async with await psycopg.AsyncConnection.connect(self.dsn, autocommit=True, row_factory=dict_row) as db:
-            self.db = db
-            while True:
-                try:
-                    await self.cycle()
-                except Exception:
-                    logger.exception("live cycle failed")
-                await asyncio.sleep(POLL_SECONDS)
+        self.db = None
+        while True:
+            try:
+                if self.db is None or self.db.closed:  # first run, or Postgres restarted under us
+                    self.db = await psycopg.AsyncConnection.connect(self.dsn, autocommit=True, row_factory=dict_row)
+                await self.cycle()
+            except Exception:
+                logger.exception("live cycle failed")
+            await asyncio.sleep(POLL_SECONDS)
 
     async def cycle(self) -> None:
         channels = {c["id"]: c for c in await self.fetch(CHANNELS_SQL)}
