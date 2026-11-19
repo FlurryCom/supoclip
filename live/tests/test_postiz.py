@@ -52,3 +52,15 @@ def test_caption_credits_the_streamer():
 def test_caption_credits_a_youtube_channel():
     text = caption("Big moment", "@loudcoringa", "GTA VI ESTÁ ENTRE NÓS", "youtube")
     assert "youtube.com/@loudcoringa" in text and "#youtube" in text and "#loudcoringa" in text
+
+
+def test_private_visibility_reaches_each_platform():
+    assert provider_settings("tiktok", "t", "private")["privacy_level"] == "SELF_ONLY"
+    assert provider_settings("tiktok", "t")["privacy_level"] == "PUBLIC_TO_EVERYONE"
+    assert provider_settings("youtube", "t", "private")["type"] == "private"
+    assert provider_settings("youtube", "t")["type"] == "public"
+
+
+def test_post_uses_the_targets_visibility():
+    body = build_post({**TARGET, "visibility": "private"}, {"id": "m1", "path": "p"}, "T", "c")
+    assert body["posts"][0]["settings"]["privacy_level"] == "SELF_ONLY"

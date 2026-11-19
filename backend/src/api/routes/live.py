@@ -256,7 +256,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
         return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
-        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.daily_cap,
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap,
             (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
                 AND p.created_at > now() - interval '1 day') AS posted_today
         FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
@@ -299,13 +299,15 @@ async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(
     settings = _target_settings(data)
     target_id = str(uuid.uuid4())
     row = (await db.execute(text("""
-        INSERT INTO live_post_targets (id, user_id, integration_id, provider, name, min_score, mode, daily_cap)
-        VALUES (:id, :user_id, :integration_id, :provider, :name, :min_score, :mode, :daily_cap)
+        INSERT INTO live_post_targets (id, user_id, integration_id, provider, name, min_score, mode, visibility, daily_cap)
+        VALUES (:id, :user_id, :integration_id, :provider, :name, :min_score, :mode, :visibility, :daily_cap)
         ON CONFLICT (user_id, integration_id) DO NOTHING RETURNING id
     """), {
         "id": target_id, "user_id": user_id, "integration_id": integration_id,
         "provider": account["provider"], "name": account["name"],
         "min_score": settings.get("min_score", 80), "mode": settings.get("mode", "draft"),
+        # TikTok accounts start private: unaudited apps can't post publicly.
+        "visibility": settings.get("visibility", "private" if account["provider"] == "tiktok" else "public"),
         "daily_cap": settings.get("daily_cap", 10),
     })).first()
     if row is None:
@@ -324,6 +326,10 @@ def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
         if data["mode"] not in ("draft", "now"):
             raise HTTPException(status_code=422, detail="mode must be draft or now")
         settings["mode"] = data["mode"]
+    if "visibility" in data:
+        if data["visibility"] not in ("public", "private"):
+            raise HTTPException(status_code=422, detail="visibility must be public or private")
+        settings["visibility"] = data["visibility"]
     for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100)):
         if key in data:
             value = data[key]

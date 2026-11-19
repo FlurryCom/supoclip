@@ -32,6 +32,7 @@ interface PostTarget {
   enabled: boolean;
   min_score: number;
   mode: "draft" | "now";
+  visibility: "public" | "private";
   daily_cap: number;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
@@ -44,7 +45,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "visibility">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -109,7 +110,7 @@ function TargetCard({ target, onChange, onRevoke }: {
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {t(`problem.${target.problem}`)}
         </p>
       ) : null}
-      <div className="mt-3 grid gap-4 sm:grid-cols-3 sm:items-end">
+      <div className="mt-3 grid gap-4 sm:grid-cols-4 sm:items-end">
         <div className="flex items-center gap-2">
           <Switch id={`post-on-${target.id}`} checked={target.enabled} onCheckedChange={(enabled) => onChange({ enabled })} />
           <Label htmlFor={`post-on-${target.id}`}>{t("enabled")}</Label>
@@ -126,6 +127,20 @@ function TargetCard({ target, onChange, onRevoke }: {
             </SelectContent>
           </Select>
         </div>
+        {target.provider.startsWith("instagram") ? null : (
+          <div>
+            <Label id={`post-visibility-${target.id}`} className="mb-2 block">{t("visibility")}</Label>
+            <Select value={target.visibility} onValueChange={(visibility) => onChange({ visibility: visibility as PostTarget["visibility"] })}>
+              <SelectTrigger aria-labelledby={`post-visibility-${target.id}`} className="h-8 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">{t("visibilityPublic")}</SelectItem>
+                <SelectItem value="private">{t("visibilityPrivate")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <MinScore target={target} onCommit={(min_score) => onChange({ min_score })} />
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
