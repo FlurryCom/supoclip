@@ -37,3 +37,16 @@ def test_merge_regions_stays_inside_the_frame():
 
 def test_model_loads_and_finds_nothing_on_a_blank_frame():
     assert NudityModel.get().detect(np.zeros((360, 640, 3), dtype=np.uint8)) == []
+
+
+def test_exposed_boxes_survive_overlapping_higher_scoring_boxes():
+    """A face or covered-body box must never hide an exposed one (overlap filter runs on exposed only)."""
+    from src.media.nudity_check import LABELS, decode
+    rows = np.zeros((1, 4 + len(LABELS), 2), dtype=np.float32)
+    for anchor, label, score in ((0, "FACE_FEMALE", 0.9), (1, "FEMALE_BREAST_EXPOSED", 0.6)):
+        rows[0, :4, anchor] = (160, 160, 100, 100)  # same box, centre x/y and size in model pixels
+        rows[0, 4 + LABELS.index(label), anchor] = score
+    kept = decode(rows, side=640, width=640, height=640, only=frozenset({"FEMALE_BREAST_EXPOSED"}), min_score=0.45)
+    assert [(label, round(score, 2)) for label, score, _ in kept] == [("FEMALE_BREAST_EXPOSED", 0.6)]
+    everything = decode(rows, side=640, width=640, height=640)
+    assert [label for label, _, _ in everything] == ["FACE_FEMALE"]  # upstream behaviour kept for detect()

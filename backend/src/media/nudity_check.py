@@ -47,28 +47,43 @@ class NudityModel:
                 cls._instance = cls()
             return cls._instance
 
-    def detect(self, frame_bgr: np.ndarray) -> list[tuple[str, float, tuple[int, int, int, int]]]:
-        """(label, score, (x, y, w, h) in pixels) for every detection after NMS."""
+    def detect(self, frame_bgr: np.ndarray, only: frozenset[str] | None = None, min_score: float = 0.2):
+        """(label, score, (x, y, w, h) in pixels) per detection after NMS; ``only`` limits the classes first."""
         h, w = frame_bgr.shape[:2]
         side = max(h, w)
         # Same colour handling as upstream NudeNet (its scores were tuned on this pipeline).
         image = cv2.cvtColor(frame_bgr, cv2.COLOR_RGBA2BGR)
         square = cv2.copyMakeBorder(image, 0, side - h, 0, side - w, cv2.BORDER_CONSTANT)
         blob = cv2.dnn.blobFromImage(square, 1 / 255.0, (SIZE, SIZE), (0, 0, 0), swapRB=True, crop=False)
-        rows = np.squeeze(self.session.run(None, {self.input_name: blob})[0]).T  # (anchors, 4 + classes)
-        scores = rows[:, 4:].max(axis=1)
-        keep = scores >= 0.2
-        rows, scores = rows[keep], scores[keep]
-        if not len(rows):
-            return []
-        scale = side / SIZE
-        boxes = []
-        for cx, cy, bw, bh in rows[:, :4]:
-            x, y = max(0.0, (cx - bw / 2) * scale), max(0.0, (cy - bh / 2) * scale)
-            boxes.append([int(x), int(y), int(min(bw * scale, w - x)), int(min(bh * scale, h - y))])
-        classes = rows[:, 4:].argmax(axis=1)
-        picked = cv2.dnn.NMSBoxes(boxes, scores.tolist(), 0.25, 0.45)
-        return [(LABELS[int(classes[i])], float(scores[i]), tuple(boxes[i])) for i in np.array(picked).flatten()]
+        return decode(self.session.run(None, {self.input_name: blob})[0], side, w, h, only, min_score)
+
+
+def decode(output: np.ndarray, side: int, width: int, height: int,
+           only: frozenset[str] | None = None, min_score: float = 0.2) -> list[tuple[str, float, tuple[int, int, int, int]]]:
+    """Model output (1, 4 + classes, anchors) -> detections after NMS.
+
+    Without ``only`` this matches upstream NudeNet. With it, only those classes
+    are scored and overlap-filtered, so a face or covered-body box can never
+    suppress an exposed one (what matters for a safety filter).
+    """
+    rows = np.squeeze(output).T  # (anchors, 4 + classes)
+    if rows.ndim == 1:
+        rows = rows[None, :]
+    class_ids = np.arange(len(LABELS)) if only is None else np.array([LABELS.index(label) for label in sorted(only)])
+    class_scores = rows[:, 4 + class_ids]
+    scores = class_scores.max(axis=1)
+    classes = class_ids[class_scores.argmax(axis=1)]
+    keep = scores >= max(0.2, min_score)
+    rows, scores, classes = rows[keep], scores[keep], classes[keep]
+    if not len(rows):
+        return []
+    scale = side / SIZE
+    boxes = []
+    for cx, cy, bw, bh in rows[:, :4]:
+        x, y = max(0.0, (cx - bw / 2) * scale), max(0.0, (cy - bh / 2) * scale)
+        boxes.append([int(x), int(y), int(min(bw * scale, width - x)), int(min(bh * scale, height - y))])
+    picked = cv2.dnn.NMSBoxes(boxes, scores.tolist(), 0.25, 0.45)
+    return [(LABELS[int(classes[i])], float(scores[i]), tuple(boxes[i])) for i in np.array(picked).flatten()]
 
 
 def _overlaps(a: tuple[float, float, float, float], b: tuple[float, float, float, float]) -> bool:
@@ -117,7 +132,7 @@ def find_nudity(frames: list[tuple[float, np.ndarray]], step: float = 0.5) -> li
     for second, frame in frames:
         h, w = frame.shape[:2]
         boxes = []
-        for label, score, (x, y, bw, bh) in model.detect(frame):
+        for label, score, (x, y, bw, bh) in model.detect(frame, only=EXPOSED, min_score=MIN_SCORE):
             if label in EXPOSED and score >= MIN_SCORE:
                 px, py = bw * PAD, bh * PAD
                 boxes.append(((x - px) / w, (y - py) / h, (bw + 2 * px) / w, (bh + 2 * py) / h))
