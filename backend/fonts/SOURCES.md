@@ -58,3 +58,9 @@ wdth=100, opsz=36, slnt=0` with fontTools `varLib.instancer`, renamed to family
 "TikTok Sans" / style "Bold". libass renders a variable font's default instance,
 so captions need the static file to get real bold TikTok Sans.
 Source: https://fonts.google.com/specimen/TikTok+Sans (OFL).
+
+## GochiHand-Regular.ttf
+
+Hand-drawn marker face for the Cat Clips edit kit (closest open match to the
+Cat Clips logo lettering). License: SIL Open Font License, see
+`GochiHand-OFL.txt`. Source: https://github.com/google/fonts/tree/main/ofl/gochihand

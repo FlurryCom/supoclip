@@ -135,6 +135,7 @@ services:
       - uploads:/app/uploads
       - clips:/app/clips
       - ./backend/fonts:/app/fonts
+      - ./backend/assets:/app/assets
       - ./backend/transitions:/app/transitions
     environment:
       - PYTHONPATH=/app
@@ -381,6 +382,7 @@ services:
       - uploads:/app/uploads
       - clips:/app/clips
       - ./backend/fonts:/app/fonts
+      - ./backend/assets:/app/assets
       - ./backend/transitions:/app/transitions
       # Your Claude Code login, for LLM=claude-cli:* (docs/claude-cli-provider.md).
       - ${CLAUDE_HOME_DIR:-./.claude-cli}:/root/.claude:z
@@ -569,6 +571,7 @@ services:
       - uploads:/app/uploads
       - clips:/app/clips
       - ./backend/fonts:/app/fonts
+      - ./backend/assets:/app/assets
       - ./backend/transitions:/app/transitions
     environment: *worker-environment
     restart: unless-stopped

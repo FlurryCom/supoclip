@@ -48,6 +48,7 @@ COPY LICENSE ./
 
 # Copy fonts and transitions directories
 COPY fonts/ ./fonts/
+COPY assets/ ./assets/
 COPY transitions/ ./transitions/
 
 # Create necessary directories for video processing
