@@ -73,6 +73,5 @@
       "error": "gagal memposting ke {name}"
     },
     "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env)."
-  },
-  "youtubeNoChat": "Chat YouTube belum dibaca: setiap bagian siaran dipotong, dan skornya hanya skor AI."
+  }
 }

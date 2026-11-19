@@ -73,6 +73,5 @@
       "error": "failed to post to {name}"
     },
     "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env)."
-  },
-  "youtubeNoChat": "YouTube chat isn't read yet: every stretch of the live is clipped, and the score is the AI's only."
+  }
 }

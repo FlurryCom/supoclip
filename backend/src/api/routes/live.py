@@ -189,7 +189,7 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         RETURNING id
     """), {
         "id": channel_id, "user_id": user_id, "platform": platform, "channel": name,
-        "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", platform == "twitch"),  # YouTube chat is not read yet
+        "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", True),
         "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
         "daily_window_cap": settings.get("daily_window_cap", 12),
     })).first()

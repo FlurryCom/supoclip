@@ -17,7 +17,7 @@ from psycopg.types.json import Jsonb
 
 from . import postiz, recorder
 from .backend import Backend
-from .chat import watch_chat
+from .chat import watch_chat, watch_youtube_chat
 from .heat import chat_heat, chat_hints, final_score
 from .windows import Chunk, Policy, decide, is_duplicate, parse_clip_time, to_wall_clock, window_chunks
 
@@ -80,8 +80,12 @@ class Session:
             if spike:
                 logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
 
-        if self.channel["platform"] == "twitch":  # YouTube chat isn't read yet
-            self.chat_task = asyncio.create_task(watch_chat(self.channel["channel"], on_bucket, self.stop_chat))
+        if self.channel["platform"] == "youtube":
+            url = recorder.channel_url(self.channel["channel"], "youtube")
+            reader = watch_youtube_chat(url, on_bucket, self.stop_chat, self.directory / "chat")
+        else:
+            reader = watch_chat(self.channel["channel"], on_bucket, self.stop_chat)
+        self.chat_task = asyncio.create_task(reader)
 
     async def stop(self) -> None:
         await self.recording.stop()
@@ -226,7 +230,7 @@ class LiveService:
         )
         decision = decide(
             pending_from=rec["pending_from"], content_end=content_end, ended=ended, busy=busy,
-            chat_filter=rec["chat_filter"] and rec["platform"] == "twitch", spikes=[r["at"] for r in await self.fetch(
+            chat_filter=rec["chat_filter"], spikes=[r["at"] for r in await self.fetch(
                 "SELECT at FROM live_chat_buckets WHERE recording_id = %s AND spike", (rec["id"],))],
             sent_last_day=sent[0]["n"], daily_cap=rec["daily_window_cap"], policy=POLICY,
         )

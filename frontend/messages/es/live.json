@@ -73,6 +73,5 @@
       "error": "error al publicar en {name}"
     },
     "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_USER_IDS en .env)."
-  },
-  "youtubeNoChat": "El chat de YouTube aún no se lee: se recorta cada tramo del directo y la puntuación es solo la de la IA."
+  }
 }

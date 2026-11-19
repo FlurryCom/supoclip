@@ -164,7 +164,6 @@ function ChannelCard({ channel, onChange, onRemove }: {
   onRemove: () => void;
 }) {
   const t = useTranslations("live");
-  const youtube = channel.platform === "youtube";
 
   return (
     <li className="rounded-xl border bg-background p-4">
@@ -197,17 +196,12 @@ function ChannelCard({ channel, onChange, onRemove }: {
           <Label htmlFor={`enabled-${channel.id}`}>{t("enabled")}</Label>
         </div>
         <div className="flex items-center gap-2">
-          <Switch
-            id={`chat-${channel.id}`}
-            checked={youtube ? false : channel.chat_filter}
-            disabled={youtube}
-            onCheckedChange={(chat_filter) => onChange({ chat_filter })}
-          />
+          <Switch id={`chat-${channel.id}`} checked={channel.chat_filter} onCheckedChange={(chat_filter) => onChange({ chat_filter })} />
           <Label htmlFor={`chat-${channel.id}`}>{t("chatFilter")}</Label>
         </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        {youtube ? t("youtubeNoChat") : channel.chat_filter ? t("chatFilterOn") : t("chatFilterOff")}
+        {channel.chat_filter ? t("chatFilterOn") : t("chatFilterOff")}
       </p>
 
       <div className="mt-5 grid gap-5 sm:grid-cols-2">

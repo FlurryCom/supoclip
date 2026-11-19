@@ -64,3 +64,27 @@ def test_cooldown_reports_one_spike_per_minute():
 def test_parse_privmsg():
     assert parse_privmsg(":ana!ana@ana.tmi.twitch.tv PRIVMSG #chan :que jogada :)") == ("ana", "que jogada :)")
     assert parse_privmsg(":tmi.twitch.tv 001 justinfan1 :Welcome") is None
+
+
+def youtube_line(*messages):
+    import json
+    actions = [{"clickTrackingParams": "x", "addBannerToLiveChatCommand": {"bannerRenderer": {}}}]
+    for author, text, usec in messages:
+        actions.append({"addChatItemAction": {"item": {"liveChatTextMessageRenderer": {
+            "authorExternalChannelId": author, "message": {"runs": [{"text": text}]}, "timestampUsec": str(usec)}}}})
+    actions.append({"addChatItemAction": {"item": {"liveChatViewerEngagementMessageRenderer": {"message": {}}}}})
+    return json.dumps({"replayChatItemAction": {"actions": actions}, "isLive": True})
+
+
+def test_youtube_chat_line_keeps_only_real_messages():
+    from supoclip_live.chat import parse_youtube_chat_line
+    line = youtube_line(("UCa", "KKKKKK", 1795050000000000), ("UCb", "que isso", 1795050001000000))
+    parsed = parse_youtube_chat_line(line)
+    assert [(a, t) for a, t, _ in parsed] == [("UCa", "KKKKKK"), ("UCb", "que isso")]
+    assert parsed[0][2] == datetime.fromtimestamp(1795050000, tz=timezone.utc)
+
+
+def test_youtube_chat_line_survives_garbage():
+    from supoclip_live.chat import parse_youtube_chat_line
+    assert parse_youtube_chat_line("not json") == []
+    assert parse_youtube_chat_line('{"replayChatItemAction": {"actions": [{}]}}') == []

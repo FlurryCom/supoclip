@@ -7,11 +7,13 @@ spike, and compares each bucket against the channel's recent median.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
 import statistics
 from collections import deque
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,78 @@ def parse_privmsg(line: str) -> tuple[str, str] | None:
     nick = prefix.split("!", 1)[0]
     _, _, text = rest.partition(" :")
     return (nick, text) if nick else None
+
+
+def parse_youtube_chat_line(line: str) -> list[tuple[str, str, datetime]]:
+    """(author channel id, text, sent at) for each chat message in one yt-dlp live_chat line.
+
+    Only real messages count (text, Super Chats); banners, removals and
+    engagement notices are ignored.
+    """
+    try:
+        data = json.loads(line)
+    except ValueError:
+        return []
+    messages = []
+    for action in (data.get("replayChatItemAction") or {}).get("actions") or []:
+        item = ((action.get("addChatItemAction") or {}).get("item")) or {}
+        for kind in ("liveChatTextMessageRenderer", "liveChatPaidMessageRenderer"):
+            renderer = item.get(kind)
+            if not renderer or not renderer.get("authorExternalChannelId"):
+                continue
+            runs = (renderer.get("message") or {}).get("runs") or []
+            text = "".join(run.get("text") or (run.get("emoji") or {}).get("shortcuts", [""])[0] for run in runs)
+            try:
+                at = datetime.fromtimestamp(int(renderer["timestampUsec"]) / 1_000_000, tz=timezone.utc)
+            except (KeyError, ValueError):
+                at = datetime.now(timezone.utc)
+            messages.append((renderer["authorExternalChannelId"], text, at))
+    return messages
+
+
+async def watch_youtube_chat(live_url: str, on_bucket, stop: asyncio.Event, work_dir: Path) -> None:
+    """Follow a YouTube live's chat through yt-dlp (which writes it as it arrives).
+
+    Same buckets as Twitch: distinct authors per 10 s, via ``on_bucket``.
+    """
+    detector = SpikeDetector()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    while not stop.is_set():
+        for old in work_dir.glob("chat*"):
+            old.unlink(missing_ok=True)
+        proc = await asyncio.create_subprocess_exec(
+            "yt-dlp", "--quiet", "--no-warnings", "--skip-download", "--write-subs", "--sub-langs", "live_chat",
+            "-o", str(work_dir / "chat"), live_url,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        )
+        position, last = 0, None
+        try:
+            while not stop.is_set():
+                # yt-dlp appends each batch of messages to this file while the live runs.
+                part = next(iter(sorted(p for p in work_dir.glob("chat.live_chat.json*") if "Frag" not in p.name)), None)
+                if part is not None and part.is_file():
+                    with part.open("r", errors="replace") as handle:
+                        handle.seek(position)
+                        chunk = handle.read()
+                    complete = chunk.rfind("\n") + 1  # leave a half-written line for next time
+                    position += len(chunk[:complete].encode())
+                    for line in chunk[:complete].splitlines():
+                        for author, text, at in parse_youtube_chat_line(line):
+                            last = at if last is None or at > last else last  # keep buckets moving forward
+                            detector.add(author, text, last)
+                detector.tick(datetime.now(timezone.utc) - timedelta(seconds=20))  # batches arrive late
+                for bucket in detector.drain():
+                    await on_bucket(*bucket)
+                if proc.returncode is not None:
+                    break
+                await asyncio.sleep(2)
+        finally:
+            if proc.returncode is None:
+                proc.kill()
+                await proc.wait()
+        if not stop.is_set():
+            logger.warning("YouTube chat reader for %s stopped; restarting", live_url)
+            await asyncio.sleep(15)
 
 
 async def watch_chat(channel: str, on_bucket, stop: asyncio.Event) -> None:

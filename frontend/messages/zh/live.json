@@ -73,6 +73,5 @@
       "error": "发布到 {name} 失败"
     },
     "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。"
-  },
-  "youtubeNoChat": "暂不读取 YouTube 聊天：直播的每一段都会剪辑，得分仅为 AI 得分。"
+  }
 }
