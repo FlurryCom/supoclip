@@ -110,6 +110,14 @@ class Session:
             self.chat_task.cancel()
 
 
+NO_WINDOW_LIMIT = 1_000_000
+
+
+def window_cap(channel: dict) -> int:
+    """Windows a channel may send per day; the owner can switch the limit off per channel."""
+    return channel["daily_window_cap"] if channel.get("limit_windows", True) else NO_WINDOW_LIMIT
+
+
 SAFE_GAP = timedelta(minutes=15)  # owner: "um padrão de 15 minutos de intervalo a cada plataforma"
 
 
@@ -149,7 +157,7 @@ class LiveService:
                 await self.end(channel_id)
         for channel in channels.values():
             await self.watch(channel)
-        for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
+        for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
         await self.post_clips()
@@ -259,7 +267,7 @@ class LiveService:
             pending_from=rec["pending_from"], content_end=content_end, ended=ended, busy=busy,
             chat_filter=rec["chat_filter"], spikes=[r["at"] for r in await self.fetch(
                 "SELECT at FROM live_chat_buckets WHERE recording_id = %s AND spike", (rec["id"],))],
-            sent_last_day=sent[0]["n"], daily_cap=rec["daily_window_cap"], policy=POLICY,
+            sent_last_day=sent[0]["n"], daily_cap=window_cap(rec), policy=POLICY,
         )
         if decision.action == "wait":
             if ended and not busy:  # nothing more will arrive

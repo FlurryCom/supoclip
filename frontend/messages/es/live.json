@@ -97,5 +97,10 @@
   "postVisibilityDefault": "Seguir la configuración de cada cuenta",
   "postVisibilityUnlisted": "No listado",
   "postVisibilityPrivate": "Privado (solo yo)",
-  "postVisibilityHint": "Prevalece la opción más restrictiva entre esta y la de cada cuenta: solo puede retener clips, nunca hacerlos más públicos. Instagram no puede ocultar publicaciones, así que sus clips quedan como borrador en Postiz."
+  "postVisibilityHint": "Prevalece la opción más restrictiva entre esta y la de cada cuenta: solo puede retener clips, nunca hacerlos más públicos. Instagram no puede ocultar publicaciones, así que sus clips quedan como borrador en Postiz.",
+  "limitWindows": "Limitar fragmentos por día",
+  "limitWindowsCount": "Fragmentos por día",
+  "limitWindowsPerDay": "fragmentos por día",
+  "limitWindowsHintOn": "Cada fragmento del directo (unos 20 min) pasa por Whisper y Claude. El límite protege el uso de tu suscripción.",
+  "limitWindowsHintOff": "Sin límite: se analiza todo el directo, con más uso de Claude y GPU."
 }

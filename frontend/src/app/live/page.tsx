@@ -52,6 +52,8 @@ interface LiveChannel {
   chat_filter: boolean;
   min_score: number;
   chat_weight: number;
+  daily_window_cap: number;
+  limit_windows: boolean;
   edit_kit: string;
   blur_sensitive: boolean;
   post_visibility: "default" | "unlisted" | "private";
@@ -60,7 +62,7 @@ interface LiveChannel {
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility" | "daily_window_cap" | "limit_windows">>;
 
 interface EditKit {
   id: string;
@@ -168,6 +170,48 @@ function SliderSetting({ id, label, hint, value, suffix = "", onCommit }: {
   );
 }
 
+// Owner picks whether a channel's lives are capped per day, and the number.
+function WindowLimit({ channel, onChange }: { channel: LiveChannel; onChange: (settings: Settings) => void }) {
+  const t = useTranslations("live");
+  const [draft, setDraft] = useState(String(channel.daily_window_cap));
+  useEffect(() => setDraft(String(channel.daily_window_cap)), [channel.daily_window_cap]);
+  const commit = () => {
+    const value = Math.round(Number(draft));
+    if (Number.isFinite(value) && value >= 1 && value <= 200 && value !== channel.daily_window_cap) {
+      onChange({ daily_window_cap: value });
+    } else {
+      setDraft(String(channel.daily_window_cap));
+    }
+  };
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Switch id={`limit-${channel.id}`} checked={channel.limit_windows} onCheckedChange={(limit_windows) => onChange({ limit_windows })} />
+          <Label htmlFor={`limit-${channel.id}`}>{t("limitWindows")}</Label>
+        </div>
+        {channel.limit_windows ? (
+          <div className="flex items-center gap-2">
+            <Input
+              aria-label={t("limitWindowsCount")}
+              type="number"
+              min={1}
+              max={200}
+              className="h-8 w-20"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commit}
+              onKeyDown={(event) => { if (event.key === "Enter") commit(); }}
+            />
+            <span className="text-sm text-muted-foreground">{t("limitWindowsPerDay")}</span>
+          </div>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{channel.limit_windows ? t("limitWindowsHintOn") : t("limitWindowsHintOff")}</p>
+    </div>
+  );
+}
+
 function ChannelCard({ channel, kits, onChange, onRemove }: {
   channel: LiveChannel;
   kits: EditKit[];
@@ -264,6 +308,7 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
         <Label htmlFor={`blur-${channel.id}`}>{t("blurSensitive")}</Label>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
+      <WindowLimit channel={channel} onChange={onChange} />
 
       {channel.windows.length > 0 ? (
         <div className="mt-4 border-t pt-2">

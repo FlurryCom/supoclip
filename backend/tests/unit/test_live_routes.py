@@ -89,3 +89,9 @@ def test_target_settings_accept_safe_posting():
     assert _target_settings({"safe_posting": False}) == {"safe_posting": False}
     with pytest.raises(HTTPException):
         _target_settings({"safe_posting": "off"})
+
+
+def test_settings_accept_the_window_limit_switch():
+    assert _settings({"limit_windows": False, "daily_window_cap": 48}) == {"limit_windows": False, "daily_window_cap": 48}
+    with pytest.raises(HTTPException):
+        _settings({"limit_windows": "no"})

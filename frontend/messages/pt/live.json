@@ -97,5 +97,10 @@
   "postVisibilityDefault": "Seguir a configuração de cada conta",
   "postVisibilityUnlisted": "Não listado",
   "postVisibilityPrivate": "Privado (só eu)",
-  "postVisibilityHint": "Vale o mais restritivo entre esta opção e a de cada conta: ela só segura os clipes, nunca deixa algo mais público. O Instagram não esconde posts, então os clipes dele ficam como rascunho no Postiz."
+  "postVisibilityHint": "Vale o mais restritivo entre esta opção e a de cada conta: ela só segura os clipes, nunca deixa algo mais público. O Instagram não esconde posts, então os clipes dele ficam como rascunho no Postiz.",
+  "limitWindows": "Limitar trechos por dia",
+  "limitWindowsCount": "Quantidade de trechos por dia",
+  "limitWindowsPerDay": "trechos por dia",
+  "limitWindowsHintOn": "Cada trecho de live (cerca de 20 min) passa pelo Whisper e pelo Claude. O limite protege o uso da tua assinatura.",
+  "limitWindowsHintOff": "Sem limite: a live inteira é analisada, o que gasta mais Claude e placa de vídeo."
 }

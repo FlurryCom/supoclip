@@ -13,3 +13,9 @@ def test_slots_are_shared_rounding_up():
 def test_every_account_gets_at_least_one():
     assert fair_share(3, 10) == 1
     assert fair_share(3, 0) == 3
+
+
+def test_window_cap_follows_the_channel_switch():
+    from supoclip_live.service import window_cap
+    assert window_cap({"limit_windows": True, "daily_window_cap": 48}) == 48
+    assert window_cap({"limit_windows": False, "daily_window_cap": 48}) > 10_000  # off: no daily limit

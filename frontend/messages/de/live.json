@@ -97,5 +97,10 @@
   "postVisibilityDefault": "Einstellung jedes Kontos übernehmen",
   "postVisibilityUnlisted": "Nicht gelistet",
   "postVisibilityPrivate": "Privat (nur ich)",
-  "postVisibilityHint": "Es gilt die restriktivere Einstellung aus dieser und der jedes Kontos: Sie kann Clips nur zurückhalten, nie öffentlicher machen. Instagram kann Posts nicht verbergen, daher bleiben die Clips dort als Entwurf in Postiz."
+  "postVisibilityHint": "Es gilt die restriktivere Einstellung aus dieser und der jedes Kontos: Sie kann Clips nur zurückhalten, nie öffentlicher machen. Instagram kann Posts nicht verbergen, daher bleiben die Clips dort als Entwurf in Postiz.",
+  "limitWindows": "Abschnitte pro Tag begrenzen",
+  "limitWindowsCount": "Abschnitte pro Tag",
+  "limitWindowsPerDay": "Abschnitte pro Tag",
+  "limitWindowsHintOn": "Jeder Live-Abschnitt (etwa 20 Min.) läuft durch Whisper und Claude. Das Limit schont dein Abo.",
+  "limitWindowsHintOff": "Ohne Limit: Der ganze Livestream wird analysiert, mit mehr Claude- und GPU-Nutzung."
 }

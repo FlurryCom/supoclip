@@ -97,5 +97,10 @@
   "postVisibilityDefault": "Ikuti pengaturan tiap akun",
   "postVisibilityUnlisted": "Tidak terdaftar",
   "postVisibilityPrivate": "Pribadi (hanya saya)",
-  "postVisibilityHint": "Pengaturan yang lebih ketat antara ini dan tiap akun yang berlaku: ini hanya bisa menahan klip, tidak pernah membuatnya lebih publik. Instagram tidak bisa menyembunyikan posting, jadi kliknya menunggu sebagai draf di Postiz."
+  "postVisibilityHint": "Pengaturan yang lebih ketat antara ini dan tiap akun yang berlaku: ini hanya bisa menahan klip, tidak pernah membuatnya lebih publik. Instagram tidak bisa menyembunyikan posting, jadi kliknya menunggu sebagai draf di Postiz.",
+  "limitWindows": "Batasi segmen per hari",
+  "limitWindowsCount": "Segmen per hari",
+  "limitWindowsPerDay": "segmen per hari",
+  "limitWindowsHintOn": "Setiap segmen live (sekitar 20 menit) diproses Whisper dan Claude. Batas ini melindungi pemakaian langgananmu.",
+  "limitWindowsHintOff": "Tanpa batas: seluruh live dianalisis, memakai lebih banyak Claude dan GPU."
 }

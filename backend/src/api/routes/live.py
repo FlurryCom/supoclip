@@ -93,7 +93,7 @@ async def _channel(raw: Any) -> tuple[str, str]:
 def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
     """Validated optional settings from a request body."""
     settings: Dict[str, Any] = {}
-    for key in ("enabled", "chat_filter", "blur_sensitive"):
+    for key in ("enabled", "chat_filter", "blur_sensitive", "limit_windows"):
         if key in data:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")
@@ -135,7 +135,7 @@ async def list_edit_kits(request: Request, db: AsyncSession = Depends(get_db)):
 async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
-        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap,
+        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows,
             c.edit_kit, c.blur_sensitive, c.post_visibility, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
@@ -206,7 +206,7 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         "id": channel_id, "user_id": user_id, "platform": platform, "channel": name,
         "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", True),
         "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
-        "daily_window_cap": settings.get("daily_window_cap", 12), "edit_kit": settings.get("edit_kit", "none"),
+        "daily_window_cap": settings.get("daily_window_cap", 48), "edit_kit": settings.get("edit_kit", "none"),
         "post_visibility": settings.get("post_visibility", "default"),
     })).first()
     if row is None:

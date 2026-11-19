@@ -97,5 +97,10 @@
   "postVisibilityDefault": "Follow each account's setting",
   "postVisibilityUnlisted": "Unlisted",
   "postVisibilityPrivate": "Private (only me)",
-  "postVisibilityHint": "The more restrictive of this and each account's setting wins, so this can only hold clips back, never make them more public. Instagram can't hide a post, so its clips wait as drafts in Postiz."
+  "postVisibilityHint": "The more restrictive of this and each account's setting wins, so this can only hold clips back, never make them more public. Instagram can't hide a post, so its clips wait as drafts in Postiz.",
+  "limitWindows": "Limit windows per day",
+  "limitWindowsCount": "Windows per day",
+  "limitWindowsPerDay": "windows per day",
+  "limitWindowsHintOn": "Each live window (about 20 min) goes through Whisper and Claude. The limit protects your subscription usage.",
+  "limitWindowsHintOff": "No limit: the whole live is analysed, using more Claude and GPU."
 }
