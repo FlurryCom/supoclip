@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..edit_kits import get_kit
-from .captions import ass_font_name, ass_fonts_dir, ass_timestamp, escape_ass_text, hex_to_ass_color
+from .captions import ass_font_name, ass_fonts_dir, ass_timestamp, hex_to_ass_color
 from .ffmpeg import ffprobe_duration, ffprobe_has_audio, ffprobe_video_size, run_ffmpeg_command, subtitles_filter_fragment
 
 logger = logging.getLogger(__name__)
@@ -20,10 +20,28 @@ logger = logging.getLogger(__name__)
 BUBBLE_FONT = "GochiHand-Regular"
 STEP_S = 0.4  # one message pops in after another
 LIFE_S = 2.5  # how long each message stays
+MAX_BUBBLE_CHARS = 32  # longer lines run off a 9:16 frame at this font size
 
 
 def _num(value: float) -> str:
     return f"{round(value, 3):g}"
+
+
+def _bubble_text(text: str) -> str:
+    """Chat shown literally: libass has no escape for a backslash, so a word joiner
+    after each one stops it pairing with the next letter (\\N, \\o/)."""
+    return text.replace("\\", "\\\u2060").replace("{", "\\{").replace("}", "\\}")
+
+
+def map_to_clip(source_s: float, keep_ranges: list[tuple[float, float]], output_offsets: list[float]) -> float:
+    """Where a source-video second plays in the clip, after silence cuts; a cut moment maps to what follows."""
+    for (start, end), offset in zip(keep_ranges, output_offsets):
+        if source_s < start:
+            return offset
+        if source_s <= end:
+            return offset + source_s - start
+    (start, end), offset = keep_ranges[-1], output_offsets[-1]
+    return offset + end - start
 
 
 def chat_events(
@@ -36,6 +54,7 @@ def chat_events(
     end_card_seconds: float,
 ) -> list[str]:
     """ASS dialogue lines: each message pops in on the left, one row each, before the end card."""
+    chat = [line for line in chat if len(line) <= MAX_BUBBLE_CHARS]
     if not chat or peak_s is None:
         return []
     last_end = duration - end_card_seconds
@@ -49,7 +68,7 @@ def chat_events(
         end = min(start + LIFE_S, last_end)
         y = bottom - (len(chat) - 1 - i) * row
         pop = f"{{\\an7\\pos({x},{y})\\fscx80\\fscy80\\t(0,120,\\fscx100\\fscy100)}}"
-        events.append(f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Bubble,,0,0,0,,{pop}{escape_ass_text(text)}")
+        events.append(f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Bubble,,0,0,0,,{pop}{_bubble_text(text)}")
     return events
 
 

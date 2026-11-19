@@ -38,7 +38,7 @@ def test_chat_events_without_peak_or_chat_are_empty():
 def test_chat_text_is_escaped():
     (event,) = chat_events(["{\\b1}oi\\N"], 5.0, 70.0, 1080, 1920, COLORS, 1.5)
     text = event.split(",", 9)[9]
-    assert "\\{\\\\b1\\}oi" in text  # braces and backslashes escaped, no live override tag
+    assert "\\{\\\u2060b1\\}oi" in text  # braces escaped, backslash defused, no live override tag
 
 
 def test_kit_args_without_chat_still_mix_whoosh_and_card(tmp_path):
@@ -84,3 +84,26 @@ def test_apply_edit_kit_none_kit_is_a_no_op(tmp_path):
     clip.write_bytes(b"x")
     assert apply_edit_kit(clip, {"id": "none", "peak_s": None, "chat": []}) is True
     assert clip.read_bytes() == b"x"
+
+
+def test_long_chat_lines_are_skipped():
+    events = chat_events(["a" * 33, "curto"], 5.0, 70.0, 1080, 1920, COLORS, 1.5)
+    assert len(events) == 1 and events[0].endswith("curto")
+
+
+def test_backslashes_show_literally():
+    (event,) = chat_events(["oi\\Ntchau \\o/"], 5.0, 70.0, 1080, 1920, COLORS, 1.5)
+    text = event.split(",", 9)[9]
+    assert "\\\u2060N" in text and "\\\u2060o/" in text
+    assert "\\\\" not in text  # no doubled backslash left for libass to misread
+
+
+def test_peak_maps_through_cut_silences():
+    from src.media.edit_kit_render import map_to_clip
+    ranges = [(100.0, 110.0), (120.0, 150.0)]  # 10 s of silence cut out
+    offsets = [0.0, 10.0]
+    assert map_to_clip(105.0, ranges, offsets) == 5.0
+    assert map_to_clip(130.0, ranges, offsets) == 20.0
+    assert map_to_clip(115.0, ranges, offsets) == 10.0  # inside the cut: the next range's start
+    assert map_to_clip(90.0, ranges, offsets) == 0.0
+    assert map_to_clip(200.0, ranges, offsets) == 40.0

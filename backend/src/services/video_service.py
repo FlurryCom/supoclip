@@ -13,8 +13,8 @@ import uuid
 
 from ..stream_transfer import run_stream_download
 from ..edit_kits import get_kit
-from ..media.edit_kit_render import apply_edit_kit
-from ..live_scoring import gate_live_segments
+from ..media.edit_kit_render import apply_edit_kit, map_to_clip
+from ..live_scoring import gate_live_segments, parse_clip_time
 from ..utils.async_helpers import run_in_thread
 from ..download_progress import (
     DownloadRecovery,
@@ -1060,7 +1060,17 @@ class VideoService:
                 broll_placements = []
             if segment.get("edit_kit") and kit["id"] != "none":
                 # Fork: the live channel's edit kit (chat at the peak, sounds, end card).
-                if not await run_in_thread(apply_edit_kit, clip_path, segment["edit_kit"]):
+                edit_kit = dict(segment["edit_kit"])
+                if edit_kit.get("peak_s") is not None:
+                    # peak_s counts from the segment's start; the clip plays only the kept ranges.
+                    from ..clip_source_map import normalize_source_ranges
+                    from ..media.ffmpeg import output_offsets_for_ranges as offsets_for
+                    ranges = normalize_source_ranges(keep_ranges) if keep_ranges else [(start_seconds, end_seconds)]
+                    edit_kit["peak_s"] = map_to_clip(
+                        parse_clip_time(segment["start_time"]) + edit_kit["peak_s"],
+                        ranges, output_offsets or offsets_for(ranges),
+                    )
+                if not await run_in_thread(apply_edit_kit, clip_path, edit_kit):
                     logger.warning(f"Clip {clip_index + 1} kept without its {kit['id']} edit kit")
 
             if max_short_side:
