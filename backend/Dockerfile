@@ -53,6 +53,14 @@ COPY transitions/ ./transitions/
 # Create necessary directories for video processing
 RUN mkdir -p /app/uploads /app/clips /app/logs /tmp
 
+# Optional Claude Code CLI for the claude-cli:* LLM provider (fork feature,
+# docs/claude-cli-provider.md). Last, so it never invalidates the layers above.
+ARG INSTALL_CLAUDE_CLI=false
+ENV DISABLE_AUTOUPDATER=1
+RUN if [ "$INSTALL_CLAUDE_CLI" = "true" ]; then \
+      curl -fsSL https://claude.ai/install.sh | bash && ln -sf /root/.local/bin/claude /usr/local/bin/claude; \
+    fi
+
 # Expose the port FastAPI will run on
 EXPOSE 8000
 

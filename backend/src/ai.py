@@ -24,6 +24,7 @@ from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
+from . import claude_cli
 from .config import Config, get_config
 from .clip_duration import clip_duration
 from .runtime_settings import apply_settings_to_process_env
@@ -439,7 +440,7 @@ def build_transcript_system_prompt(clip_length: str = "auto") -> str:
 _transcript_agent: Optional[Agent[None, TranscriptAnalysis]] = None
 _transcript_agent_signature: Optional[tuple[str | None, ...]] = None
 
-SUPPORTED_LLM_PROVIDERS = {"google", "google-gla", "openai", "openrouter", "anthropic", "ollama"}
+SUPPORTED_LLM_PROVIDERS = {"google", "google-gla", "openai", "openrouter", "anthropic", "ollama", "claude-cli"}
 
 
 def _split_llm_name(model_name: str) -> tuple[str, str | None]:
@@ -457,7 +458,7 @@ def _get_missing_llm_key_error(model_name: str, runtime_config: Config) -> Optio
     if provider not in SUPPORTED_LLM_PROVIDERS:
         return (
             f"Unsupported LLM provider '{provider}'. "
-            "Use google-gla:*, openai:*, openrouter:*, anthropic:*, or ollama:*."
+            "Use google-gla:*, openai:*, openrouter:*, anthropic:*, ollama:* or claude-cli:*."
         )
 
     if not provider_model_name:
@@ -488,6 +489,12 @@ def _get_missing_llm_key_error(model_name: str, runtime_config: Config) -> Optio
         return (
             "Selected LLM provider is Anthropic, but ANTHROPIC_API_KEY is not set. "
             "Set ANTHROPIC_API_KEY or choose another provider with a matching API key."
+        )
+
+    if provider == "claude-cli" and not claude_cli.cli_available():
+        return (
+            "Selected LLM provider is claude-cli, but the claude CLI is not installed here. "
+            "Build with INSTALL_CLAUDE_CLI=true (docs/claude-cli-provider.md)."
         )
 
     if provider == "ollama":
@@ -548,6 +555,8 @@ def _build_transcript_model(
                 "max_tokens": 8192,
             },
         )
+    if provider == "claude-cli":
+        return claude_cli.claude_cli_model(provider_model_name)
     if provider != "ollama":
         return model_name
 
