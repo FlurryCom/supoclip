@@ -61,6 +61,8 @@
     "visibility": "可见范围",
     "visibilityPublic": "公开",
     "visibilityPrivate": "私密（仅自己可见）",
+    "visibilityHint": "来源频道设为“不公开列出”或“私密”时，其片段在此账号上同样受限。",
+    "visibilityHintInstagram": "来源频道设为“不公开列出”或“私密”时，其片段会作为草稿发到 Postiz，因为 Instagram 无法隐藏帖子。",
     "minScore": "发布所需最低分",
     "today": "过去 24 小时内 {posted}/{cap} 条发布",
     "loadError": "无法加载 Postiz 账号。",
@@ -80,5 +82,10 @@
   "confirmYes": "是",
   "confirmNo": "取消",
   "editKit": "剪辑套件",
-  "editKitHint": "应用于该频道之后的片段"
+  "editKitHint": "应用于该频道之后的片段",
+  "postVisibility": "发布可见范围",
+  "postVisibilityDefault": "沿用各账号的设置",
+  "postVisibilityUnlisted": "不公开列出",
+  "postVisibilityPrivate": "私密（仅自己可见）",
+  "postVisibilityHint": "此项与各账号的设置取更严格的一个：它只会限制片段，绝不会让内容更公开。Instagram 无法隐藏帖子，因此其片段会作为草稿保留在 Postiz 中。"
 }

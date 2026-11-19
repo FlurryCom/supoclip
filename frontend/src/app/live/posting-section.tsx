@@ -146,6 +146,9 @@ function TargetCard({ target, onChange, onRevoke }: {
       <p className="mt-2 text-xs text-muted-foreground">
         {t("today", { posted: target.posted_today, cap: target.daily_cap })}
       </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {target.provider.startsWith("instagram") ? t("visibilityHintInstagram") : t("visibilityHint")}
+      </p>
     </li>
   );
 }

@@ -84,8 +84,16 @@ def caption(hook_title: str, channel: str, live_title: str | None, platform: str
     return f"{hook_title}\n\n🎮 {source}\n{' '.join(tags)}"
 
 
+VISIBILITY_ORDER = ("public", "unlisted", "private")
+
+
+def effective_visibility(account: str, channel: str) -> str:
+    """The more restrictive of the posting account's setting and the source channel's ("default" defers to the account)."""
+    return max(account, "public" if channel == "default" else channel, key=VISIBILITY_ORDER.index)
+
+
 def provider_settings(provider: str, title: str, visibility: str = "public") -> dict:
-    private = visibility == "private"
+    private = visibility != "public"  # TikTok has no "unlisted": anything short of public is only-me
     if provider == "tiktok":
         return {
             "__type": "tiktok", "title": title[:90], "privacy_level": "SELF_ONLY" if private else "PUBLIC_TO_EVERYONE",
@@ -94,7 +102,7 @@ def provider_settings(provider: str, title: str, visibility: str = "public") -> 
             "content_posting_method": "DIRECT_POST",
         }
     if provider == "youtube":
-        return {"__type": "youtube", "title": title[:100], "type": "private" if private else "public", "selfDeclaredMadeForKids": "no"}
+        return {"__type": "youtube", "title": title[:100], "type": visibility, "selfDeclaredMadeForKids": "no"}
     if provider in ("instagram", "instagram-standalone"):
         return {"__type": provider, "post_type": "post"}
     raise ValueError(f"unsupported provider {provider!r}")
@@ -103,14 +111,17 @@ def provider_settings(provider: str, title: str, visibility: str = "public") -> 
 def build_post(target: dict, media: dict, title: str, text: str, when: datetime | None = None) -> dict:
     """One Postiz post for one authorized target: a draft or published now."""
     when = when or datetime.now(timezone.utc)
+    visibility = target.get("visibility", "public")
+    # Instagram can't hide a post, so a held-back channel's clip waits as a draft instead.
+    held = visibility != "public" and target["provider"].startswith("instagram")
     return {
-        "type": target["mode"],
+        "type": "draft" if held else target["mode"],
         "date": when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "shortLink": False,
         "tags": [],
         "posts": [{
             "integration": {"id": target["integration_id"]},
             "value": [{"content": text, "image": [{"id": media["id"], "path": media["path"]}]}],
-            "settings": provider_settings(target["provider"], title, target.get("visibility", "public")),
+            "settings": provider_settings(target["provider"], title, visibility),
         }],
     }

@@ -356,7 +356,7 @@ class LiveService:
         if self.postiz is None:
             return
         candidates = await self.fetch("""
-            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, r.title AS live_title,
+            SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, c.post_visibility, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -376,7 +376,8 @@ class LiveService:
             logger.warning("Postiz unreachable (%s); posting later", exc)
             return
         for row in candidates:
-            target = {k: row[k] for k in ("integration_id", "provider", "name", "mode", "visibility")}
+            target = {k: row[k] for k in ("integration_id", "provider", "name", "mode")}
+            target["visibility"] = postiz.effective_visibility(row["visibility"], row["post_visibility"])
             reason = postiz.refusal_reason(target, integrations)
             if reason:
                 logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], reason)

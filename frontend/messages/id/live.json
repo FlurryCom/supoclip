@@ -61,6 +61,8 @@
     "visibility": "Visibilitas",
     "visibilityPublic": "Publik",
     "visibilityPrivate": "Pribadi (hanya saya)",
+    "visibilityHint": "Kanal sumber berstatus Tidak terdaftar atau Pribadi tetap menahan kliknya di akun ini.",
+    "visibilityHintInstagram": "Kanal sumber berstatus Tidak terdaftar atau Pribadi mengirim kliknya ke sini sebagai draf di Postiz, karena Instagram tidak bisa menyembunyikan posting.",
     "minScore": "Skor minimum untuk posting",
     "today": "{posted} dari {cap} postingan dalam 24 jam terakhir",
     "loadError": "Tidak dapat memuat akun Postiz.",
@@ -80,5 +82,10 @@
   "confirmYes": "Ya",
   "confirmNo": "Batal",
   "editKit": "Kit edit",
-  "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini"
+  "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini",
+  "postVisibility": "Visibilitas posting",
+  "postVisibilityDefault": "Ikuti pengaturan tiap akun",
+  "postVisibilityUnlisted": "Tidak terdaftar",
+  "postVisibilityPrivate": "Pribadi (hanya saya)",
+  "postVisibilityHint": "Pengaturan yang lebih ketat antara ini dan tiap akun yang berlaku: ini hanya bisa menahan klip, tidak pernah membuatnya lebih publik. Instagram tidak bisa menyembunyikan posting, jadi kliknya menunggu sebagai draf di Postiz."
 }

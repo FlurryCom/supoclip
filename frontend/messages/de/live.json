@@ -61,6 +61,8 @@
     "visibility": "Sichtbarkeit",
     "visibilityPublic": "Öffentlich",
     "visibilityPrivate": "Privat (nur ich)",
+    "visibilityHint": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ hält seine Clips auch auf diesem Konto zurück.",
+    "visibilityHintInstagram": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ schickt seine Clips als Entwurf in Postiz hierher, da Instagram Posts nicht verbergen kann.",
     "minScore": "Mindestwert zum Posten",
     "today": "{posted} von {cap} Posts in den letzten 24 h",
     "loadError": "Die Postiz-Konten konnten nicht geladen werden.",
@@ -80,5 +82,10 @@
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
   "editKit": "Schnitt-Kit",
-  "editKitHint": "Look für die nächsten Clips dieses Kanals"
+  "editKitHint": "Look für die nächsten Clips dieses Kanals",
+  "postVisibility": "Sichtbarkeit der Posts",
+  "postVisibilityDefault": "Einstellung jedes Kontos übernehmen",
+  "postVisibilityUnlisted": "Nicht gelistet",
+  "postVisibilityPrivate": "Privat (nur ich)",
+  "postVisibilityHint": "Es gilt die restriktivere Einstellung aus dieser und der jedes Kontos: Sie kann Clips nur zurückhalten, nie öffentlicher machen. Instagram kann Posts nicht verbergen, daher bleiben die Clips dort als Entwurf in Postiz."
 }
