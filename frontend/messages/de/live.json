@@ -79,7 +79,13 @@
     "visibilityPublic": "Öffentlich",
     "visibilityPrivate": "Privat (nur ich)",
     "visibilityHint": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ hält seine Clips auch auf diesem Konto zurück.",
-    "visibilityHintInstagram": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ schickt seine Clips als Entwurf in Postiz hierher, da Instagram Posts nicht verbergen kann."
+    "visibilityHintInstagram": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ schickt seine Clips als Entwurf in Postiz hierher, da Instagram Posts nicht verbergen kann.",
+    "safePosting": "Sicheres Posten",
+    "safePostingHint": "Wartet auf diesem Konto 15 Minuten zwischen zwei Posts, damit Clips nie gebündelt erscheinen",
+    "safePostingOffTitle": "Sicheres Posten ausschalten?",
+    "safePostingOffBody": "Mit sicherem Posten wartet dieses Konto 15 Minuten zwischen zwei Posts. So gehen nie mehrere Clips auf einmal raus, was Plattformen als Spam werten: Die Videos konkurrieren miteinander, jedes erreicht weniger Leute, und das Konto kann eingeschränkt werden (bei TikTok wird das Posten sogar zeitweise gesperrt). Ausgeschaltet gehen Clips raus, sobald sie fertig sind.",
+    "safePostingKeep": "Eingeschaltet lassen",
+    "safePostingTurnOff": "Trotzdem ausschalten"
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",

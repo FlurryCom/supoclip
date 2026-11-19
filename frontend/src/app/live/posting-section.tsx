@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ConfirmButton } from "./confirm-button";
 import { SocialProviderIcon } from "@/components/social-provider-icon";
 import type { SocialProviderId } from "@/lib/social";
@@ -35,6 +45,7 @@ interface PostTarget {
   visibility: "public" | "private";
   daily_cap: number;
   blur_sensitive: boolean;
+  safe_posting: boolean;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
 }
@@ -46,7 +57,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -85,6 +96,37 @@ function MinScore({ target, onCommit }: { target: PostTarget; onCommit: (value: 
         onValueCommit={([next]) => next !== target.min_score && onCommit(next)}
       />
     </div>
+  );
+}
+
+// Turning safe posting on is instant; turning it off first explains what the account loses.
+function SafePostingSwitch({ target, onChange }: { target: PostTarget; onChange: (settings: TargetSettings) => void }) {
+  const t = useTranslations("live.posting");
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <div className="mt-3 flex items-center gap-2">
+        <Switch
+          id={`post-safe-${target.id}`}
+          checked={target.safe_posting}
+          onCheckedChange={(safe_posting) => (safe_posting ? onChange({ safe_posting }) : setAsking(true))}
+        />
+        <Label htmlFor={`post-safe-${target.id}`}>{t("safePosting")}</Label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t("safePostingHint")}</p>
+      <AlertDialog open={asking} onOpenChange={setAsking}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("safePostingOffTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("safePostingOffBody")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("safePostingKeep")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onChange({ safe_posting: false })}>{t("safePostingTurnOff")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -149,6 +191,7 @@ function TargetCard({ target, onChange, onRevoke }: {
         <Label htmlFor={`post-blur-${target.id}`}>{t("blurSensitive")}</Label>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
+      <SafePostingSwitch target={target} onChange={onChange} />
       <p className="mt-2 text-xs text-muted-foreground">
         {t("today", { posted: target.posted_today, cap: target.daily_cap })}
       </p>

@@ -79,7 +79,13 @@
     "visibilityPublic": "Public",
     "visibilityPrivate": "Private (only me)",
     "visibilityHint": "A source channel set to Unlisted or Private still holds its clips back on this account.",
-    "visibilityHintInstagram": "A source channel set to Unlisted or Private sends its clips here as drafts in Postiz, since Instagram can't hide a post."
+    "visibilityHintInstagram": "A source channel set to Unlisted or Private sends its clips here as drafts in Postiz, since Instagram can't hide a post.",
+    "safePosting": "Safe posting",
+    "safePostingHint": "Waits 15 minutes between posts on this account so clips never go out in a burst",
+    "safePostingOffTitle": "Turn off safe posting?",
+    "safePostingOffBody": "With safe posting on, this account waits 15 minutes between posts. That keeps several clips from going out at once, in a burst, which platforms treat as spam: the videos compete with each other so each reaches fewer people, and the account can get limited (on TikTok, posting can even be blocked for a while). With it off, clips go out as soon as they're ready.",
+    "safePostingKeep": "Keep it on",
+    "safePostingTurnOff": "Turn off anyway"
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",

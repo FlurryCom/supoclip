@@ -79,7 +79,13 @@
     "visibilityPublic": "Público",
     "visibilityPrivate": "Privado (só eu)",
     "visibilityHint": "Um canal de origem em Não listado ou Privado continua segurando os clipes nesta conta.",
-    "visibilityHintInstagram": "Um canal de origem em Não listado ou Privado envia os clipes para cá como rascunho no Postiz, porque o Instagram não esconde posts."
+    "visibilityHintInstagram": "Um canal de origem em Não listado ou Privado envia os clipes para cá como rascunho no Postiz, porque o Instagram não esconde posts.",
+    "safePosting": "Postagem segura",
+    "safePostingHint": "Espera 15 minutos entre um vídeo e outro nesta conta, para nunca postar em rajada",
+    "safePostingOffTitle": "Desligar a postagem segura?",
+    "safePostingOffBody": "Com a postagem segura ligada, esta conta espera 15 minutos entre um vídeo e outro. Isso evita que vários cortes saiam de uma vez, em rajada, que é o que as plataformas tratam como spam: os vídeos competem entre si e cada um alcança menos gente, e a conta pode ser limitada (no TikTok, a postagem chega a ser bloqueada por um tempo). Desligando, os clipes saem assim que ficam prontos.",
+    "safePostingKeep": "Manter ligado",
+    "safePostingTurnOff": "Desligar mesmo assim"
   },
   "confirmYes": "Sim",
   "confirmNo": "Cancelar",

@@ -79,7 +79,13 @@
     "visibilityPublic": "公开",
     "visibilityPrivate": "私密（仅自己可见）",
     "visibilityHint": "来源频道设为“不公开列出”或“私密”时，其片段在此账号上同样受限。",
-    "visibilityHintInstagram": "来源频道设为“不公开列出”或“私密”时，其片段会作为草稿发到 Postiz，因为 Instagram 无法隐藏帖子。"
+    "visibilityHintInstagram": "来源频道设为“不公开列出”或“私密”时，其片段会作为草稿发到 Postiz，因为 Instagram 无法隐藏帖子。",
+    "safePosting": "安全发布",
+    "safePostingHint": "此账号每次发布之间等待 15 分钟，避免片段集中连发",
+    "safePostingOffTitle": "关闭安全发布？",
+    "safePostingOffBody": "开启安全发布后，此账号每次发布之间会等待 15 分钟，避免多个片段一次性连发——平台会把这种行为视为垃圾内容：视频之间互相抢流量，每条的触达都会下降，账号也可能被限流（在 TikTok 上甚至会被暂时禁止发布）。关闭后，片段一旦准备好就会立即发布。",
+    "safePostingKeep": "保持开启",
+    "safePostingTurnOff": "仍然关闭"
   },
   "confirmYes": "是",
   "confirmNo": "取消",

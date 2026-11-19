@@ -82,3 +82,10 @@ def test_settings_reject_non_bool_blur_sensitive(bad):
         with pytest.raises(HTTPException) as caught:
             check({"blur_sensitive": bad})
         assert caught.value.status_code == 422
+
+
+def test_target_settings_accept_safe_posting():
+    from src.api.routes.live import _target_settings
+    assert _target_settings({"safe_posting": False}) == {"safe_posting": False}
+    with pytest.raises(HTTPException):
+        _target_settings({"safe_posting": "off"})

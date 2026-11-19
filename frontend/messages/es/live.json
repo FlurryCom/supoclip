@@ -79,7 +79,13 @@
     "visibilityPublic": "Público",
     "visibilityPrivate": "Privado (solo yo)",
     "visibilityHint": "Un canal de origen en No listado o Privado sigue reteniendo sus clips en esta cuenta.",
-    "visibilityHintInstagram": "Un canal de origen en No listado o Privado envía sus clips aquí como borrador en Postiz, porque Instagram no puede ocultar publicaciones."
+    "visibilityHintInstagram": "Un canal de origen en No listado o Privado envía sus clips aquí como borrador en Postiz, porque Instagram no puede ocultar publicaciones.",
+    "safePosting": "Publicación segura",
+    "safePostingHint": "Espera 15 minutos entre un video y otro en esta cuenta para no publicar en ráfaga",
+    "safePostingOffTitle": "¿Desactivar la publicación segura?",
+    "safePostingOffBody": "Con la publicación segura activada, esta cuenta espera 15 minutos entre un video y otro. Así evita que varios clips salgan de golpe, en ráfaga, algo que las plataformas tratan como spam: los videos compiten entre sí y cada uno llega a menos gente, y la cuenta puede quedar limitada (en TikTok, incluso se bloquea la publicación por un tiempo). Al desactivarla, los clips salen en cuanto están listos.",
+    "safePostingKeep": "Mantener activada",
+    "safePostingTurnOff": "Desactivar igualmente"
   },
   "confirmYes": "Sí",
   "confirmNo": "Cancelar",

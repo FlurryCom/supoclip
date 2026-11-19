@@ -110,6 +110,14 @@ class Session:
             self.chat_task.cancel()
 
 
+SAFE_GAP = timedelta(minutes=15)  # owner: "um padrão de 15 minutos de intervalo a cada plataforma"
+
+
+def safe_to_post(safe_posting: bool, last_posted: datetime | None, now: datetime) -> bool:
+    """Safe posting spaces an account's posts by SAFE_GAP so they never go out in a burst."""
+    return not safe_posting or last_posted is None or now - last_posted >= SAFE_GAP
+
+
 class LiveService:
     def __init__(self, dsn: str, backend: Backend, postiz_client: "postiz.Postiz | None" = None):
         self.dsn = dsn
@@ -358,7 +366,7 @@ class LiveService:
         candidates = await self.fetch("""
             SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, c.post_visibility, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap,
-                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created,
+                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting,
                 s.duration AS checked_duration, s.regions, s.error AS check_error
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -388,12 +396,15 @@ class LiveService:
                 logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], reason)
                 await self.record_post(row, "refused", None, reason)
                 continue
-            posted_today = (await self.fetch(
-                "SELECT count(*) AS n FROM live_posts WHERE target_id = %s AND status = 'posted' AND created_at > now() - interval '1 day'",
+            recent = (await self.fetch(
+                "SELECT count(*) AS n, max(created_at) AS last_posted FROM live_posts "
+                "WHERE target_id = %s AND status = 'posted' AND created_at > now() - interval '1 day'",
                 (row["target_id"],),
-            ))[0]["n"]
-            if posted_today >= row["daily_cap"]:
+            ))[0]
+            if recent["n"] >= row["daily_cap"]:
                 continue  # stays a candidate; posts when the 24 h window frees up (if still within a day)
+            if not safe_to_post(row.get("safe_posting", True), recent.get("last_posted"), datetime.now(timezone.utc)):
+                continue  # safe posting: this account waits 15 minutes between posts; the clip stays queued
             clip_file = DATA_DIR / f"post-{row['clip_id']}.mp4"
             upload_file = clip_file
             try:

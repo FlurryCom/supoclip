@@ -261,7 +261,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
         return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
-        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive,
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive, t.safe_posting,
             (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
                 AND p.created_at > now() - interval '1 day') AS posted_today
         FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
@@ -323,7 +323,7 @@ async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(
 
 def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
     settings: Dict[str, Any] = {}
-    for key in ("enabled", "blur_sensitive"):
+    for key in ("enabled", "blur_sensitive", "safe_posting"):
         if key in data:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")

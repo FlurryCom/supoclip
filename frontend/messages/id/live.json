@@ -79,7 +79,13 @@
     "visibilityPublic": "Publik",
     "visibilityPrivate": "Pribadi (hanya saya)",
     "visibilityHint": "Kanal sumber berstatus Tidak terdaftar atau Pribadi tetap menahan kliknya di akun ini.",
-    "visibilityHintInstagram": "Kanal sumber berstatus Tidak terdaftar atau Pribadi mengirim kliknya ke sini sebagai draf di Postiz, karena Instagram tidak bisa menyembunyikan posting."
+    "visibilityHintInstagram": "Kanal sumber berstatus Tidak terdaftar atau Pribadi mengirim kliknya ke sini sebagai draf di Postiz, karena Instagram tidak bisa menyembunyikan posting.",
+    "safePosting": "Posting aman",
+    "safePostingHint": "Menunggu 15 menit di antara posting di akun ini agar klip tidak pernah keluar beruntun",
+    "safePostingOffTitle": "Matikan posting aman?",
+    "safePostingOffBody": "Dengan posting aman aktif, akun ini menunggu 15 menit di antara posting. Ini mencegah banyak klip keluar sekaligus, yang dianggap spam oleh platform: video saling bersaing sehingga jangkauan tiap video turun, dan akun bisa dibatasi (di TikTok, posting bahkan bisa diblokir sementara). Jika dimatikan, klip langsung diposting begitu siap.",
+    "safePostingKeep": "Tetap aktifkan",
+    "safePostingTurnOff": "Matikan saja"
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",

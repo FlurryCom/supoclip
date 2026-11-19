@@ -18,7 +18,7 @@ def candidate(**over):
         "integration_id": "i1", "provider": "tiktok", "name": "Cat Clips", "mode": "now", "daily_cap": 10,
         "visibility": "private", "post_visibility": "default",
         "target_blur": True, "channel_blur": True, "clip_created": SINCE + timedelta(hours=1),
-        "checked_duration": 60.0, "regions": [REGION], "check_error": None,
+        "checked_duration": 60.0, "regions": [REGION], "check_error": None, "safe_posting": True,
     }
     row.update(over)
     return row
@@ -59,7 +59,7 @@ def run_post(monkeypatch, tmp_path, row, finish):
         if "live_feature_marks" in sql:
             return [{"at": SINCE}]
         if "count(*) AS n" in sql:
-            return [{"n": 0}]
+            return [{"n": 0, "last_posted": None}]
         if sql.startswith("INSERT INTO live_posts"):
             recorded.append((params[3], params[5]))
         return []
@@ -95,3 +95,36 @@ def test_blur_is_required_only_when_both_switches_are_on(monkeypatch, tmp_path):
     run_post(monkeypatch, tmp_path, candidate(), finish)
     run_post(monkeypatch, tmp_path, candidate(target_blur=False), finish)
     assert seen == [([REGION], True), ([], False)]
+
+
+def test_safe_posting_waits_15_minutes_between_posts(monkeypatch, tmp_path):
+    from supoclip_live.service import SAFE_GAP, safe_to_post
+    now = datetime(2026, 11, 19, 18, 0, tzinfo=timezone.utc)
+    assert SAFE_GAP == timedelta(minutes=15)
+    assert safe_to_post(True, None, now)  # nothing posted yet
+    assert not safe_to_post(True, now - timedelta(minutes=14), now)
+    assert safe_to_post(True, now - timedelta(minutes=15), now)
+    assert safe_to_post(False, now - timedelta(minutes=1), now)  # switch off: no wait
+
+
+def test_post_clips_skips_an_account_inside_the_gap(monkeypatch, tmp_path):
+    monkeypatch.setattr(service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(service, "POSTIZ_ALLOWED_USER_IDS", ["u1"])
+    monkeypatch.setattr(cta, "_probe", lambda path: (60.0, True, (720, 1280)))
+    monkeypatch.setattr(cta, "finish_clip", lambda clip, *args: clip)
+    postiz = FakePostiz()
+    live = service.LiveService("", FakeBackend(), postiz)
+    row = candidate(safe_posting=True, target_blur=False)
+
+    async def fetch(sql, params=()):
+        if "FROM live_clips lc" in sql:
+            return [row]
+        if "live_feature_marks" in sql:
+            return [{"at": SINCE}]
+        if "count(*) AS n" in sql:
+            return [{"n": 0, "last_posted": datetime.now(timezone.utc) - timedelta(minutes=5)}]
+        return []
+
+    live.fetch = fetch
+    asyncio.run(live.post_clips())
+    assert postiz.uploads == []  # waits; the clip stays in the queue
