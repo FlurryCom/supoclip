@@ -34,6 +34,8 @@ TRANSIENT = {409, 429, 502, 503, 504}
 RETRY_DELAY = timedelta(minutes=2)
 MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
 MIN_FREE_GB = float(os.getenv("LIVE_MIN_FREE_GB", "10"))  # don't start recordings below this
+# One Postiz key serves the server: only these SupoClip accounts may post through it.
+POSTIZ_ALLOWED_EMAILS = [e.strip().lower() for e in os.getenv("POSTIZ_ALLOWED_EMAILS", "").split(",") if e.strip()]
 # Live clips aim for TikTok monetization: "long" asks for 61-120 s, and a clip
 # that renders shorter (pause cleanup can trim a few seconds) is dropped.
 CLIP_LENGTH = os.getenv("LIVE_CLIP_LENGTH", "long")
@@ -337,11 +339,12 @@ class LiveService:
             JOIN live_recordings r ON r.id = lc.recording_id
             JOIN live_channels c ON c.id = r.channel_id
             JOIN live_post_targets t ON t.user_id = c.user_id AND t.enabled
+            JOIN users u ON u.id = t.user_id AND lower(u.email) = ANY(%s)
             WHERE lc.final_score >= t.min_score
               AND g.created_at >= t.created_at AND g.created_at > now() - interval '1 day'
               AND NOT EXISTS (SELECT 1 FROM live_posts p WHERE p.clip_id = lc.clip_id AND p.target_id = t.id)
             ORDER BY lc.final_score DESC LIMIT 5
-        """)
+        """, (POSTIZ_ALLOWED_EMAILS,))
         if not candidates:
             return
         try:

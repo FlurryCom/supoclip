@@ -173,6 +173,15 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
     return {"id": channel_id, **settings}
 
 
+async def _postiz_user(request: Request, db: AsyncSession) -> str:
+    """The server has one Postiz key, so only allowlisted SupoClip accounts may use it."""
+    user_id = await _user(request, db)
+    email = (await db.execute(text("SELECT lower(email) FROM users WHERE id = :id"), {"id": user_id})).scalar()
+    if not email or email not in postiz.allowed_emails():
+        raise HTTPException(status_code=403, detail="This account can't use this server's Postiz")
+    return user_id
+
+
 async def _postiz_accounts() -> list[Dict[str, Any]]:
     try:
         return await postiz.list_integrations()
@@ -187,7 +196,11 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
     """Postiz accounts beside this user's authorizations, flagging any that changed."""
     user_id = await _user(request, db)
     if not postiz.configured():
-        return {"configured": False, "accounts": [], "targets": []}
+        return {"configured": False, "allowed": False, "accounts": [], "targets": []}
+    try:
+        user_id = await _postiz_user(request, db)
+    except HTTPException:
+        return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
         SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.daily_cap,
@@ -210,6 +223,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
     authorized = {t["integration_id"] for t in targets}
     return {
         "configured": True,
+        "allowed": True,
         "accounts": [
             {**a, "supported": a["provider"] in postiz.SUPPORTED_PROVIDERS, "authorized": a["id"] in authorized}
             for a in accounts
@@ -221,7 +235,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
 @router.post("/postiz/targets")
 async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(get_db)):
     """Authorize one Postiz account to receive live clips. Provider and name come from Postiz."""
-    user_id = await _user(request, db)
+    user_id = await _postiz_user(request, db)
     data = await _body(request)
     integration_id = str(data.get("integration_id") or "").strip()
     account = next((a for a in await _postiz_accounts() if a["id"] == integration_id), None)
@@ -268,7 +282,7 @@ def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.patch("/postiz/targets/{target_id}")
 async def update_postiz_target(target_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    user_id = await _user(request, db)
+    user_id = await _postiz_user(request, db)
     settings = _target_settings(await _body(request))
     if not settings:
         raise HTTPException(status_code=422, detail="Nothing to update")
@@ -286,7 +300,7 @@ async def update_postiz_target(target_id: str, request: Request, db: AsyncSessio
 @router.delete("/postiz/targets/{target_id}")
 async def revoke_postiz_target(target_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Stop posting to this account. Posts already made stay on the platform."""
-    user_id = await _user(request, db)
+    user_id = await _postiz_user(request, db)
     result = await db.execute(
         text("DELETE FROM live_post_targets WHERE id = :id AND user_id = :user_id"),
         {"id": target_id, "user_id": user_id},

@@ -27,6 +27,12 @@ def _settings() -> tuple[str, str]:
     return url, key
 
 
+def allowed_emails() -> frozenset[str]:
+    """SupoClip accounts that may use this server's Postiz (one key for the whole server)."""
+    raw = os.getenv("POSTIZ_ALLOWED_EMAILS", "")
+    return frozenset(e.strip().lower() for e in raw.split(",") if e.strip())
+
+
 def configured() -> bool:
     try:
         _settings()

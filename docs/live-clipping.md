@@ -86,8 +86,10 @@ cd live && uv run --no-project --with pytest --with httpx --with "psycopg[binary
 Kept live clips can be posted through [Postiz](https://postiz.com) to TikTok,
 YouTube Shorts and Instagram.
 
-1. In `.env`, set `POSTIZ_URL` (your Postiz base URL) and `POSTIZ_API_KEY`
-   (Postiz **Settings → Public API**), then restart the backend and recorder.
+1. In `.env`, set `POSTIZ_URL` (your Postiz base URL), `POSTIZ_API_KEY`
+   (Postiz **Settings → Public API**) and `POSTIZ_ALLOWED_EMAILS` (the SupoClip
+   accounts allowed to use it; the key serves the whole server), then restart
+   the backend and recorder.
 2. On the Live page, **Auto-posting** lists the accounts connected in Postiz.
    Only accounts you **authorize** there ever receive posts.
 

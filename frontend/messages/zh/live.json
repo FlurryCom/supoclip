@@ -71,6 +71,7 @@
       "posted": "已发布到 {name}",
       "refused": "已拒绝发布到 {name}",
       "error": "发布到 {name} 失败"
-    }
+    },
+    "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_EMAILS）。"
   }
 }

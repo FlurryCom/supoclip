@@ -71,6 +71,7 @@
       "posted": "publicado en {name}",
       "refused": "rechazado para {name}",
       "error": "error al publicar en {name}"
-    }
+    },
+    "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_EMAILS en .env)."
   }
 }

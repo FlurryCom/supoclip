@@ -39,6 +39,7 @@ interface PostTarget {
 
 interface PostizState {
   configured: boolean;
+  allowed: boolean;
   accounts: PostizAccount[];
   targets: PostTarget[];
 }
@@ -175,6 +176,8 @@ export function PostingSection() {
         <Skeleton className="mt-4 h-20 w-full" />
       ) : !state.configured ? (
         <p className="mt-4 text-sm text-muted-foreground">{t("notConfigured")}</p>
+      ) : !state.allowed ? (
+        <p className="mt-4 text-sm text-muted-foreground">{t("notAllowed")}</p>
       ) : (
         <>
           <h3 className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("authorized")}</h3>
