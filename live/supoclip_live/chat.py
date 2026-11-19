@@ -32,19 +32,26 @@ BLOCKLIST = frozenset({
 _LINK = re.compile(r"https?://|www\.|\b[\w-]+\s*(?:\.|\bdot\b)\s*[a-z]{2,}\b", re.IGNORECASE)
 
 
-def keep_message(text: str) -> bool:
-    """Whether a chat line may be shown on a clip: no links, mentions, commands or slurs.
+def clean_message(text: str) -> str | None:
+    """The chat line as it may be shown on a clip, or None: no links, mentions, commands or slurs.
 
     Control characters and lone surrogates are refused (Postgres jsonb rejects
-    some of them); lookalike letters and invisible characters are folded away
-    before the checks so they can't smuggle a link or a slur through.
+    some of them); lookalike letters and invisible or bidi characters are folded
+    away, and the checks run on exactly the text that gets stored.
     """
     if any(unicodedata.category(c) in ("Cc", "Cs") for c in text):
-        return False
-    text = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf").strip()
+        return None
+    text = "".join(c for c in unicodedata.normalize("NFKC", text) if unicodedata.category(c) != "Cf")
+    text = " ".join(text.split())
     if not text or len(text) > MAX_MESSAGE_CHARS or text.startswith("!") or "@" in text or _LINK.search(text):
-        return False
-    return not any(word in BLOCKLIST for word in re.findall(r"\w+", text.lower()))
+        return None
+    if any(word in BLOCKLIST for word in re.findall(r"\w+", text.lower())):
+        return None
+    return text
+
+
+def keep_message(text: str) -> bool:
+    return clean_message(text) is not None
 
 
 class SpikeDetector:
@@ -80,9 +87,11 @@ class SpikeDetector:
         user = user.lower()
         if user not in BOTS and not message.startswith("!"):
             self.bucket_users.add(user)
-            if user not in self.sampled_users and len(self.sample) < SAMPLE_SIZE and keep_message(message):
-                self.sampled_users.add(user)
-                self.sample.append(message.strip())
+            if user not in self.sampled_users and len(self.sample) < SAMPLE_SIZE:
+                cleaned = clean_message(message)
+                if cleaned:
+                    self.sampled_users.add(user)
+                    self.sample.append(cleaned)
         return spike
 
     def tick(self, at: datetime) -> datetime | None:

@@ -150,3 +150,13 @@ def test_a_failing_bucket_store_does_not_stop_the_chat_reader():
 
     stored = Session.safe_store(broken_store, "rec", "chan")
     asyncio.run(stored(T0, 3, False, ["oi"]))  # must not raise
+
+
+def test_sample_stores_the_cleaned_text():
+    d = SpikeDetector()
+    warm(d)
+    d.drain()
+    at = T0 + timedelta(seconds=200)
+    d.add("ana", "  ＫＫＫ‮ oi​  ", at)
+    d.tick(T0 + timedelta(seconds=215))
+    assert d.drain()[-1][3] == ["KKK oi"]
