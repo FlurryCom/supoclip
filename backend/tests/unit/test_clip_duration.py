@@ -23,7 +23,7 @@ def transcript(seconds=1800):
 
 
 @pytest.mark.parametrize("preset,minimum,maximum", [
-    ("auto", 15, 60), ("short", 15, 30), ("medium", 30, 60), ("long", 60, 120),
+    ("auto", 15, 60), ("short", 15, 30), ("medium", 30, 60), ("long", 61, 120),
 ])
 def test_prompts_agree_on_requested_range(preset, minimum, maximum):
     system = ai.build_transcript_system_prompt(preset)

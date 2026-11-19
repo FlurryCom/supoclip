@@ -32,7 +32,10 @@ the Library about 15 minutes after the moment.
   talk streams with a quiet chat; every window is then processed.
 - Windows go through `POST /upload` and `POST /tasks/` with the frontend's
   signed headers, so preflight, minute charging and admission apply unchanged.
-- When a task finishes, clips below the channel's **minimum score** and clips
+- Windows use the **long** clip preset (61-120 s, so clips qualify for TikTok
+  monetization); `LIVE_CLIP_LENGTH` changes it.
+- When a task finishes, clips shorter than `LIVE_MIN_CLIP_SECONDS` (61), clips
+  below the channel's **minimum score**, and clips
   that overlap more than half of an already-kept clip (on the broadcast clock)
   are deleted. A window can end with zero clips.
 - Chunks are deleted once no future window can use them; a 1080p60 stream takes

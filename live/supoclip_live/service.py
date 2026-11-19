@@ -32,6 +32,10 @@ POLICY = Policy(
 TRANSIENT = {409, 429, 502, 503, 504}
 RETRY_DELAY = timedelta(minutes=2)
 MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
+# Live clips aim for TikTok monetization: "long" asks for 61-120 s, and a clip
+# that renders shorter (pause cleanup can trim a few seconds) is dropped.
+CLIP_LENGTH = os.getenv("LIVE_CLIP_LENGTH", "long")
+MIN_CLIP_SECONDS = float(os.getenv("LIVE_MIN_CLIP_SECONDS", "61"))
 TITLE_ZONE = ZoneInfo(os.getenv("LIVE_TIMEZONE", "UTC"))
 
 # Channels whose owner has the live_clipping flag on (web, or admins via bypass).
@@ -240,7 +244,7 @@ class LiveService:
         try:
             await recorder.concat(paths, window_file)
             video_path = await self.backend.upload(rec["user_id"], window_file, f"live-upload-{window_id}")
-            task_id = await self.backend.create_task(rec["user_id"], video_path, title, f"live-task-{window_id}")
+            task_id = await self.backend.create_task(rec["user_id"], video_path, title, f"live-task-{window_id}", CLIP_LENGTH)
             logger.info("window %s of %s sent as task %s", window_id, rec["channel"], task_id)
             return "submitted", None, task_id
         except httpx.HTTPStatusError as exc:
@@ -271,13 +275,14 @@ class LiveService:
             kept = [(r["abs_start"], r["abs_end"]) for r in await self.fetch(
                 "SELECT abs_start, abs_end FROM live_clips WHERE recording_id = %s", (rec["id"],))]
             clips = await self.fetch(
-                "SELECT id, start_time, end_time, COALESCE(virality_score, 0) AS score FROM generated_clips WHERE task_id = %s ORDER BY virality_score DESC NULLS LAST",
+                "SELECT id, start_time, end_time, COALESCE(virality_score, 0) AS score, duration FROM generated_clips WHERE task_id = %s ORDER BY virality_score DESC NULLS LAST",
                 (window["task_id"],),
             )
             dropped = 0
             for clip in clips:
                 span = (to_wall_clock(chunks, parse_clip_time(clip["start_time"])), to_wall_clock(chunks, parse_clip_time(clip["end_time"])))
-                if clip["score"] < rec["min_score"] or is_duplicate(span, kept):
+                too_short = (clip["duration"] or 0) < MIN_CLIP_SECONDS
+                if clip["score"] < rec["min_score"] or too_short or is_duplicate(span, kept):
                     await self.backend.delete_clip(rec["user_id"], window["task_id"], clip["id"])
                     dropped += 1
                     continue

@@ -17,7 +17,8 @@ CLIP_DURATIONS = {
     # Ideal maxima leave room for the sentence rewind/extension before the cap.
     "short": ClipDuration(15, 30, 18, 25),
     "medium": ClipDuration(30, 60, 35, 55),
-    "long": ClipDuration(60, 120, 75, 110),
+    # 61 s, not 60: TikTok only monetizes videos longer than one minute.
+    "long": ClipDuration(61, 120, 75, 110),
 }
 
 
