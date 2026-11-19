@@ -16,7 +16,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from . import cta, postiz, recorder
+from . import cta, postiz, recorder, sensitive
 from .backend import Backend
 from .chat import watch_chat, watch_youtube_chat
 from .heat import chat_heat, chat_hints, final_score
@@ -352,9 +352,12 @@ class LiveService:
             return
         candidates = await self.fetch("""
             SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, r.title AS live_title,
-                t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap
+                t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.daily_cap,
+                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created,
+                s.duration AS checked_duration, s.regions, s.error AS check_error
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
+            LEFT JOIN live_clip_sensitive s ON s.file_path = g.file_path
             JOIN live_recordings r ON r.id = lc.recording_id
             JOIN live_channels c ON c.id = r.channel_id
             JOIN live_post_targets t ON t.user_id = c.user_id AND t.enabled
@@ -370,6 +373,8 @@ class LiveService:
         except httpx.HTTPError as exc:
             logger.warning("Postiz unreachable (%s); posting later", exc)
             return
+        marks = await self.fetch("SELECT at FROM live_feature_marks WHERE name = 'sensitive_blur'")
+        blur_since = marks[0]["at"] if marks else datetime.min.replace(tzinfo=timezone.utc)
         for row in candidates:
             target = {k: row[k] for k in ("integration_id", "provider", "name", "mode")}
             reason = postiz.refusal_reason(target, integrations)
@@ -387,8 +392,21 @@ class LiveService:
             upload_file = clip_file
             try:
                 await self.backend.download_clip(row["user_id"], row["task_id"], row["clip_id"], clip_file)
-                # The channel's edit kit adds this platform's follow CTA on the tail (or posts the plain clip).
-                upload_file = await asyncio.to_thread(cta.with_cta, clip_file, row["edit_kit"], row["provider"])
+                # Nudity and gore: blur for this account, or refuse when it must be blurred and can't be.
+                actual = (await asyncio.to_thread(cta._probe, clip_file))[0]
+                action, why, regions = sensitive.decide(row, blur_since, actual)
+                if action == "refuse":
+                    logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], why)
+                    await self.record_post(row, "refused", None, why)
+                    continue
+                # The channel's edit kit adds this platform's follow CTA on the tail.
+                try:
+                    upload_file = await asyncio.to_thread(
+                        cta.finish_clip, clip_file, row["edit_kit"], row["provider"], regions, action == "blur")
+                except cta.BlurFailed as exc:
+                    logger.warning("not posting clip %s to %s: blur failed (%s)", row["clip_id"], row["name"], exc)
+                    await self.record_post(row, "refused", None, "falha ao borrar")
+                    continue
                 media = await self.postiz.upload(upload_file)
                 title = row["hook_title"] or f"{row['channel']} live"
                 body = postiz.build_post(target, media, title, postiz.caption(title, row["channel"], row["live_title"], row["platform"]))

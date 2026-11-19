@@ -11,6 +11,8 @@ import logging
 import subprocess
 from pathlib import Path
 
+from .sensitive import blur_chain
+
 logger = logging.getLogger(__name__)
 
 CTA_DIR = Path(__file__).resolve().parents[1] / "assets" / "cta"
@@ -30,17 +32,32 @@ def _num(value: float) -> str:
     return f"{round(value, 3):g}"
 
 
-def cta_args(clip: Path, cta: Path, out: Path, duration: float, has_audio: bool) -> list[str]:
-    start = duration - CTA_SECONDS
-    graph = [
-        "[1:v][0:v]scale2ref=w=iw:h=ih[cta][base]",
-        f"[base][cta]overlay=0:0:enable='gte(t,{_num(start)})':eof_action=pass[v]",
-        f"[1:a]adelay={int(start * 1000)}:all=1[ctaa]",
-        "[0:a]anull[a0]" if has_audio else f"aevalsrc=0:d={_num(duration)}:s=48000[a0]",
-        "[a0][ctaa]amix=inputs=2:normalize=0:duration=first[a]",
-    ]
+def cta_args(
+    clip: Path, cta: Path | None, out: Path, duration: float, has_audio: bool,
+    regions: list | None = None, size: tuple[int, int] = (0, 0),
+) -> list[str]:
+    """One ffmpeg run: blur the sensitive regions, then lay the CTA (if any) over the tail."""
+    graph: list[str] = []
+    video = "[0:v]"
+    if regions:
+        graph += blur_chain(regions, size[0], size[1], "[0:v]", "[blurred]")
+        video = "[blurred]"
+    base_audio = "[0:a]anull[a0]" if has_audio else f"aevalsrc=0:d={_num(duration)}:s=48000[a0]"
+    inputs = ["-i", str(clip)]
+    if cta is not None:
+        start = duration - CTA_SECONDS
+        inputs += ["-itsoffset", _num(start), "-i", str(cta)]
+        graph += [
+            f"[1:v]{video}scale2ref=w=iw:h=ih[cta][base]",
+            f"[base][cta]overlay=0:0:enable='gte(t,{_num(start)})':eof_action=pass[v]",
+            f"[1:a]adelay={int(start * 1000)}:all=1[ctaa]",
+            base_audio,
+            "[a0][ctaa]amix=inputs=2:normalize=0:duration=first[a]",
+        ]
+    else:
+        graph += [f"{video}null[v]", base_audio, "[a0]anull[a]"]
     return [
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(clip), "-itsoffset", _num(start), "-i", str(cta),
+        "ffmpeg", "-y", "-loglevel", "error", *inputs,
         "-filter_complex", ";".join(graph), "-map", "[v]", "-map", "[a]", "-t", _num(duration),
         "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out),
@@ -57,21 +74,39 @@ def _probe(path: Path) -> tuple[float, bool, tuple[int, int]]:
     return float(info["format"]["duration"]), has_audio, (video["width"], video["height"])
 
 
-def with_cta(clip: Path, kit: str | None, provider: str) -> Path:
-    """A copy of ``clip`` with the platform's CTA on its tail, or ``clip`` itself when there is none."""
+class BlurFailed(RuntimeError):
+    """The clip had to be blurred for this account and couldn't be: don't post it."""
+
+
+def finish_clip(clip: Path, kit: str | None, provider: str, regions: list, must_blur: bool) -> Path:
+    """The file to upload: ``clip`` blurred where needed and with the platform's CTA.
+
+    Without anything to add it returns ``clip``. If adding fails it returns
+    ``clip`` too, unless the blur was required: then it raises BlurFailed.
+    """
     cta = cta_file(kit, provider)
-    if cta is None:
+    regions = regions if must_blur else []
+    if cta is None and not regions:
         return clip
     out = clip.with_name(f"{clip.stem}.{provider}.mp4")
     try:
         duration, has_audio, size = _probe(clip)
-        if duration < CTA_SECONDS + 0.5:
-            return clip
-        subprocess.run(cta_args(clip, cta, out, duration, has_audio), check=True, capture_output=True, timeout=600)
+        if cta is not None and duration < CTA_SECONDS + 0.5:
+            cta = None
+            if not regions:
+                return clip
+        subprocess.run(cta_args(clip, cta, out, duration, has_audio, regions, size), check=True, capture_output=True, timeout=600)
         if _probe(out)[2] != size:
-            raise RuntimeError("CTA render changed the clip size")
+            raise RuntimeError("render changed the clip size")
         return out
     except Exception as exc:
-        logger.warning("posting %s without its %s CTA: %s", clip.name, provider, exc)
         out.unlink(missing_ok=True)
+        if regions:
+            raise BlurFailed(str(exc)[:300]) from exc
+        logger.warning("posting %s without its %s CTA: %s", clip.name, provider, exc)
         return clip
+
+
+def with_cta(clip: Path, kit: str | None, provider: str) -> Path:
+    """A copy of ``clip`` with the platform's CTA on its tail, or ``clip`` itself when there is none."""
+    return finish_clip(clip, kit, provider, [], must_blur=False)
