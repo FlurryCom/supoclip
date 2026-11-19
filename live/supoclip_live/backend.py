@@ -53,5 +53,10 @@ class Backend:
         if response.status_code != 404:
             response.raise_for_status()
 
+    async def release_source(self, user_id: str, window_id: str) -> None:
+        """Delete a finished window's uploaded copy on the backend (its clips stay)."""
+        response = await self.http.post(f"/live/windows/{window_id}/release-source", headers=self._headers(user_id))
+        response.raise_for_status()
+
     async def close(self) -> None:
         await self.http.aclose()

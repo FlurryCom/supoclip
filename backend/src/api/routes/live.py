@@ -17,6 +17,8 @@ from ...auth_headers import get_authenticated_user_id
 from ...config import get_config
 from ...database import get_db
 from ...feature_flags import client_platform, is_enabled
+from ...media_storage import MediaStorage
+from ...workers.media_cleanup import _delete_finished_local_upload, _finished_local_upload
 
 router = APIRouter(prefix="/live", tags=["live"])
 
@@ -164,6 +166,38 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Channel not found")
     await db.commit()
     return {"id": channel_id, **settings}
+
+
+@router.post("/windows/{window_id}/release-source")
+async def release_window_source(window_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Delete a finished window's uploaded copy of the broadcast. Its clips stay.
+
+    Called by the live recorder once a window's clips are rendered and scored;
+    each copy is 1-2 GB and would otherwise stay on disk for good.
+    """
+    user_id = await _user(request, db)
+    row = (await db.execute(text("""
+        SELECT w.status, w.source_released, s.url
+        FROM live_windows w
+        JOIN live_recordings r ON r.id = w.recording_id
+        JOIN live_channels c ON c.id = r.channel_id
+        LEFT JOIN tasks t ON t.id = w.task_id
+        LEFT JOIN sources s ON s.id = t.source_id
+        WHERE w.id = :id AND c.user_id = :user_id
+    """), {"id": window_id, "user_id": user_id})).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Window not found")
+    if row.status not in ("done", "error"):
+        raise HTTPException(status_code=409, detail="Window is still processing")
+    if not row.source_released and row.url and row.url.startswith("upload://") and not row.url.startswith("upload://s3/"):
+        storage = MediaStorage()
+        path = _finished_local_upload(storage, row.url)
+        _delete_finished_local_upload(storage, row.url)
+        if path is not None:
+            storage.delete(str(path.with_suffix(".transcription.mp3")))
+    await db.execute(text("UPDATE live_windows SET source_released = true WHERE id = :id"), {"id": window_id})
+    await db.commit()
+    return {"released": window_id}
 
 
 @router.delete("/channels/{channel_id}")

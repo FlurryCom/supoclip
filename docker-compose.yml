@@ -349,6 +349,7 @@ services:
       - LIVE_MAX_RECORDINGS=${LIVE_MAX_RECORDINGS:-3}
       - LIVE_CLIP_LENGTH=${LIVE_CLIP_LENGTH:-long}
       - LIVE_MIN_CLIP_SECONDS=${LIVE_MIN_CLIP_SECONDS:-61}
+      - LIVE_MIN_FREE_GB=${LIVE_MIN_FREE_GB:-10}
     restart: unless-stopped
     depends_on:
       backend:

@@ -33,6 +33,7 @@ POLICY = Policy(
 TRANSIENT = {409, 429, 502, 503, 504}
 RETRY_DELAY = timedelta(minutes=2)
 MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
+MIN_FREE_GB = float(os.getenv("LIVE_MIN_FREE_GB", "10"))  # don't start recordings below this
 # Live clips aim for TikTok monetization: "long" asks for 61-120 s, and a clip
 # that renders shorter (pause cleanup can trim a few seconds) is dropped.
 CLIP_LENGTH = os.getenv("LIVE_CLIP_LENGTH", "long")
@@ -155,6 +156,10 @@ class LiveService:
         mine = sum(1 for s in self.sessions.values() if s.channel["user_id"] == channel["user_id"])
         if len(self.sessions) >= MAX_RECORDINGS or mine >= fair_share(MAX_RECORDINGS, self.owners):
             logger.warning("%s is live but no recording slot is free; waiting", channel["channel"])
+            return
+        free_gb = shutil.disk_usage(DATA_DIR).free / 2**30
+        if free_gb < MIN_FREE_GB:  # a full disk would break every recording and the app
+            logger.warning("%s is live but only %.1f GB is free (minimum %.0f); not recording", channel["channel"], free_gb, MIN_FREE_GB)
             return
         open_rows = await self.fetch(
             "SELECT id FROM live_recordings WHERE channel_id = %s AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
@@ -314,8 +319,22 @@ class LiveService:
             reason = f"kept {len(clips) - dropped} of {len(clips)} clips" if status == "done" else f"task {window['task_status']}"
             await self.fetch("UPDATE live_windows SET status = %s, reason = %s WHERE id = %s", (status, reason, window["id"]))
 
+    async def release_sources(self) -> None:
+        """Ask the backend to delete finished windows' uploaded copies (1-2 GB each)."""
+        rows = await self.fetch(
+            "SELECT w.id, c.user_id FROM live_windows w JOIN live_recordings r ON r.id = w.recording_id "
+            "JOIN live_channels c ON c.id = r.channel_id "
+            "WHERE w.status IN ('done', 'error') AND w.task_id IS NOT NULL AND NOT w.source_released LIMIT 10"
+        )
+        for row in rows:
+            try:
+                await self.backend.release_source(row["user_id"], row["id"])
+            except httpx.HTTPError as exc:
+                logger.warning("could not release window %s source: %s", row["id"], exc)
+
     async def cleanup(self) -> None:
         """Delete chunks no future window can use, and finished recordings' folders."""
+        await self.release_sources()
         recordings = await self.fetch("SELECT id, pending_from, ended_at FROM live_recordings")
         known = {rec["id"] for rec in recordings} | {s.recording_id for s in self.sessions.values()}
         for directory in DATA_DIR.iterdir():
