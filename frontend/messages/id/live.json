@@ -72,10 +72,14 @@
       "refused": "ditolak untuk {name}",
       "error": "gagal memposting ke {name}"
     },
-    "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env)."
+    "notAllowed": "Akun ini tidak dapat memakai Postiz server ini (POSTIZ_ALLOWED_USER_IDS di .env).",
+    "blurSensitive": "Blur ketelanjangan dan gore",
+    "blurSensitiveHint": "Mem-blur ketelanjangan dan gore berat sebelum diposting ke akun ini"
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",
   "editKit": "Kit edit",
-  "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini"
+  "editKitHint": "Tampilan untuk klip berikutnya dari kanal ini",
+  "blurSensitive": "Blur ketelanjangan dan gore",
+  "blurSensitiveHint": "Memeriksa klip kanal ini dan mem-blur ketelanjangan dan gore berat sebelum diposting"
 }

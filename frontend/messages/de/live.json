@@ -72,10 +72,14 @@
       "refused": "für {name} abgelehnt",
       "error": "Posten an {name} fehlgeschlagen"
     },
-    "notAllowed": "Dieses Konto darf das Postiz dieses Servers nicht nutzen (POSTIZ_ALLOWED_USER_IDS in .env)."
+    "notAllowed": "Dieses Konto darf das Postiz dieses Servers nicht nutzen (POSTIZ_ALLOWED_USER_IDS in .env).",
+    "blurSensitive": "Nacktheit und Gore verpixeln",
+    "blurSensitiveHint": "Verpixelt Nacktheit und starkes Gore vor dem Posten auf diesem Konto"
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
   "editKit": "Schnitt-Kit",
-  "editKitHint": "Look für die nächsten Clips dieses Kanals"
+  "editKitHint": "Look für die nächsten Clips dieses Kanals",
+  "blurSensitive": "Nacktheit und Gore verpixeln",
+  "blurSensitiveHint": "Prüft die Clips dieses Kanals und verpixelt Nacktheit und starkes Gore vor dem Posten"
 }

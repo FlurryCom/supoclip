@@ -93,7 +93,7 @@ async def _channel(raw: Any) -> tuple[str, str]:
 def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
     """Validated optional settings from a request body."""
     settings: Dict[str, Any] = {}
-    for key in ("enabled", "chat_filter"):
+    for key in ("enabled", "chat_filter", "blur_sensitive"):
         if key in data:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")
@@ -132,7 +132,7 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
         SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap,
-            c.edit_kit, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
+            c.edit_kit, c.blur_sensitive, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
             SELECT id, title, started_at FROM live_recordings
@@ -256,7 +256,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
         return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
-        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.daily_cap,
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.daily_cap, t.blur_sensitive,
             (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
                 AND p.created_at > now() - interval '1 day') AS posted_today
         FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
@@ -316,10 +316,11 @@ async def authorize_postiz_account(request: Request, db: AsyncSession = Depends(
 
 def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
     settings: Dict[str, Any] = {}
-    if "enabled" in data:
-        if not isinstance(data["enabled"], bool):
-            raise HTTPException(status_code=422, detail="enabled must be true or false")
-        settings["enabled"] = data["enabled"]
+    for key in ("enabled", "blur_sensitive"):
+        if key in data:
+            if not isinstance(data[key], bool):
+                raise HTTPException(status_code=422, detail=f"{key} must be true or false")
+            settings[key] = data[key]
     if "mode" in data:
         if data["mode"] not in ("draft", "now"):
             raise HTTPException(status_code=422, detail="mode must be draft or now")

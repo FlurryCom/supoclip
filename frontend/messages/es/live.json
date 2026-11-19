@@ -72,10 +72,14 @@
       "refused": "rechazado para {name}",
       "error": "error al publicar en {name}"
     },
-    "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_USER_IDS en .env)."
+    "notAllowed": "Esta cuenta no puede usar el Postiz de este servidor (POSTIZ_ALLOWED_USER_IDS en .env).",
+    "blurSensitive": "Difuminar desnudez y gore",
+    "blurSensitiveHint": "Difumina desnudez y gore fuerte en los clips antes de publicar en esta cuenta"
   },
   "confirmYes": "Sí",
   "confirmNo": "Cancelar",
   "editKit": "Kit de edición",
-  "editKitHint": "Estilo aplicado a los próximos clips de este canal"
+  "editKitHint": "Estilo aplicado a los próximos clips de este canal",
+  "blurSensitive": "Difuminar desnudez y gore",
+  "blurSensitiveHint": "Analiza los clips de este canal y difumina desnudez y gore fuerte antes de publicar"
 }

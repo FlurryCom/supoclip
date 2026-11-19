@@ -72,10 +72,14 @@
       "refused": "已拒绝发布到 {name}",
       "error": "发布到 {name} 失败"
     },
-    "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。"
+    "notAllowed": "此账号不能使用此服务器的 Postiz（.env 中的 POSTIZ_ALLOWED_USER_IDS）。",
+    "blurSensitive": "模糊裸露和血腥内容",
+    "blurSensitiveHint": "在发布到此账号前模糊片段中的裸露和严重血腥内容"
   },
   "confirmYes": "是",
   "confirmNo": "取消",
   "editKit": "剪辑套件",
-  "editKitHint": "应用于该频道之后的片段"
+  "editKitHint": "应用于该频道之后的片段",
+  "blurSensitive": "模糊裸露和血腥内容",
+  "blurSensitiveHint": "检查该频道的片段，并在发布前模糊裸露和严重血腥内容"
 }

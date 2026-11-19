@@ -53,12 +53,13 @@ interface LiveChannel {
   min_score: number;
   chat_weight: number;
   edit_kit: string;
+  blur_sensitive: boolean;
   is_live: boolean;
   live_title: string | null;
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive">>;
 
 interface EditKit {
   id: string;
@@ -243,6 +244,12 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
           <p className="text-xs text-muted-foreground">{t("editKitHint")}</p>
         </div>
       ) : null}
+
+      <div className="mt-4 flex items-center gap-2">
+        <Switch id={`blur-${channel.id}`} checked={channel.blur_sensitive} onCheckedChange={(blur_sensitive) => onChange({ blur_sensitive })} />
+        <Label htmlFor={`blur-${channel.id}`}>{t("blurSensitive")}</Label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
 
       {channel.windows.length > 0 ? (
         <div className="mt-4 border-t pt-2">

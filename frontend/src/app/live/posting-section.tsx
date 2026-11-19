@@ -33,6 +33,7 @@ interface PostTarget {
   min_score: number;
   mode: "draft" | "now";
   daily_cap: number;
+  blur_sensitive: boolean;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
 }
@@ -44,7 +45,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -128,6 +129,11 @@ function TargetCard({ target, onChange, onRevoke }: {
         </div>
         <MinScore target={target} onCommit={(min_score) => onChange({ min_score })} />
       </div>
+      <div className="mt-3 flex items-center gap-2">
+        <Switch id={`post-blur-${target.id}`} checked={target.blur_sensitive} onCheckedChange={(blur_sensitive) => onChange({ blur_sensitive })} />
+        <Label htmlFor={`post-blur-${target.id}`}>{t("blurSensitive")}</Label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
       <p className="mt-2 text-xs text-muted-foreground">
         {t("today", { posted: target.posted_today, cap: target.daily_cap })}
       </p>

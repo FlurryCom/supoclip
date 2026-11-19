@@ -72,10 +72,14 @@
       "refused": "refused for {name}",
       "error": "failed to post to {name}"
     },
-    "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env)."
+    "notAllowed": "This account can't use this server's Postiz (POSTIZ_ALLOWED_USER_IDS in .env).",
+    "blurSensitive": "Blur nudity and gore",
+    "blurSensitiveHint": "Blurs nudity and heavy gore in clips before posting to this account"
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",
   "editKit": "Edit kit",
-  "editKitHint": "Look applied to this channel's next clips"
+  "editKitHint": "Look applied to this channel's next clips",
+  "blurSensitive": "Blur nudity and gore",
+  "blurSensitiveHint": "Checks this channel's clips and blurs nudity and heavy gore before posting"
 }

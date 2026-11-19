@@ -67,3 +67,18 @@ def test_patch_rejects_unknown_kit(bad):
     with pytest.raises(HTTPException) as caught:
         _settings({"edit_kit": bad})
     assert caught.value.status_code == 422
+
+
+def test_settings_accept_blur_sensitive():
+    from src.api.routes.live import _target_settings
+    assert _settings({"blur_sensitive": False}) == {"blur_sensitive": False}
+    assert _target_settings({"blur_sensitive": True}) == {"blur_sensitive": True}
+
+
+@pytest.mark.parametrize("bad", ["yes", 1, None])
+def test_settings_reject_non_bool_blur_sensitive(bad):
+    from src.api.routes.live import _target_settings
+    for check in (_settings, _target_settings):
+        with pytest.raises(HTTPException) as caught:
+            check({"blur_sensitive": bad})
+        assert caught.value.status_code == 422
