@@ -118,3 +118,34 @@ everything below (caption template, chat overlay on/off, sound effects, end card
 - Blocklist contents (start small, extend from what shows up).
 - Tests: the message filter, the peak pick and the overlay timing are pure
   functions with unit tests; one render smoke test on a short sample.
+
+## Revision 2 (owner feedback on the first real clip, 2026-11-19)
+
+The owner found the hand font hard to read, didn't like the "CAT CLIPS" end
+card, and asked for platform CTAs and the usual short-form sounds.
+
+- **Font:** Archivo Black (picked from four options rendered on a real frame), for
+  captions and chat bubbles.
+- **End card removed.** In its place, a **per-platform CTA** over the last 2.5 s,
+  with no Portuguese words (button labels in English are fine):
+  - TikTok: a mouse pointer slides to the cat avatar and taps the red "+", which
+    turns into a check.
+  - YouTube Shorts: the pointer taps a white "Subscribe" pill, which turns into a
+    grey "Subscribed" pill with a bell that wiggles.
+  - Instagram: the pointer taps a "Follow" pill, which turns into "Following".
+  The button sits in a dark rounded card in the lower middle of the frame (the
+  safe zone), not where the app's own button is, so it never doubles up with
+  the real UI.
+- **Where the CTA is applied:** at posting time, in the recorder, per target
+  provider. The clip in the SupoClip library has no CTA; each platform gets its
+  own variant. If adding the CTA fails, the clip is posted without it. Only
+  channels whose kit isn't `none` get a CTA; the CTA files belong to the kit
+  (`live/assets/cta/<kit>/<provider>.mov`).
+- **Animations:** generated once by a script (Pillow frames at 2x for smooth edges,
+  encoded by ffmpeg into a PNG-codec .mov with alpha and its own click/pop/ding
+  audio track). Committed as assets; no Node or Remotion at runtime.
+- **Sounds:** a notification bell plus the whoosh at 0 s, a deep boom on the chat
+  peak (replacing the hit), and click, pop and bell ding inside the CTAs. All of
+  them are synthesized by our own script (no third-party audio, so no copyright
+  claims). The original Vine boom is not used.
+- Chat bubbles end before the CTA (the kit's tail is now `cta_seconds = 2.5`).
