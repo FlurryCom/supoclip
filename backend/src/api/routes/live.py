@@ -176,8 +176,7 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
 async def _postiz_user(request: Request, db: AsyncSession) -> str:
     """The server has one Postiz key, so only allowlisted SupoClip accounts may use it."""
     user_id = await _user(request, db)
-    email = (await db.execute(text("SELECT lower(email) FROM users WHERE id = :id"), {"id": user_id})).scalar()
-    if not email or email not in postiz.allowed_emails():
+    if user_id not in postiz.allowed_user_ids():
         raise HTTPException(status_code=403, detail="This account can't use this server's Postiz")
     return user_id
 

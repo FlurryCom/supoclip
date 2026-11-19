@@ -27,10 +27,14 @@ def _settings() -> tuple[str, str]:
     return url, key
 
 
-def allowed_emails() -> frozenset[str]:
-    """SupoClip accounts that may use this server's Postiz (one key for the whole server)."""
-    raw = os.getenv("POSTIZ_ALLOWED_EMAILS", "")
-    return frozenset(e.strip().lower() for e in raw.split(",") if e.strip())
+def allowed_user_ids() -> frozenset[str]:
+    """SupoClip user ids that may use this server's Postiz (one key for the whole server).
+
+    Ids, not emails: anyone can sign up with an email they don't own when the
+    server sends no verification mail, but ids are assigned by the server.
+    """
+    raw = os.getenv("POSTIZ_ALLOWED_USER_IDS", "")
+    return frozenset(i.strip() for i in raw.split(",") if i.strip())
 
 
 def configured() -> bool:

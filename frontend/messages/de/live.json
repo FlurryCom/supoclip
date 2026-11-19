@@ -72,6 +72,6 @@
       "refused": "für {name} abgelehnt",
       "error": "Posten an {name} fehlgeschlagen"
     },
-    "notAllowed": "Dieses Konto darf das Postiz dieses Servers nicht nutzen (POSTIZ_ALLOWED_EMAILS in .env)."
+    "notAllowed": "Dieses Konto darf das Postiz dieses Servers nicht nutzen (POSTIZ_ALLOWED_USER_IDS in .env)."
   }
 }
