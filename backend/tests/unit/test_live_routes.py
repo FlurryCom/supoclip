@@ -17,10 +17,10 @@ def test_channel_name_rejects_the_rest(raw):
 
 
 def test_settings_keeps_only_known_valid_keys():
-    assert _settings({"enabled": False, "min_score": 70, "user_id": "someone-else"}) == {"enabled": False, "min_score": 70}
+    assert _settings({"enabled": False, "min_score": 70, "chat_weight": 60, "user_id": "someone-else"}) == {"enabled": False, "min_score": 70, "chat_weight": 60}
 
 
-@pytest.mark.parametrize("data", [{"min_score": 101}, {"min_score": True}, {"daily_window_cap": 0}, {"chat_filter": "yes"}])
+@pytest.mark.parametrize("data", [{"min_score": 101}, {"min_score": True}, {"chat_weight": -1}, {"chat_weight": 101}, {"daily_window_cap": 0}, {"chat_filter": "yes"}])
 def test_settings_rejects_bad_values(data):
     with pytest.raises(HTTPException):
         _settings(data)

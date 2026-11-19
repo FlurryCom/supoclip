@@ -37,6 +37,12 @@ class SpikeDetector:
         self.bucket_start: datetime | None = None
         self.bucket_users: set[str] = set()
         self.last_spike: datetime | None = None
+        self.closed: list[tuple[datetime, int, bool]] = []  # (start, distinct chatters, spike)
+
+    def drain(self) -> list[tuple[datetime, int, bool]]:
+        """Buckets closed since the last call, oldest first."""
+        closed, self.closed = self.closed, []
+        return closed
 
     def add(self, user: str, message: str, at: datetime) -> datetime | None:
         """Record one chat line. Returns the spike time when a bucket closes hot."""
@@ -57,11 +63,14 @@ class SpikeDetector:
         spike = None
         while at - self.bucket_start >= BUCKET:
             count = len(self.bucket_users)
+            hot = False
             if self._is_spike(count):
                 when = self.bucket_start
                 if self.last_spike is None or when - self.last_spike >= self.cooldown:
                     self.last_spike = when
                     spike = when
+                    hot = True
+            self.closed.append((self.bucket_start, count, hot))
             self.history.append(count)
             self.bucket_users = set()
             self.bucket_start += BUCKET
@@ -84,8 +93,12 @@ def parse_privmsg(line: str) -> tuple[str, str] | None:
     return (nick, text) if nick else None
 
 
-async def watch_chat(channel: str, on_spike, stop: asyncio.Event) -> None:
-    """Follow a channel's chat until ``stop`` is set; call ``on_spike(datetime)``."""
+async def watch_chat(channel: str, on_bucket, stop: asyncio.Event) -> None:
+    """Follow a channel's chat until ``stop`` is set.
+
+    Calls ``on_bucket(start, distinct_chatters, is_spike)`` for every closed
+    10-second bucket.
+    """
     detector = SpikeDetector()
     while not stop.is_set():
         writer = None
@@ -101,7 +114,7 @@ async def watch_chat(channel: str, on_spike, stop: asyncio.Event) -> None:
                     raw = None
                 now = datetime.now(timezone.utc)
                 if raw is None:
-                    spike = detector.tick(now)
+                    detector.tick(now)
                 else:
                     if not raw:
                         raise ConnectionError("chat closed")
@@ -111,9 +124,9 @@ async def watch_chat(channel: str, on_spike, stop: asyncio.Event) -> None:
                         await writer.drain()
                         continue
                     parsed = parse_privmsg(line)
-                    spike = detector.add(*parsed, now) if parsed else detector.tick(now)
-                if spike is not None:
-                    await on_spike(spike)
+                    detector.add(*parsed, now) if parsed else detector.tick(now)
+                for bucket in detector.drain():
+                    await on_bucket(*bucket)
         except (OSError, ConnectionError) as exc:
             logger.warning("chat for %s dropped: %s; reconnecting", channel, exc)
             await asyncio.sleep(5)

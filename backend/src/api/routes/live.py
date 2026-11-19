@@ -51,7 +51,7 @@ def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")
             settings[key] = data[key]
-    for key, low, high in (("min_score", 0, 100), ("daily_window_cap", 1, 200)):
+    for key, low, high in (("min_score", 0, 100), ("chat_weight", 0, 100), ("daily_window_cap", 1, 200)):
         if key in data:
             value = data[key]
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
@@ -74,7 +74,7 @@ async def _body(request: Request) -> Dict[str, Any]:
 async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
-        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.daily_window_cap,
+        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap,
             r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
@@ -91,9 +91,27 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
         WHERE c.user_id = :user_id AND w.created_at > now() - interval '3 days'
         ORDER BY w.created_at DESC LIMIT 100
     """), {"user_id": user_id})).mappings().all()
+    clips = (await db.execute(text("""
+        SELECT lc.window_id, g.id, g.task_id, g.hook_title,
+            -- Clips kept before chat heat existed only have the AI's score.
+            COALESCE(lc.ai_score, g.virality_score) AS ai_score, lc.chat_heat,
+            COALESCE(lc.final_score, g.virality_score) AS final_score
+        FROM live_clips lc
+        JOIN generated_clips g ON g.id = lc.clip_id
+        JOIN live_windows w ON w.id = lc.window_id
+        JOIN live_recordings r ON r.id = w.recording_id
+        JOIN live_channels c ON c.id = r.channel_id
+        WHERE c.user_id = :user_id AND w.created_at > now() - interval '3 days'
+        ORDER BY lc.final_score DESC NULLS LAST
+    """), {"user_id": user_id})).mappings().all()
+    by_window: Dict[str, list] = {}
+    for clip in clips:
+        by_window.setdefault(clip["window_id"], []).append({k: v for k, v in clip.items() if k != "window_id"})
     by_channel: Dict[str, list] = {}
     for window in windows:
-        by_channel.setdefault(window["channel_id"], []).append({k: v for k, v in window.items() if k != "channel_id"})
+        entry = {k: v for k, v in window.items() if k != "channel_id"}
+        entry["clips"] = by_window.get(window["id"], [])
+        by_channel.setdefault(window["channel_id"], []).append(entry)
     return {
         "channels": [
             {**channel, "is_live": channel["recording_id"] is not None, "windows": by_channel.get(channel["id"], [])[:10]}
@@ -115,14 +133,15 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
-        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, daily_window_cap)
-        VALUES (:id, :user_id, 'twitch', :channel, :enabled, :chat_filter, :min_score, :daily_window_cap)
+        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap)
+        VALUES (:id, :user_id, 'twitch', :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap)
         ON CONFLICT (user_id, platform, channel) DO NOTHING
         RETURNING id
     """), {
         "id": channel_id, "user_id": user_id, "channel": name,
         "enabled": settings.get("enabled", True), "chat_filter": settings.get("chat_filter", True),
-        "min_score": settings.get("min_score", 60), "daily_window_cap": settings.get("daily_window_cap", 12),
+        "min_score": settings.get("min_score", 60), "chat_weight": settings.get("chat_weight", 60),
+        "daily_window_cap": settings.get("daily_window_cap", 12),
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="You already follow this channel")

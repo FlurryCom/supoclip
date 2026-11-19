@@ -9,7 +9,7 @@
   "offline": "Desconectado",
   "enabled": "Activo",
   "chatFilter": "Filtro de chat",
-  "minScore": "Puntuación mín.",
+  "minScore": "Puntuación mínima",
   "chatFilterOn": "Solo se recortan los tramos en que el chat se dispara. Desactívalo para directos de charla con un chat tranquilo.",
   "chatFilterOff": "Se recorta cada tramo del directo. Esto usa mucho más procesamiento.",
   "recent": "Tramos recientes",
@@ -33,5 +33,12 @@
     "noSpike": "sin pico en el chat",
     "dailyCap": "límite diario alcanzado",
     "taskFailed": "el procesamiento falló"
+  },
+  "minScoreHint": "Se descartan los clips con una puntuación final menor.",
+  "chatWeight": "Peso del chat",
+  "chatWeightHint": "Puntuación final = {ai}% puntuación de la IA + {chat}% calor del chat.",
+  "scores": {
+    "detail": "IA {ai} · chat {heat}",
+    "noChat": "IA {ai} · sin datos del chat"
   }
 }

@@ -38,12 +38,13 @@ class Backend:
         response.raise_for_status()
         return response.json()["video_path"]
 
-    async def create_task(self, user_id: str, video_path: str, title: str, key: str, clip_length: str) -> str:
-        response = await self.http.post(
-            "/tasks/",
-            headers=self._headers(user_id, key),
-            json={"source": {"url": video_path, "title": title}, "clip_length": clip_length},
-        )
+    async def create_task(
+        self, user_id: str, video_path: str, title: str, key: str, clip_length: str, instructions: str | None = None,
+    ) -> str:
+        body = {"source": {"url": video_path, "title": title}, "clip_length": clip_length}
+        if instructions:  # creator instructions reach the clip selection prompt
+            body["instructions"] = instructions
+        response = await self.http.post("/tasks/", headers=self._headers(user_id, key), json=body)
         response.raise_for_status()
         return response.json()["task_id"]
 

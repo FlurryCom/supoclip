@@ -18,6 +18,7 @@ from psycopg.types.json import Jsonb
 from . import recorder
 from .backend import Backend
 from .chat import watch_chat
+from .heat import chat_heat, chat_hints, final_score
 from .windows import Chunk, Policy, decide, is_duplicate, parse_clip_time, to_wall_clock, window_chunks
 
 logger = logging.getLogger(__name__)
@@ -64,20 +65,19 @@ class Session:
         self.recording_id = recording_id
         self.directory = DATA_DIR / recording_id
         self.recording = recorder.Recording(channel["channel"], self.directory)
-        # shortcut: spikes live in memory; a restart mid-stream forgets those not
-        # yet sent (at most one window). Persist them if restarts become common.
-        self.spikes: list[datetime] = []
         self.stop_chat = asyncio.Event()
         self.chat_task: asyncio.Task | None = None
 
-    async def start(self) -> None:
+    async def start(self, store_bucket) -> None:
+        """Record, and store every 10 s of chat (spikes included) in the database."""
         await self.recording.start()
 
-        async def on_spike(at: datetime) -> None:
-            self.spikes.append(at)
-            logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
+        async def on_bucket(at: datetime, chatters: int, spike: bool) -> None:
+            await store_bucket(self.recording_id, at, chatters, spike)
+            if spike:
+                logger.info("chat spike on %s at %s", self.channel["channel"], at.isoformat())
 
-        self.chat_task = asyncio.create_task(watch_chat(self.channel["channel"], on_spike, self.stop_chat))
+        self.chat_task = asyncio.create_task(watch_chat(self.channel["channel"], on_bucket, self.stop_chat))
 
     async def stop(self) -> None:
         await self.recording.stop()
@@ -114,7 +114,7 @@ class LiveService:
                 await self.end(channel_id)
         for channel in channels.values():
             await self.watch(channel)
-        for recording in await self.fetch("SELECT r.*, c.user_id, c.channel, c.chat_filter, c.min_score, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
+        for recording in await self.fetch("SELECT r.*, c.user_id, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
         await self.cleanup()
@@ -170,7 +170,17 @@ class LiveService:
             )
         session = Session(channel, recording_id)
         self.sessions[channel["id"]] = session
-        await session.start()
+        await session.start(self.store_bucket)
+
+    async def store_bucket(self, recording_id: str, at: datetime, chatters: int, spike: bool) -> None:
+        await self.fetch(
+            "INSERT INTO live_chat_buckets (recording_id, at, chatters, spike) VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+            (recording_id, at, chatters, spike),
+        )
+
+    async def chat_buckets(self, recording_id: str) -> list[tuple[datetime, int]]:
+        rows = await self.fetch("SELECT at, chatters FROM live_chat_buckets WHERE recording_id = %s ORDER BY at", (recording_id,))
+        return [(r["at"], r["chatters"]) for r in rows]
 
     async def end(self, channel_id: str) -> None:
         session = self.sessions.pop(channel_id, None)
@@ -206,7 +216,8 @@ class LiveService:
         )
         decision = decide(
             pending_from=rec["pending_from"], content_end=content_end, ended=ended, busy=busy,
-            chat_filter=rec["chat_filter"], spikes=session.spikes if session else [],
+            chat_filter=rec["chat_filter"], spikes=[r["at"] for r in await self.fetch(
+                "SELECT at FROM live_chat_buckets WHERE recording_id = %s AND spike", (rec["id"],))],
             sent_last_day=sent[0]["n"], daily_cap=rec["daily_window_cap"], policy=POLICY,
         )
         if decision.action == "wait":
@@ -226,7 +237,7 @@ class LiveService:
             )
             await self.fetch("UPDATE live_recordings SET pending_from = %s WHERE id = %s", (decision.end, rec["id"]))
             return
-        status, reason, task_id = await self.submit(rec, window_id, [p for p, _ in picked], decision)
+        status, reason, task_id = await self.submit(rec, window_id, picked, decision)
         if status is None:  # transient backend trouble: retry this window later
             self.retry_after[rec["id"]] = now() + RETRY_DELAY
             return
@@ -237,14 +248,16 @@ class LiveService:
         )
         await self.fetch("UPDATE live_recordings SET pending_from = %s WHERE id = %s", (decision.end, rec["id"]))
 
-    async def submit(self, rec, window_id, paths, decision):
+    async def submit(self, rec, window_id, picked, decision):
         window_file = DATA_DIR / rec["id"] / f"window-{window_id}.mp4"
         start, end = (t.astimezone(TITLE_ZONE).strftime("%d/%m %H:%M") for t in (decision.start, decision.end))
         title = f"{rec['channel']} live · {start}–{end[-5:]}"
         try:
-            await recorder.concat(paths, window_file)
+            await recorder.concat([p for p, _ in picked], window_file)
+            # Tell clip selection where chat exploded, on this window file's clock.
+            hints = chat_hints(await self.chat_buckets(rec["id"]), [c for _, c in picked])
             video_path = await self.backend.upload(rec["user_id"], window_file, f"live-upload-{window_id}")
-            task_id = await self.backend.create_task(rec["user_id"], video_path, title, f"live-task-{window_id}", CLIP_LENGTH)
+            task_id = await self.backend.create_task(rec["user_id"], video_path, title, f"live-task-{window_id}", CLIP_LENGTH, hints)
             logger.info("window %s of %s sent as task %s", window_id, rec["channel"], task_id)
             return "submitted", None, task_id
         except httpx.HTTPStatusError as exc:
@@ -270,26 +283,32 @@ class LiveService:
             "SELECT w.* , t.status AS task_status FROM live_windows w JOIN tasks t ON t.id = w.task_id WHERE w.recording_id = %s AND w.status = 'submitted' AND t.status NOT IN ('pending', 'queued', 'processing')",
             (rec["id"],),
         )
+        buckets = await self.chat_buckets(rec["id"]) if windows else []
         for window in windows:
             chunks = [Chunk(datetime.fromisoformat(c["start"]), c["duration"]) for c in window["chunks"]]
             kept = [(r["abs_start"], r["abs_end"]) for r in await self.fetch(
                 "SELECT abs_start, abs_end FROM live_clips WHERE recording_id = %s", (rec["id"],))]
             clips = await self.fetch(
-                "SELECT id, start_time, end_time, COALESCE(virality_score, 0) AS score, duration FROM generated_clips WHERE task_id = %s ORDER BY virality_score DESC NULLS LAST",
+                "SELECT id, start_time, end_time, COALESCE(virality_score, 0) AS score, duration FROM generated_clips WHERE task_id = %s",
                 (window["task_id"],),
             )
-            dropped = 0
+            # Score each clip: the AI's virality mixed with how hard chat reacted.
             for clip in clips:
-                span = (to_wall_clock(chunks, parse_clip_time(clip["start_time"])), to_wall_clock(chunks, parse_clip_time(clip["end_time"])))
+                clip["span"] = (to_wall_clock(chunks, parse_clip_time(clip["start_time"])), to_wall_clock(chunks, parse_clip_time(clip["end_time"])))
+                clip["heat"] = chat_heat(buckets, *clip["span"])
+                clip["final"] = final_score(clip["score"], clip["heat"], rec["chat_weight"])
+            dropped = 0
+            for clip in sorted(clips, key=lambda c: c["final"], reverse=True):
                 too_short = (clip["duration"] or 0) < MIN_CLIP_SECONDS
-                if clip["score"] < rec["min_score"] or too_short or is_duplicate(span, kept):
+                if clip["final"] < rec["min_score"] or too_short or is_duplicate(clip["span"], kept):
                     await self.backend.delete_clip(rec["user_id"], window["task_id"], clip["id"])
                     dropped += 1
                     continue
-                kept.append(span)
+                kept.append(clip["span"])
                 await self.fetch(
-                    "INSERT INTO live_clips (clip_id, window_id, recording_id, abs_start, abs_end) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                    (clip["id"], window["id"], rec["id"], *span),
+                    "INSERT INTO live_clips (clip_id, window_id, recording_id, abs_start, abs_end, ai_score, chat_heat, final_score) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                    (clip["id"], window["id"], rec["id"], *clip["span"], clip["score"], clip["heat"], clip["final"]),
                 )
             status = "done" if window["task_status"] == "completed" else "error"
             reason = f"kept {len(clips) - dropped} of {len(clips)} clips" if status == "done" else f"task {window['task_status']}"

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,16 @@ interface LiveWindow {
   status: "submitted" | "done" | "skipped" | "error";
   reason: string | null;
   task_id: string | null;
+  clips: LiveClip[];
+}
+
+interface LiveClip {
+  id: string;
+  task_id: string;
+  hook_title: string | null;
+  ai_score: number | null;
+  chat_heat: number | null;
+  final_score: number | null;
 }
 
 interface LiveChannel {
@@ -33,12 +44,13 @@ interface LiveChannel {
   enabled: boolean;
   chat_filter: boolean;
   min_score: number;
+  chat_weight: number;
   is_live: boolean;
   live_title: string | null;
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight">>;
 
 async function errorMessage(response: Response, fallback: string) {
   try {
@@ -69,18 +81,66 @@ function WindowRow({ window }: { window: LiveWindow }) {
   const t = useTranslations("live");
   const reason = reasonText(window.reason, t);
   return (
-    <li className="flex items-center justify-between gap-3 py-2 text-sm">
-      <div className="min-w-0">
-        <span className="tabular-nums">{timeRange(window)}</span>
-        <span className="ml-2 text-muted-foreground">{t(`status.${window.status}`)}</span>
-        {reason ? <span className="ml-2 truncate text-xs text-muted-foreground">· {reason}</span> : null}
+    <li className="py-2 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="tabular-nums">{timeRange(window)}</span>
+          <span className="ml-2 text-muted-foreground">{t(`status.${window.status}`)}</span>
+          {reason ? <span className="ml-2 truncate text-xs text-muted-foreground">· {reason}</span> : null}
+        </div>
+        {window.task_id ? (
+          <Link href={`/tasks/${window.task_id}`} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium hover:underline">
+            {t("openClips")} <ArrowUpRight className="size-3" />
+          </Link>
+        ) : null}
       </div>
-      {window.task_id ? (
-        <Link href={`/tasks/${window.task_id}`} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium hover:underline">
-          {t("openClips")} <ArrowUpRight className="size-3" />
-        </Link>
+      {window.clips.length > 0 ? (
+        <ul className="mt-1 space-y-0.5 pl-3">
+          {window.clips.map((clip) => (
+            <li key={clip.id} className="flex items-baseline gap-2 text-xs text-muted-foreground">
+              <span className="w-7 shrink-0 font-medium tabular-nums text-foreground">{clip.final_score ?? clip.ai_score}</span>
+              <span className="min-w-0 truncate">{clip.hook_title}</span>
+              <span className="shrink-0 tabular-nums">
+                {clip.chat_heat === null
+                  ? t("scores.noChat", { ai: clip.ai_score ?? 0 })
+                  : t("scores.detail", { ai: clip.ai_score ?? 0, heat: clip.chat_heat })}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </li>
+  );
+}
+
+// A 0-100 slider that saves when released, not on every step of a drag.
+function SliderSetting({ id, label, hint, value, suffix = "", onCommit }: {
+  id: string;
+  label: string;
+  hint: string;
+  value: number;
+  suffix?: string;
+  onCommit: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <Label id={id}>{label}</Label>
+        <span className="text-sm font-medium tabular-nums">{draft}{suffix}</span>
+      </div>
+      <Slider
+        aria-labelledby={id}
+        min={0}
+        max={100}
+        step={1}
+        value={[draft]}
+        onValueChange={([next]) => setDraft(next)}
+        onValueCommit={([next]) => next !== value && onCommit(next)}
+      />
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+    </div>
   );
 }
 
@@ -90,17 +150,6 @@ function ChannelCard({ channel, onChange, onRemove }: {
   onRemove: () => void;
 }) {
   const t = useTranslations("live");
-  const [minScore, setMinScore] = useState(String(channel.min_score));
-  useEffect(() => setMinScore(String(channel.min_score)), [channel.min_score]);
-
-  const saveMinScore = () => {
-    const value = Number(minScore);
-    if (Number.isInteger(value) && value >= 0 && value <= 100 && value !== channel.min_score) {
-      onChange({ min_score: value });
-    } else {
-      setMinScore(String(channel.min_score));
-    }
-  };
 
   return (
     <li className="rounded-xl border bg-background p-4">
@@ -121,7 +170,7 @@ function ChannelCard({ channel, onChange, onRemove }: {
         </Button>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="flex items-center gap-2">
           <Switch id={`enabled-${channel.id}`} checked={channel.enabled} onCheckedChange={(enabled) => onChange({ enabled })} />
           <Label htmlFor={`enabled-${channel.id}`}>{t("enabled")}</Label>
@@ -130,23 +179,26 @@ function ChannelCard({ channel, onChange, onRemove }: {
           <Switch id={`chat-${channel.id}`} checked={channel.chat_filter} onCheckedChange={(chat_filter) => onChange({ chat_filter })} />
           <Label htmlFor={`chat-${channel.id}`}>{t("chatFilter")}</Label>
         </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor={`score-${channel.id}`} className="shrink-0">{t("minScore")}</Label>
-          <Input
-            id={`score-${channel.id}`}
-            type="number"
-            min={0}
-            max={100}
-            inputMode="numeric"
-            className="h-8 w-20"
-            value={minScore}
-            onChange={(event) => setMinScore(event.target.value)}
-            onBlur={saveMinScore}
-            onKeyDown={(event) => event.key === "Enter" && saveMinScore()}
-          />
-        </div>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">{channel.chat_filter ? t("chatFilterOn") : t("chatFilterOff")}</p>
+
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <SliderSetting
+          id={`min-score-${channel.id}`}
+          label={t("minScore")}
+          hint={t("minScoreHint")}
+          value={channel.min_score}
+          onCommit={(min_score) => onChange({ min_score })}
+        />
+        <SliderSetting
+          id={`chat-weight-${channel.id}`}
+          label={t("chatWeight")}
+          hint={t("chatWeightHint", { ai: 100 - channel.chat_weight, chat: channel.chat_weight })}
+          value={channel.chat_weight}
+          suffix="%"
+          onCommit={(chat_weight) => onChange({ chat_weight })}
+        />
+      </div>
 
       {channel.windows.length > 0 ? (
         <div className="mt-4 border-t pt-2">

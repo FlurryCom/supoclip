@@ -9,7 +9,7 @@
   "offline": "Offline",
   "enabled": "Aktif",
   "chatFilter": "Filter chat",
-  "minScore": "Skor min.",
+  "minScore": "Skor minimum",
   "chatFilterOn": "Hanya bagian saat chat melonjak yang dipotong. Matikan untuk siaran obrolan dengan chat yang tenang.",
   "chatFilterOff": "Setiap bagian siaran dipotong. Ini memakai jauh lebih banyak pemrosesan.",
   "recent": "Bagian terbaru",
@@ -33,5 +33,12 @@
     "noSpike": "tidak ada lonjakan chat",
     "dailyCap": "batas harian tercapai",
     "taskFailed": "pemrosesan gagal"
+  },
+  "minScoreHint": "Klip dengan skor akhir di bawah ini dibuang.",
+  "chatWeight": "Bobot chat",
+  "chatWeightHint": "Skor akhir = {ai}% skor AI + {chat}% panas chat.",
+  "scores": {
+    "detail": "AI {ai} · chat {heat}",
+    "noChat": "AI {ai} · tanpa data chat"
   }
 }

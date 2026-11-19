@@ -33,5 +33,12 @@
     "noSpike": "kein Chat-Ausschlag",
     "dailyCap": "Tageslimit erreicht",
     "taskFailed": "Verarbeitung fehlgeschlagen"
+  },
+  "minScoreHint": "Clips mit einem niedrigeren Endwert werden verworfen.",
+  "chatWeight": "Chat-Gewicht",
+  "chatWeightHint": "Endwert = {ai} % KI-Wert + {chat} % Chat-Hitze.",
+  "scores": {
+    "detail": "KI {ai} · Chat {heat}",
+    "noChat": "KI {ai} · keine Chatdaten"
   }
 }

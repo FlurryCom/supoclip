@@ -33,5 +33,12 @@
     "noSpike": "聊天没有激增",
     "dailyCap": "已达每日上限",
     "taskFailed": "处理失败"
+  },
+  "minScoreHint": "最终得分低于此值的片段会被丢弃。",
+  "chatWeight": "聊天权重",
+  "chatWeightHint": "最终得分 = {ai}% AI 得分 + {chat}% 聊天热度。",
+  "scores": {
+    "detail": "AI {ai} · 聊天 {heat}",
+    "noChat": "AI {ai} · 无聊天数据"
   }
 }

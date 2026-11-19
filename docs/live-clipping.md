@@ -34,8 +34,18 @@ the Library about 15 minutes after the moment.
   signed headers, so preflight, minute charging and admission apply unchanged.
 - Windows use the **long** clip preset (61-120 s, so clips qualify for TikTok
   monetization); `LIVE_CLIP_LENGTH` changes it.
+- Chat is stored as distinct chatters per 10 seconds (`live_chat_buckets`).
+  Before a window is sent, the points where chat exploded are passed to clip
+  selection as creator instructions (on the window file's clock), so the AI
+  cuts around them. This uses the instructions path, so the `workflows`
+  feature flag must be on.
+- Each clip gets a **chat heat** (0-100): its chat peak, from its start to 15 s
+  after its end, ranked against every stretch of the same length in that
+  broadcast. Its **final score** is
+  `(100 - chat_weight)% × AI score + chat_weight% × chat heat`
+  (`chat_weight` per channel, default 60%); without chat data the AI score stands.
 - When a task finishes, clips shorter than `LIVE_MIN_CLIP_SECONDS` (61), clips
-  below the channel's **minimum score**, and clips
+  whose final score is below the channel's **minimum score**, and clips
   that overlap more than half of an already-kept clip (on the broadcast clock)
   are deleted. A window can end with zero clips.
 - Chunks are deleted once no future window can use them; a 1080p60 stream takes

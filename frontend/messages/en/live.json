@@ -9,7 +9,7 @@
   "offline": "Offline",
   "enabled": "Active",
   "chatFilter": "Chat filter",
-  "minScore": "Min. score",
+  "minScore": "Minimum score",
   "chatFilterOn": "Only stretches where chat spikes are clipped. Turn it off for talk streams with a quiet chat.",
   "chatFilterOff": "Every stretch of the live is clipped. This uses much more processing.",
   "recent": "Recent stretches",
@@ -33,5 +33,12 @@
     "noSpike": "no chat spike",
     "dailyCap": "daily limit reached",
     "taskFailed": "processing failed"
+  },
+  "minScoreHint": "Clips with a final score below this are dropped.",
+  "chatWeight": "Chat weight",
+  "chatWeightHint": "Final score = {ai}% AI score + {chat}% chat heat.",
+  "scores": {
+    "detail": "AI {ai} · chat {heat}",
+    "noChat": "AI {ai} · no chat data"
   }
 }
