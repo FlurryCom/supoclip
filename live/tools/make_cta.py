@@ -31,6 +31,11 @@ TIKTOK_RED = (254, 44, 85, 255)
 DONE_GREY = (63, 63, 63, 255)
 WHITE, BLACK = (255, 255, 255, 255), (17, 17, 17, 255)
 
+# Owner: the CTA took too much screen. It is drawn at full size, then shrunk and
+# moved to the bottom centre, just under the burned-in captions.
+SCALE = 0.65
+FINAL_CY = H * 0.85
+
 # Timeline (seconds).
 CARD_IN, POINTER_FROM, POINTER_TO, PRESS, TOGGLE, FADE_FROM = 0.30, 0.30, 1.05, 1.05, 1.10, 2.20
 
@@ -156,7 +161,7 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
     if t >= POINTER_FROM:
         tx, ty = L["tip"]
         k = ease_in_out((t - POINTER_FROM) / (POINTER_TO - POINTER_FROM))
-        sx, sy = W * 1.05, H * 0.98
+        sx, sy = W * 1.6, H * 1.4  # far enough out that it still enters from off-screen once shrunk
         tip = ((sx + (tx - sx) * k) * SS, (sy + (ty - sy) * k) * SS)
         press = 0.85 if PRESS <= t < PRESS + 0.12 else 1.0
         if PRESS <= t < PRESS + 0.35:
@@ -167,11 +172,22 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
             img.alpha_composite(ring)
         pointer(d, tip, press)
 
+    img = place(img, cy)
     alpha = min(1.0, t / CARD_IN) * (1 - ease_out((t - FADE_FROM) / (SECONDS - FADE_FROM)) if t > FADE_FROM else 1.0)
     if alpha < 1:
         a = img.getchannel("A").point(lambda v: int(v * alpha))
         img.putalpha(a)
     return img.resize((W, H), Image.LANCZOS)
+
+
+def place(img: Image.Image, cy: float) -> Image.Image:
+    """Shrink the drawn CTA around its card centre and move that centre to the bottom of the frame."""
+    small = img.resize((round(img.width * SCALE), round(img.height * SCALE)), Image.LANCZOS)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    x = round(W / 2 * SS - W / 2 * SS * SCALE)
+    y = round(FINAL_CY * SS - cy * SS * SCALE)
+    out.alpha_composite(small, (x, y)) if y >= 0 else out.paste(small.crop((0, -y, small.width, small.height)), (x, 0))
+    return out
 
 
 def read_wav(name: str) -> np.ndarray:

@@ -28,3 +28,4 @@ docs/youtube-provider-registry*.json
 
 # Claude Code login for the claude-cli provider
 .claude-cli/
+previews/
