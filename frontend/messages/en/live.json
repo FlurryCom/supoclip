@@ -27,5 +27,11 @@
     "done": "Done",
     "skipped": "Skipped",
     "error": "Failed"
+  },
+  "reason": {
+    "kept": "kept {kept} of {total} clips",
+    "noSpike": "no chat spike",
+    "dailyCap": "daily limit reached",
+    "taskFailed": "processing failed"
   }
 }

@@ -27,5 +27,11 @@
     "done": "完成",
     "skipped": "已跳过",
     "error": "失败"
+  },
+  "reason": {
+    "kept": "保留了 {total} 个片段中的 {kept} 个",
+    "noSpike": "聊天没有激增",
+    "dailyCap": "已达每日上限",
+    "taskFailed": "处理失败"
   }
 }

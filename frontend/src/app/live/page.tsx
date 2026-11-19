@@ -54,14 +54,26 @@ function timeRange(window: LiveWindow) {
   return `${format(window.window_start)}–${format(window.window_end)}`;
 }
 
+// The recorder stores fixed English reasons; translate those, show anything else (errors) as is.
+function reasonText(reason: string | null, t: ReturnType<typeof useTranslations<"live">>) {
+  if (!reason) return null;
+  const kept = /^kept (\d+) of (\d+) clips$/.exec(reason);
+  if (kept) return t("reason.kept", { kept: Number(kept[1]), total: Number(kept[2]) });
+  if (reason === "no chat spike") return t("reason.noSpike");
+  if (reason === "daily window cap reached") return t("reason.dailyCap");
+  if (/^task [a-z_]+$/.test(reason)) return t("reason.taskFailed");
+  return reason;
+}
+
 function WindowRow({ window }: { window: LiveWindow }) {
   const t = useTranslations("live");
+  const reason = reasonText(window.reason, t);
   return (
     <li className="flex items-center justify-between gap-3 py-2 text-sm">
       <div className="min-w-0">
         <span className="tabular-nums">{timeRange(window)}</span>
         <span className="ml-2 text-muted-foreground">{t(`status.${window.status}`)}</span>
-        {window.reason ? <span className="ml-2 truncate text-xs text-muted-foreground">· {window.reason}</span> : null}
+        {reason ? <span className="ml-2 truncate text-xs text-muted-foreground">· {reason}</span> : null}
       </div>
       {window.task_id ? (
         <Link href={`/tasks/${window.task_id}`} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium hover:underline">

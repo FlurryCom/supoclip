@@ -27,5 +27,11 @@
     "done": "Pronto",
     "skipped": "Pulado",
     "error": "Falhou"
+  },
+  "reason": {
+    "kept": "{kept} de {total} clipes mantidos",
+    "noSpike": "sem pico no chat",
+    "dailyCap": "limite diário atingido",
+    "taskFailed": "o processamento falhou"
   }
 }

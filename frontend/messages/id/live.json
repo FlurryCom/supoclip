@@ -27,5 +27,11 @@
     "done": "Selesai",
     "skipped": "Dilewati",
     "error": "Gagal"
+  },
+  "reason": {
+    "kept": "{kept} dari {total} klip disimpan",
+    "noSpike": "tidak ada lonjakan chat",
+    "dailyCap": "batas harian tercapai",
+    "taskFailed": "pemrosesan gagal"
   }
 }
