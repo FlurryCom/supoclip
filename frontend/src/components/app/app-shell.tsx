@@ -6,13 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight, Bot, ChartColumn, CornerDownLeft, Film, ListChecks, ListOrdered, LogOut, Play, Plus, Search, Settings, Share2, Shield, Sparkles, Target,
+  ArrowRight, Bot, ChartColumn, Radio, CornerDownLeft, Film, ListChecks, ListOrdered, LogOut, Play, Plus, Search, Settings, Share2, Shield, Sparkles, Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { signOut, useSession } from "@/lib/auth-client";
 import { resetAnalytics } from "@/lib/posthog";
 import { useBillingSummary } from "@/hooks/use-billing-summary";
 import { useSocialAccess } from "@/hooks/use-social-access";
+import { useLiveAccess } from "@/hooks/use-live-access";
 import { billingPlanMessageKey } from "@/lib/billing-plans";
 import { getUpgradeState } from "@/components/billing/upgrade-prompt";
 import { fetchGenerations, timeAgo, type GenerationSummary } from "@/lib/generations";
@@ -29,14 +30,16 @@ import { FeatureTourHost } from "@/components/feature-tour";
 import type { Workflow } from "@/lib/workflows";
 
 // `mobile: false` keeps an item out of the five-slot mobile tab bar.
-// `social: true` items only show when social publishing is enabled for the user.
-type NavItem = { href: string; labelKey: "create" | "library" | "social" | "analytics" | "agents" | "settings"; icon: typeof Film; match: (path: string) => boolean; mobile?: boolean; social?: boolean };
+// `social: true` items only show when social publishing is enabled for the user,
+// `live: true` ones when live clipping is.
+type NavItem = { href: string; labelKey: "create" | "library" | "social" | "analytics" | "live" | "agents" | "settings"; icon: typeof Film; match: (path: string) => boolean; mobile?: boolean; social?: boolean; live?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/", labelKey: "create", icon: Sparkles, match: (p) => p === "/" },
   { href: "/list", labelKey: "library", icon: Film, match: (p) => p.startsWith("/list") || p.startsWith("/tasks") },
   { href: "/settings/social", labelKey: "social", icon: Share2, match: (p) => p.startsWith("/settings/social"), social: true },
   { href: "/analytics", labelKey: "analytics", icon: ChartColumn, match: (p) => p.startsWith("/analytics"), social: true },
+  { href: "/live", labelKey: "live", icon: Radio, match: (p) => p.startsWith("/live"), mobile: false, live: true },
   { href: "/settings/api-keys", labelKey: "agents", icon: Bot, match: (p) => p.startsWith("/settings/api-keys"), mobile: false },
   { href: "/settings", labelKey: "settings", icon: Settings, match: (p) => p === "/settings" },
 ];
@@ -92,8 +95,9 @@ export function AppShell({ children, tour }: { children: React.ReactNode; /** Se
   useAppTheme(Boolean(user));
   const admin = Boolean((user as { is_admin?: boolean } | undefined)?.is_admin);
   const socialAccess = useSocialAccess(Boolean(user));
+  const liveAccess = useLiveAccess(Boolean(user));
   const labeled = NAV.map((item) => ({ ...item, label: t(`nav.${item.labelKey}`) }));
-  const nav = labeled.filter((item) => !item.social || socialAccess === true);
+  const nav = labeled.filter((item) => (!item.social || socialAccess === true) && (!item.live || liveAccess === true));
   const mobileNav = nav.filter((item) => item.mobile !== false);
   const items = admin ? [...nav, { href: "/admin", label: t("nav.admin"), icon: Shield, match: (p: string) => p.startsWith("/admin") }] : nav;
 

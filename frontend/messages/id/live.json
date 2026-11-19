@@ -1,0 +1,31 @@
+{
+  "title": "Live",
+  "description": "Ikuti kanal Twitch. Saat mereka siaran langsung, SupoClip merekam siaran dan memotong momen terbaiknya. Klip muncul di Pustaka sekitar 15 menit kemudian.",
+  "channelLabel": "Kanal Twitch",
+  "channelPlaceholder": "Nama kanal atau tautan twitch.tv",
+  "follow": "Ikuti",
+  "empty": "Belum ada kanal. Ikuti kanal Twitch untuk mulai memotong siaran langsungnya.",
+  "live": "Live",
+  "offline": "Offline",
+  "enabled": "Aktif",
+  "chatFilter": "Filter chat",
+  "minScore": "Skor min.",
+  "chatFilterOn": "Hanya bagian saat chat melonjak yang dipotong. Matikan untuk siaran obrolan dengan chat yang tenang.",
+  "chatFilterOff": "Setiap bagian siaran dipotong. Ini memakai jauh lebih banyak pemrosesan.",
+  "recent": "Bagian terbaru",
+  "openClips": "Klip",
+  "remove": "Berhenti mengikuti {channel}",
+  "removeConfirm": "Berhenti mengikuti {channel}? Klip yang sudah dibuat tetap ada di Pustaka.",
+  "loadError": "Tidak dapat memuat kanal Anda.",
+  "addError": "Tidak dapat mengikuti kanal ini.",
+  "saveError": "Tidak dapat menyimpan perubahan.",
+  "unavailable": "Pemotongan siaran langsung tidak diaktifkan di server ini.",
+  "signInBody": "Masuk untuk mengikuti kanal live.",
+  "signIn": "Masuk",
+  "status": {
+    "submitted": "Diproses",
+    "done": "Selesai",
+    "skipped": "Dilewati",
+    "error": "Gagal"
+  }
+}

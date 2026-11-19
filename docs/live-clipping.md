@@ -1,0 +1,65 @@
+# Live clipping (fork feature)
+
+Follow Twitch channels. While a channel is live, SupoClip records it and sends
+stretches of the broadcast through the normal clipping pipeline, so live clips
+get the same selection, framing, captions and editor as VOD clips. Clips land in
+the Library about 15 minutes after the moment.
+
+## Turn it on
+
+1. In `.env`, add the `live` compose profile and your time zone for clip titles:
+   ```env
+   COMPOSE_PROFILES=live
+   LIVE_TIMEZONE=America/Sao_Paulo
+   ```
+2. `docker compose up -d --build` (starts the `live-recorder` service).
+3. Enable the `live_clipping` flag in `/admin` (admins see the feature already).
+4. Open **Live** in the sidebar and follow a channel by name or `twitch.tv` link.
+
+## How it works
+
+- `live/` is a separate service. It checks each followed channel with
+  streamlink every minute, records live ones (`streamlink | ffmpeg`, 60 s
+  chunks named by wall clock) and reads chat anonymously.
+- Every 10 minutes of new broadcast it decides on a **window**: the new part
+  plus 10 minutes of context before it (20 minutes). While a channel already has
+  a window in the pipeline, content accumulates and the next window covers it,
+  up to 40 minutes.
+- **Chat filter** (on by default, per channel): a window is processed only if
+  chat spiked in its new part, meaning a 10-second stretch with at least three
+  times the usual number of distinct chatters. Bots and `!commands` don't count. A
+  spike near the end waits for two more minutes of aftermath. Turn it off for
+  talk streams with a quiet chat; every window is then processed.
+- Windows go through `POST /upload` and `POST /tasks/` with the frontend's
+  signed headers, so preflight, minute charging and admission apply unchanged.
+- When a task finishes, clips below the channel's **minimum score** and clips
+  that overlap more than half of an already-kept clip (on the broadcast clock)
+  are deleted. A window can end with zero clips.
+- Chunks are deleted once no future window can use them; a 1080p60 stream takes
+  about 3-4 GB per hour, and at most about 50 minutes is kept per live channel.
+
+State lives in `live_channels`, `live_recordings`, `live_windows` and
+`live_clips` (`backend/src/migrations/sql/20261119_0001_live_clipping.sql`).
+
+## Limits
+
+- Twitch only for now; Kick and YouTube can follow the same path.
+- Each window counts as one upload. `MEDIA_UPLOAD_DAILY_LIMIT` (default 20 per
+  user per day) caps how many windows a day go through; raise it for heavy use.
+  `daily_window_cap` (default 12) is the per-channel limit.
+- Spikes are kept in memory. A recorder restart mid-stream forgets the spikes
+  of the part not yet sent (at most one window).
+- Local Whisper `medium` on CPU is far slower than real time: on a 16-core
+  machine a 3-minute window took 16.5 minutes to transcribe (part of it sharing
+  the CPU with another transcription). It cannot keep up with a live channel.
+  Use `TRANSCRIPTION_PROVIDER=assemblyai`, or a smaller `WHISPER_MODEL_SIZE`,
+  and keep the chat filter on.
+
+## Tests
+
+```bash
+cd live && uv run --no-project --with pytest python -m pytest -q tests
+```
+- The SupoClip license forbids commercial use without permission from Shiori
+  LLC, and clipping someone else's stream is subject to Twitch's terms and the
+  streamer's rights.

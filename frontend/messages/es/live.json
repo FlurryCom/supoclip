@@ -1,0 +1,31 @@
+{
+  "title": "Live",
+  "description": "Sigue canales de Twitch. Mientras están en directo, SupoClip graba la transmisión y recorta sus mejores momentos. Los clips aparecen en tu Biblioteca unos 15 minutos después.",
+  "channelLabel": "Canal de Twitch",
+  "channelPlaceholder": "Nombre del canal o enlace de twitch.tv",
+  "follow": "Seguir",
+  "empty": "Aún no hay canales. Sigue un canal de Twitch para empezar a recortar sus directos.",
+  "live": "En directo",
+  "offline": "Desconectado",
+  "enabled": "Activo",
+  "chatFilter": "Filtro de chat",
+  "minScore": "Puntuación mín.",
+  "chatFilterOn": "Solo se recortan los tramos en que el chat se dispara. Desactívalo para directos de charla con un chat tranquilo.",
+  "chatFilterOff": "Se recorta cada tramo del directo. Esto usa mucho más procesamiento.",
+  "recent": "Tramos recientes",
+  "openClips": "Clips",
+  "remove": "Dejar de seguir a {channel}",
+  "removeConfirm": "¿Dejar de seguir a {channel}? Los clips ya hechos se quedan en tu Biblioteca.",
+  "loadError": "No se pudieron cargar tus canales.",
+  "addError": "No se pudo seguir este canal.",
+  "saveError": "No se pudo guardar el cambio.",
+  "unavailable": "El recorte de directos no está activado en este servidor.",
+  "signInBody": "Inicia sesión para seguir canales en directo.",
+  "signIn": "Iniciar sesión",
+  "status": {
+    "submitted": "Procesando",
+    "done": "Listo",
+    "skipped": "Omitido",
+    "error": "Falló"
+  }
+}

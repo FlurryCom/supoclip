@@ -1,0 +1,31 @@
+{
+  "title": "直播",
+  "description": "关注 Twitch 频道。频道开播时，SupoClip 会录制直播并剪出最精彩的片段。片段约在 15 分钟后出现在你的素材库中。",
+  "channelLabel": "Twitch 频道",
+  "channelPlaceholder": "频道名称或 twitch.tv 链接",
+  "follow": "关注",
+  "empty": "还没有频道。关注一个 Twitch 频道即可开始剪辑其直播。",
+  "live": "直播中",
+  "offline": "未开播",
+  "enabled": "启用",
+  "chatFilter": "聊天过滤",
+  "minScore": "最低分",
+  "chatFilterOn": "只剪辑聊天激增的片段。聊天较安静的谈话类直播可关闭此项。",
+  "chatFilterOff": "剪辑直播的每一段。这会占用多得多的处理资源。",
+  "recent": "最近的片段",
+  "openClips": "片段",
+  "remove": "取消关注 {channel}",
+  "removeConfirm": "取消关注 {channel}？已生成的片段会保留在素材库中。",
+  "loadError": "无法加载你的频道。",
+  "addError": "无法关注此频道。",
+  "saveError": "无法保存更改。",
+  "unavailable": "此服务器未启用直播剪辑。",
+  "signInBody": "登录后即可关注直播频道。",
+  "signIn": "登录",
+  "status": {
+    "submitted": "处理中",
+    "done": "完成",
+    "skipped": "已跳过",
+    "error": "失败"
+  }
+}

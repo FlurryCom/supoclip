@@ -1,0 +1,31 @@
+{
+  "title": "Live",
+  "description": "Follow Twitch channels. While they are live, SupoClip records the stream and clips its best moments. Clips appear in your Library about 15 minutes after they happen.",
+  "channelLabel": "Twitch channel",
+  "channelPlaceholder": "Channel name or twitch.tv link",
+  "follow": "Follow",
+  "empty": "No channels yet. Follow a Twitch channel to start clipping its lives.",
+  "live": "Live",
+  "offline": "Offline",
+  "enabled": "Active",
+  "chatFilter": "Chat filter",
+  "minScore": "Min. score",
+  "chatFilterOn": "Only stretches where chat spikes are clipped. Turn it off for talk streams with a quiet chat.",
+  "chatFilterOff": "Every stretch of the live is clipped. This uses much more processing.",
+  "recent": "Recent stretches",
+  "openClips": "Clips",
+  "remove": "Stop following {channel}",
+  "removeConfirm": "Stop following {channel}? Clips already made stay in your Library.",
+  "loadError": "Couldn't load your channels.",
+  "addError": "Couldn't follow this channel.",
+  "saveError": "Couldn't save the change.",
+  "unavailable": "Live clipping isn't enabled on this server.",
+  "signInBody": "Sign in to follow live channels.",
+  "signIn": "Sign in",
+  "status": {
+    "submitted": "Processing",
+    "done": "Done",
+    "skipped": "Skipped",
+    "error": "Failed"
+  }
+}

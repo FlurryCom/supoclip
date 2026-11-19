@@ -239,6 +239,8 @@ def create_app(
     app.include_router(social_router)
     app.include_router(email_preferences_router)
     app.include_router(feature_flags_router)
+    from .api.routes.live import router as live_router
+    app.include_router(live_router)
     app.include_router(stripe_cancellations_router)
     app.include_router(mcp_oauth_internal_router)
     app.include_router(mcp_oauth_consent_router)

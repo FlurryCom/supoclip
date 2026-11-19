@@ -21,6 +21,7 @@ export const NAMESPACES = [
   "editor",
   "social",
   "analytics",
+  "live",
   "marketing",
   "seo",
   "blog",

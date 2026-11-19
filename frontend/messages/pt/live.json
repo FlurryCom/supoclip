@@ -1,0 +1,31 @@
+{
+  "title": "Live",
+  "description": "Siga canais da Twitch. Enquanto estão ao vivo, o SupoClip grava a transmissão e corta os melhores momentos. Os clipes aparecem na Biblioteca uns 15 minutos depois do momento.",
+  "channelLabel": "Canal da Twitch",
+  "channelPlaceholder": "Nome do canal ou link twitch.tv",
+  "follow": "Seguir",
+  "empty": "Nenhum canal ainda. Siga um canal da Twitch para começar a clipar as lives dele.",
+  "live": "Ao vivo",
+  "offline": "Offline",
+  "enabled": "Ativo",
+  "chatFilter": "Filtro de chat",
+  "minScore": "Nota mín.",
+  "chatFilterOn": "Só os trechos em que o chat explode são cortados. Desligue para lives de conversa com chat calmo.",
+  "chatFilterOff": "Todo trecho da live é cortado. Isso usa muito mais processamento.",
+  "recent": "Trechos recentes",
+  "openClips": "Clipes",
+  "remove": "Deixar de seguir {channel}",
+  "removeConfirm": "Deixar de seguir {channel}? Os clipes já feitos continuam na Biblioteca.",
+  "loadError": "Não foi possível carregar seus canais.",
+  "addError": "Não foi possível seguir este canal.",
+  "saveError": "Não foi possível salvar a alteração.",
+  "unavailable": "O clipe de lives não está ativado neste servidor.",
+  "signInBody": "Entre para seguir canais ao vivo.",
+  "signIn": "Entrar",
+  "status": {
+    "submitted": "Processando",
+    "done": "Pronto",
+    "skipped": "Pulado",
+    "error": "Falhou"
+  }
+}
