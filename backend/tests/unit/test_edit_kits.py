@@ -9,6 +9,8 @@ def test_catclips_kit_points_at_existing_assets():
     assert [(s["path"].name, s["at"]) for s in kit["sfx"]] == [
         ("bell.wav", "start"), ("cartoon-whoosh.wav", "start"), ("boom.wav", "peak")]
     assert all(s["path"].exists() for s in kit["sfx"])
+    # Owner: only captions on screen, no chat bubbles or burned title over the video.
+    assert kit["chat_overlay"] is False and kit["burn_hook_title"] is False
 
 
 def test_unknown_kit_is_none():
@@ -16,7 +18,7 @@ def test_unknown_kit_is_none():
     assert get_kit(None) is KITS["none"]
     none = KITS["none"]
     assert none["chat_overlay"] is False and none["sfx"] == [] and none["end_card"] is None
-    assert none["cta_seconds"] == 0
+    assert none["cta_seconds"] == 0 and none["burn_hook_title"] is True
 
 
 def test_kit_choices_lists_every_kit():

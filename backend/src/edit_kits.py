@@ -18,6 +18,7 @@ KITS: dict[str, dict[str, Any]] = {
         "name": "SupoClip",
         "caption_template": None,
         "chat_overlay": False,
+        "burn_hook_title": True,
         "sfx": [],
         "end_card": None,
         "cta_seconds": 0.0,
@@ -27,7 +28,9 @@ KITS: dict[str, dict[str, Any]] = {
         "id": "catclips",
         "name": "Cat Clips",
         "caption_template": "catclips",
-        "chat_overlay": True,
+        # Owner (2026-11-20): only the captions on screen, no chat bubbles or title over the video.
+        "chat_overlay": False,
+        "burn_hook_title": False,
         "sfx": [
             {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
