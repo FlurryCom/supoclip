@@ -52,6 +52,14 @@ def normalize_source(url: str) -> tuple[str, str, str]:
     raise ValueError("unsupported")
 
 
+_CHANNELS = {"youtube": _YT_HANDLE, "tiktok": re.compile(r"[A-Za-z0-9._]{1,100}"), "twitch": _TWITCH_LOGIN}
+
+
+def valid_channel(platform: str, channel: str) -> bool:
+    pattern = _CHANNELS.get(platform)
+    return bool(pattern and isinstance(channel, str) and pattern.fullmatch(channel))
+
+
 def valid_video_id(platform: str, video_id: str) -> bool:
     pattern = _IDS.get(platform)
     return bool(pattern and isinstance(video_id, str) and pattern.fullmatch(video_id))

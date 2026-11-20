@@ -141,3 +141,21 @@ def test_publish_plan_queues_every_live_clip_once_per_account():
     plan = publish_plan(clips, ["tiktok", "youtube"], already={("c1", "tiktok")})
     assert plan == [("c1", "youtube"), ("c2", "tiktok"), ("c2", "youtube")]
     assert publish_plan([], ["tiktok"], already=set()) == []
+
+
+def test_reform_request_rebuilds_urls_and_drops_bad_ids():
+    from fastapi import HTTPException
+    from src.api.routes.live import reform_request
+    items = [
+        {"platform": "tiktok", "id": "7709194461913419038", "title": "a", "duration": 27, "channel": "khaby.lame", "url": "https://evil.com/x"},
+        {"platform": "youtube", "id": "../../x", "title": "b", "duration": 30, "channel": "@a"},
+        {"platform": "twitch", "id": "Slug-1", "title": "c", "duration": 200, "channel": "xqc"},
+        {"platform": "tiktok", "id": "7709194461913419099", "title": "d", "duration": 20, "channel": "bad/../user"},
+    ]
+    out = reform_request({"items": items})
+    assert [i["source_url"] for i in out] == ["https://www.tiktok.com/@khaby.lame/video/7709194461913419038"]
+    assert out[0]["video_id"] == "7709194461913419038" and out[0]["title"] == "a"
+    with pytest.raises(HTTPException):
+        reform_request({"items": []})
+    with pytest.raises(HTTPException):
+        reform_request({"items": items * 11})

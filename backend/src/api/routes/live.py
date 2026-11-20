@@ -4,6 +4,7 @@ The live-recorder service (live/, compose profile "live") reads these rows,
 records broadcasts and sends windows through the normal task pipeline. These
 routes only manage channels and report what happened. docs/live-clipping.md.
 """
+import asyncio
 import os
 import re
 import uuid
@@ -18,7 +19,7 @@ from ...auth_headers import get_authenticated_user_id
 from ...config import get_config
 from ...database import get_db
 from ...feature_flags import client_platform, is_enabled
-from ... import postiz, twitch_trending
+from ... import postiz, reform, twitch_trending
 from ...edit_kits import KITS, kit_choices
 from ...media_storage import MediaStorage
 from ...workers.media_cleanup import _delete_finished_local_upload, _finished_local_upload
@@ -439,7 +440,8 @@ async def publish_clips(request: Request, db: AsyncSession = Depends(get_db)):
     if not targets:
         raise HTTPException(status_code=422, detail="No active account chosen")
     rows = (await db.execute(text("""
-        SELECT g.id, lc.clip_id IS NOT NULL AS live FROM generated_clips g
+        SELECT g.id, (lc.clip_id IS NOT NULL OR EXISTS (SELECT 1 FROM reform_items ri WHERE ri.task_id = g.task_id)) AS live
+        FROM generated_clips g
         JOIN tasks tk ON tk.id = g.task_id AND tk.user_id = :u
         LEFT JOIN live_clips lc ON lc.clip_id = g.id
         WHERE g.task_id = ANY(:tasks) ORDER BY g.task_id, g.clip_order
@@ -457,6 +459,133 @@ async def publish_clips(request: Request, db: AsyncSession = Depends(get_db)):
         ), {"id": str(uuid.uuid4()), "u": user_id, "c": clip_id, "t": target_id})
     await db.commit()
     return {"queued": len(plan), "already": len(clips) * len(targets) - len(plan), "not_live": len(rows) - len(clips)}
+
+
+_durations: dict[str, float | None] = {}  # yt-dlp lookups are slow; a video's length doesn't change
+
+
+def _flat_list(listing_url: str, page: int) -> dict[str, Any]:
+    import yt_dlp
+    options = {"quiet": True, "no_warnings": True, "skip_download": True, "extract_flat": "in_playlist",
+               "playliststart": (page - 1) * 30 + 1, "playlistend": page * 30}
+    with yt_dlp.YoutubeDL(options) as ydl:
+        return ydl.extract_info(listing_url, download=False) or {}
+
+
+def _video_duration(url: str) -> float | None:
+    import yt_dlp
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
+            duration = (ydl.extract_info(url, download=False) or {}).get("duration")
+            return float(duration) if duration else None
+    except Exception:
+        return None
+
+
+@router.get("/reform/list")
+async def reform_list(request: Request, url: str = "", page: int = 1, db: AsyncSession = Depends(get_db)):
+    """A channel's recent videos for the Reformular page, 30 per page."""
+    user_id = await _user(request, db)
+    try:
+        platform, listing_url, channel = reform.normalize_source(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    page = max(1, min(page, 20))
+    try:
+        items = reform.listing_items(await run_in_threadpool(_flat_list, listing_url, page), platform)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Couldn't read this channel") from None
+    gate = asyncio.Semaphore(8)
+
+    async def fill(item: dict[str, Any]) -> None:
+        key = f"{platform}:{item['id']}"
+        if key not in _durations:
+            async with gate:
+                _durations[key] = await run_in_threadpool(_video_duration, reform.video_url(platform, item["id"], channel))
+        item["duration"] = _durations[key]
+
+    await asyncio.gather(*(fill(i) for i in items if i["duration"] is None))
+    ids = [i["id"] for i in items]
+    taken = {r[0] for r in (await db.execute(text("""
+        SELECT video_id FROM reform_items WHERE user_id = :u AND platform = :p AND video_id = ANY(:ids)
+          AND (status IN ('pending', 'submitted') OR (status = 'done' AND task_id IS NOT NULL))
+    """), {"u": user_id, "p": platform, "ids": ids})).all()} if ids else set()
+    for item in items:
+        duration = item["duration"]
+        item["short"] = duration is not None and duration < reform.SHORT_SECONDS
+        item["too_long"] = duration is not None and duration > reform.MAX_SECONDS
+        item["taken"] = item["id"] in taken
+    return {"platform": platform, "channel": channel, "items": items}
+
+
+def reform_request(body: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """The valid videos of a Reformular request, with server-built URLs (client URLs are ignored)."""
+    raw = body.get("items")
+    if not isinstance(raw, list) or not 1 <= len(raw) <= 30:
+        raise HTTPException(status_code=422, detail="Choose 1 to 30 videos")
+    items = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        platform, video_id, channel = item.get("platform"), item.get("id"), item.get("channel")
+        duration = item.get("duration")
+        if not (reform.valid_video_id(platform, video_id) and reform.valid_channel(platform, channel)):
+            continue
+        if isinstance(duration, (int, float)) and duration > reform.MAX_SECONDS:
+            continue
+        items.append({
+            "platform": platform, "video_id": video_id, "source_channel": channel,
+            "source_url": reform.video_url(platform, video_id, channel),
+            "title": str(item.get("title") or "")[:300],
+            "duration": float(duration) if isinstance(duration, (int, float)) else None,
+        })
+    return items
+
+
+@router.post("/reform")
+async def reform_queue(request: Request, db: AsyncSession = Depends(get_db)):
+    """Queue videos to remake; the recorder submits them one at a time so lives aren't held up."""
+    user_id = await _postiz_user(request, db)
+    body = await _body(request)
+    kit = body.get("edit_kit") or "catclips"
+    if kit not in KITS:
+        raise HTTPException(status_code=422, detail="Unknown edit kit")
+    items = reform_request(body)
+    raw_targets = body.get("target_ids") or []
+    target_ids = _id_list(raw_targets, "target_ids") if raw_targets else []
+    targets = [r[0] for r in (await db.execute(text(
+        "SELECT id FROM live_post_targets WHERE user_id = :u AND enabled AND id = ANY(:ids)"
+    ), {"u": user_id, "ids": target_ids})).all()] if target_ids else []
+    auto_publish = body.get("auto_publish") is True
+    if auto_publish and not targets:
+        raise HTTPException(status_code=422, detail="No active account chosen")
+    queued = 0
+    for item in items:
+        row = (await db.execute(text("""
+            INSERT INTO reform_items (id, user_id, platform, video_id, source_url, source_channel, title, duration,
+                edit_kit, auto_publish, target_ids)
+            VALUES (:id, :u, :platform, :video_id, :source_url, :source_channel, :title, :duration, :kit, :auto, :targets)
+            ON CONFLICT (user_id, platform, video_id) DO UPDATE SET status = 'pending', task_id = NULL, reason = NULL,
+                source_url = EXCLUDED.source_url, source_channel = EXCLUDED.source_channel, title = EXCLUDED.title,
+                duration = EXCLUDED.duration, edit_kit = EXCLUDED.edit_kit, auto_publish = EXCLUDED.auto_publish,
+                target_ids = EXCLUDED.target_ids, updated_at = now()
+            WHERE reform_items.status = 'error' OR (reform_items.status = 'done' AND reform_items.task_id IS NULL)
+            RETURNING id
+        """), {**item, "id": str(uuid.uuid4()), "u": user_id, "kit": kit, "auto": auto_publish,
+               "targets": targets if auto_publish else []})).first()
+        queued += row is not None
+    await db.commit()
+    return {"queued": queued, "skipped": len(body["items"]) - queued}
+
+
+@router.get("/reform/items")
+async def reform_items_list(request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = await _user(request, db)
+    rows = (await db.execute(text("""
+        SELECT id, title, platform, status, reason, task_id, created_at FROM reform_items
+        WHERE user_id = :u ORDER BY updated_at DESC LIMIT 20
+    """), {"u": user_id})).mappings().all()
+    return {"items": [dict(r) for r in rows]}
 
 
 @router.post("/windows/{window_id}/release-source")
