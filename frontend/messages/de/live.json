@@ -34,7 +34,7 @@
     "dailyCap": "Tageslimit erreicht",
     "taskFailed": "Verarbeitung fehlgeschlagen"
   },
-  "minScoreHint": "Clips mit einem niedrigeren Endwert werden verworfen.",
+  "minScoreHint": "Gilt nur, wenn kein Posting-Konto aktiv ist; sonst gilt deren Verarbeitungswert.",
   "chatWeight": "Chat-Gewicht",
   "chatWeightHint": "Endwert = {ai} % KI-Wert + {chat} % Chat-Hitze.",
   "scores": {
@@ -90,7 +90,9 @@
     "limitPostsCount": "Videos pro Tag",
     "limitPostsPerDay": "Videos pro Tag",
     "todayNoLimit": "{posted} Posts in den letzten 24 h, kein Tageslimit",
-    "safeGapMinutes": "Minuten zwischen Videos"
+    "safeGapMinutes": "Minuten zwischen Videos",
+    "processMinScore": "Mindestwert zum Verarbeiten",
+    "processMinScoreHint": "Momente darunter werden gar nicht gerendert. Mit aktiven Konten gilt deren niedrigster Wert statt des Kanalwerts."
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
@@ -135,5 +137,7 @@
   "channelSafePostingOn": "Clips dieses Kanals warten auf jedem Konto {minutes} Minuten zwischeneinander, zusätzlich zum Abstand des Kontos.",
   "channelSafePostingOff": "Aus: Clips dieses Kanals folgen nur dem Abstand jedes Kontos.",
   "save": "Speichern",
-  "saving": "Wird gespeichert…"
+  "saving": "Wird gespeichert…",
+  "waiting": "Live · wartet auf Platz",
+  "waitingHint": "Ist live, aber alle Aufnahmeplätze sind belegt. Die Aufnahme startet, wenn ein anderer Stream endet."
 }

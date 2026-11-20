@@ -34,7 +34,7 @@
     "dailyCap": "已达每日上限",
     "taskFailed": "处理失败"
   },
-  "minScoreHint": "最终得分低于此值的片段会被丢弃。",
+  "minScoreHint": "仅在没有活跃发布账号时使用；有活跃账号时，以账号的处理分数为准。",
   "chatWeight": "聊天权重",
   "chatWeightHint": "最终得分 = {ai}% AI 得分 + {chat}% 聊天热度。",
   "scores": {
@@ -90,7 +90,9 @@
     "limitPostsCount": "每天视频数",
     "limitPostsPerDay": "个视频/天",
     "todayNoLimit": "过去 24 小时发布 {posted} 条，无每日上限",
-    "safeGapMinutes": "分钟间隔"
+    "safeGapMinutes": "分钟间隔",
+    "processMinScore": "最低处理分数",
+    "processMinScoreHint": "低于此分数的片段不会生成视频。有活跃账号时，使用其中最低的分数，替代频道自身的分数。"
   },
   "confirmYes": "是",
   "confirmNo": "取消",
@@ -135,5 +137,7 @@
   "channelSafePostingOn": "该频道的片段在每个账号上彼此间隔 {minutes} 分钟，叠加在账号自身的间隔之上。",
   "channelSafePostingOff": "关闭：该频道的片段只遵循各账号自身的间隔。",
   "save": "保存",
-  "saving": "保存中…"
+  "saving": "保存中…",
+  "waiting": "直播中 · 等待名额",
+  "waitingHint": "正在直播，但所有录制名额已占满。其他直播结束后开始录制。"
 }

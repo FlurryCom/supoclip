@@ -34,7 +34,7 @@
     "dailyCap": "límite diario alcanzado",
     "taskFailed": "el procesamiento falló"
   },
-  "minScoreHint": "Se descartan los clips con una puntuación final menor.",
+  "minScoreHint": "Solo se usa cuando no hay cuentas de publicación activas; con cuentas activas, vale su nota de procesamiento.",
   "chatWeight": "Peso del chat",
   "chatWeightHint": "Puntuación final = {ai}% puntuación de la IA + {chat}% calor del chat.",
   "scores": {
@@ -90,7 +90,9 @@
     "limitPostsCount": "Videos por día",
     "limitPostsPerDay": "videos por día",
     "todayNoLimit": "{posted} publicaciones en las últimas 24 h, sin límite diario",
-    "safeGapMinutes": "minutos entre videos"
+    "safeGapMinutes": "minutos entre videos",
+    "processMinScore": "Nota mínima para procesar",
+    "processMinScoreHint": "Los momentos por debajo ni se convierten en video. Con cuentas activas, vale la nota más baja entre ellas en lugar de la del canal."
   },
   "confirmYes": "Sí",
   "confirmNo": "Cancelar",
@@ -135,5 +137,7 @@
   "channelSafePostingOn": "Los clips de este canal esperan {minutes} minutos entre uno y otro en cada cuenta, además del intervalo de la propia cuenta.",
   "channelSafePostingOff": "Desactivado: los clips de este canal solo siguen el intervalo de cada cuenta.",
   "save": "Guardar",
-  "saving": "Guardando…"
+  "saving": "Guardando…",
+  "waiting": "En vivo · esperando turno",
+  "waitingHint": "Está en vivo, pero todos los cupos de grabación están ocupados. Empieza a grabar cuando termine otro directo."
 }

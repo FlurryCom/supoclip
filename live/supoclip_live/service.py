@@ -118,6 +118,11 @@ class Session:
             self.chat_task.cancel()
 
 
+def processing_threshold(channel_min: int, account_min: int | None) -> int:
+    """Same rule as backend/src/live_scoring.py: the posting accounts' lowest processing score wins."""
+    return account_min if account_min is not None else channel_min
+
+
 NO_WINDOW_LIMIT = 1_000_000
 
 
@@ -171,7 +176,7 @@ class LiveService:
                 await self.end(channel_id)
         for channel in channels.values():
             await self.watch(channel)
-        for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
+        for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, (SELECT min(t.process_min_score) FROM live_post_targets t WHERE t.user_id = c.user_id AND t.enabled) AS account_min FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
         await self.post_clips()
@@ -201,6 +206,7 @@ class LiveService:
             logger.warning("could not check %s: %s; trying again", channel["channel"], exc)
             return
         if live is None:
+            await self.fetch("UPDATE live_channels SET waiting_since = NULL WHERE id = %s", (channel["id"],))
             if session:
                 await self.end(channel["id"])
             else:
@@ -214,10 +220,12 @@ class LiveService:
         mine = sum(1 for s in self.sessions.values() if s.channel["user_id"] == channel["user_id"])
         if len(self.sessions) >= MAX_RECORDINGS or mine >= fair_share(MAX_RECORDINGS, self.owners):
             logger.warning("%s is live but no recording slot is free; waiting", channel["channel"])
+            await self.mark_waiting(channel["id"])
             return
         free_gb = shutil.disk_usage(DATA_DIR).free / 2**30
         if free_gb < MIN_FREE_GB:  # a full disk would break every recording and the app
             logger.warning("%s is live but only %.1f GB is free (minimum %.0f); not recording", channel["channel"], free_gb, MIN_FREE_GB)
+            await self.mark_waiting(channel["id"])
             return
         open_rows = await self.fetch(
             "SELECT id FROM live_recordings WHERE channel_id = %s AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1",
@@ -233,7 +241,12 @@ class LiveService:
             )
         session = Session(channel, recording_id)
         self.sessions[channel["id"]] = session
+        await self.fetch("UPDATE live_channels SET waiting_since = NULL WHERE id = %s", (channel["id"],))
         await session.start(self.store_bucket)
+
+    async def mark_waiting(self, channel_id: str) -> None:
+        """Live but not recorded yet (no free slot or disk): the Live page shows it as waiting."""
+        await self.fetch("UPDATE live_channels SET waiting_since = coalesce(waiting_since, now()) WHERE id = %s", (channel_id,))
 
     async def store_bucket(self, recording_id: str, at: datetime, chatters: int, spike: bool, messages: list[str]) -> None:
         await self.fetch(
@@ -368,7 +381,7 @@ class LiveService:
             dropped = 0
             for clip in sorted(clips, key=lambda c: c["final"], reverse=True):
                 too_short = (clip["duration"] or 0) < MIN_CLIP_SECONDS
-                if clip["final"] < rec["min_score"] or too_short or is_duplicate(clip["span"], kept):
+                if clip["final"] < processing_threshold(rec["min_score"], rec.get("account_min")) or too_short or is_duplicate(clip["span"], kept):
                     await self.backend.delete_clip(rec["user_id"], window["task_id"], clip["id"])
                     dropped += 1
                     continue

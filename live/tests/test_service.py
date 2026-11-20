@@ -50,3 +50,40 @@ def test_recordings_stop_when_the_disk_is_almost_full(monkeypatch):
     monkeypatch.setattr(service.shutil, "disk_usage", lambda path: usage(0, 0, 4 * 2**30))
     asyncio.run(live.stop_if_disk_low())
     assert sorted(stopped) == ["a", "b"]
+
+
+def _watch(monkeypatch, live_info, sessions):
+    import asyncio
+    from supoclip_live import recorder, service
+    sql = []
+    live = service.LiveService("", None)
+    live.sessions = sessions
+
+    async def fetch(query, params=()):
+        sql.append(query)
+        return []
+
+    async def probe(channel, platform):
+        return live_info
+
+    live.fetch = fetch
+    monkeypatch.setattr(recorder, "probe", probe)
+    asyncio.run(live.watch({"id": "c1", "channel": "xqc", "platform": "twitch", "user_id": "u1"}))
+    return " ".join(sql)
+
+
+def test_a_live_channel_without_a_slot_is_marked_waiting(monkeypatch):
+    from supoclip_live import service
+    full = {f"s{i}": type("S", (), {"channel": {"user_id": "u1"}, "recording": type("R", (), {"running": True})()})()
+            for i in range(service.MAX_RECORDINGS)}
+    assert "waiting_since = coalesce(waiting_since, now())" in _watch(monkeypatch, {"title": "GTA"}, full)
+
+
+def test_an_offline_channel_is_no_longer_waiting(monkeypatch):
+    assert "waiting_since = NULL" in _watch(monkeypatch, None, {})
+
+
+def test_recorder_uses_the_same_processing_threshold():
+    from supoclip_live.service import processing_threshold
+    assert processing_threshold(60, 80) == 80
+    assert processing_threshold(70, None) == 70

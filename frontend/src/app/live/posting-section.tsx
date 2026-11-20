@@ -50,6 +50,7 @@ interface PostTarget {
   safe_posting: boolean;
   limit_posts: boolean;
   safe_gap_minutes: number;
+  process_min_score: number;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
 }
@@ -61,7 +62,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting" | "limit_posts" | "daily_cap" | "safe_gap_minutes">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting" | "limit_posts" | "daily_cap" | "safe_gap_minutes" | "process_min_score">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -80,24 +81,23 @@ async function detail(response: Response, fallback: string) {
   }
 }
 
-function MinScore({ target, onCommit }: { target: PostTarget; onCommit: (value: number) => void }) {
-  const t = useTranslations("live.posting");
-  const [draft, setDraft] = useState(target.min_score);
-  useEffect(() => setDraft(target.min_score), [target.min_score]);
+function MinScore({ id, label, value, onCommit }: { id: string; label: string; value: number; onCommit: (value: number) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <Label id={`post-score-${target.id}`}>{t("minScore")}</Label>
+        <Label id={id}>{label}</Label>
         <span className="text-sm font-medium tabular-nums">{draft}</span>
       </div>
       <Slider
-        aria-labelledby={`post-score-${target.id}`}
+        aria-labelledby={id}
         min={0}
         max={100}
         step={1}
         value={[draft]}
         onValueChange={([next]) => setDraft(next)}
-        onValueCommit={([next]) => next !== target.min_score && onCommit(next)}
+        onValueCommit={([next]) => next !== value && onCommit(next)}
       />
     </div>
   );
@@ -239,13 +239,22 @@ function TargetCard({ target, onChange, onRevoke }: {
             </Select>
           </div>
         )}
-        <MinScore target={target} onCommit={(min_score) => onChange({ min_score })} />
+        <MinScore id={`post-score-${target.id}`} label={t("minScore")} value={target.min_score} onCommit={(min_score) => onChange({ min_score })} />
       </div>
       <div className="mt-3 flex items-center gap-2">
         <Switch id={`post-blur-${target.id}`} checked={target.blur_sensitive} onCheckedChange={(blur_sensitive) => onChange({ blur_sensitive })} />
         <Label htmlFor={`post-blur-${target.id}`}>{t("blurSensitive")}</Label>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
+      <div className="mt-3 sm:w-1/3 sm:ml-auto">
+        <MinScore
+          id={`process-score-${target.id}`}
+          label={t("processMinScore")}
+          value={target.process_min_score}
+          onCommit={(process_min_score) => onChange({ process_min_score })}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">{t("processMinScoreHint")}</p>
+      </div>
       <SafePostingSwitch target={target} onChange={onChange} />
       <PostLimit target={target} onChange={onChange} />
       <p className="mt-2 text-xs text-muted-foreground">

@@ -116,9 +116,17 @@ def test_gate_marks_segments_for_the_sensitive_check_only_when_on(monkeypatch, b
     from src import live_scoring
 
     window = SimpleNamespace(chunks=[{"start": T0.isoformat(), "duration": 600.0}], recording_id="r1",
-                             min_score=80, chat_weight=60, edit_kit="none", blur_sensitive=blur)
+                             min_score=80, chat_weight=60, edit_kit="none", blur_sensitive=blur,
+                             account_min=None)
     buckets = [SimpleNamespace(at=at, chatters=c, messages=[]) for at, c in BUCKETS]
     monkeypatch.setattr(live_scoring, "get_session_maker", lambda: (lambda: _FakeDb(window, buckets)))
     kept = asyncio.run(live_scoring.gate_live_segments("t1", [segment("04:10", "05:10", 62)]))
     assert len(kept) == 1
     assert kept[0].get("sensitive_check", False) is blur
+
+
+def test_processing_threshold_follows_the_posting_accounts():
+    from src.live_scoring import processing_threshold
+    assert processing_threshold(channel_min=60, account_min=80) == 80  # our accounts' rule wins
+    assert processing_threshold(channel_min=90, account_min=80) == 80
+    assert processing_threshold(channel_min=70, account_min=None) == 70  # no active account: the channel's rule

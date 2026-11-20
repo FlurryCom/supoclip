@@ -34,7 +34,7 @@
     "dailyCap": "batas harian tercapai",
     "taskFailed": "pemrosesan gagal"
   },
-  "minScoreHint": "Klip dengan skor akhir di bawah ini dibuang.",
+  "minScoreHint": "Hanya dipakai jika tidak ada akun posting aktif; jika ada, nilai proses akun yang berlaku.",
   "chatWeight": "Bobot chat",
   "chatWeightHint": "Skor akhir = {ai}% skor AI + {chat}% panas chat.",
   "scores": {
@@ -90,7 +90,9 @@
     "limitPostsCount": "Video per hari",
     "limitPostsPerDay": "video per hari",
     "todayNoLimit": "{posted} posting dalam 24 jam terakhir, tanpa batas harian",
-    "safeGapMinutes": "menit antar video"
+    "safeGapMinutes": "menit antar video",
+    "processMinScore": "Skor minimum untuk diproses",
+    "processMinScoreHint": "Momen di bawah ini tidak dirender sama sekali. Dengan akun aktif, nilai terendah di antara akun menggantikan nilai kanal."
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",
@@ -135,5 +137,7 @@
   "channelSafePostingOn": "Klip kanal ini menunggu {minutes} menit di antara satu sama lain di setiap akun, selain jeda akun itu sendiri.",
   "channelSafePostingOff": "Mati: klip kanal ini hanya mengikuti jeda tiap akun.",
   "save": "Simpan",
-  "saving": "Menyimpan…"
+  "saving": "Menyimpan…",
+  "waiting": "Live · menunggu slot",
+  "waitingHint": "Sedang live, tapi semua slot rekaman terpakai. Rekaman dimulai saat live lain selesai."
 }

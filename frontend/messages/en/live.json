@@ -34,7 +34,7 @@
     "dailyCap": "daily limit reached",
     "taskFailed": "processing failed"
   },
-  "minScoreHint": "Clips with a final score below this are dropped.",
+  "minScoreHint": "Used only when no posting account is active; with accounts active, their processing score applies.",
   "chatWeight": "Chat weight",
   "chatWeightHint": "Final score = {ai}% AI score + {chat}% chat heat.",
   "scores": {
@@ -90,7 +90,9 @@
     "limitPostsCount": "Videos per day",
     "limitPostsPerDay": "videos per day",
     "todayNoLimit": "{posted} posts in the last 24 h, no daily limit",
-    "safeGapMinutes": "minutes between videos"
+    "safeGapMinutes": "minutes between videos",
+    "processMinScore": "Minimum score to process",
+    "processMinScoreHint": "Moments below this aren't rendered at all. With accounts active, the lowest of them replaces the channel's score."
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",
@@ -135,5 +137,7 @@
   "channelSafePostingOn": "This channel's clips wait {minutes} minutes between each other on every account, on top of the account's own gap.",
   "channelSafePostingOff": "Off: this channel's clips only follow each account's gap.",
   "save": "Save",
-  "saving": "Saving…"
+  "saving": "Saving…",
+  "waiting": "Live · waiting for a slot",
+  "waitingHint": "It's live, but every recording slot is busy. Recording starts when another live ends."
 }

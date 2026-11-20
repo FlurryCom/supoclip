@@ -27,6 +27,12 @@ CHAT_LAG_S = 8  # an edit kit's chat and hit sound land this long before the cha
 MAX_CHAT_SHOWN = 8
 
 
+def processing_threshold(channel_min: int, account_min: int | None) -> int:
+    """The score a live moment needs to be rendered: the posting accounts' rule when any is
+    active (their lowest, so no account misses a clip it would post), else the channel's."""
+    return account_min if account_min is not None else channel_min
+
+
 class NothingAboveScore(Exception):
     """No selected moment of a live window reached the channel's minimum score."""
 
@@ -131,7 +137,8 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     """
     async with get_session_maker()() as db:
         row = (await db.execute(text("""
-            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit, c.blur_sensitive
+            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit, c.blur_sensitive,
+                (SELECT min(t.process_min_score) FROM live_post_targets t WHERE t.user_id = c.user_id AND t.enabled) AS account_min
             FROM live_windows w
             JOIN live_recordings r ON r.id = w.recording_id
             JOIN live_channels c ON c.id = r.channel_id
@@ -146,10 +153,11 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     chunks = [(datetime.fromisoformat(c["start"]), float(c["duration"])) for c in row.chunks or []]
     if not chunks:
         return segments
-    kept = keep_segments(segments, chunks, buckets, row.min_score, row.chat_weight)
-    logger.info("Live window %s: %d of %d moments reach score %d", task_id, len(kept), len(segments), row.min_score)
+    threshold = processing_threshold(row.min_score, row.account_min)
+    kept = keep_segments(segments, chunks, buckets, threshold, row.chat_weight)
+    logger.info("Live window %s: %d of %d moments reach score %d", task_id, len(kept), len(segments), threshold)
     if not kept:
-        raise NothingAboveScore(f"No moment reached the minimum score of {row.min_score}")
+        raise NothingAboveScore(f"No moment reached the minimum score of {threshold}")
     if row.blur_sensitive:
         for segment in kept:
             segment["sensitive_check"] = True  # analyse the rendered clip for nudity and gore

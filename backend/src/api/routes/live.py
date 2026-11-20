@@ -135,7 +135,7 @@ async def list_edit_kits(request: Request, db: AsyncSession = Depends(get_db)):
 async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
-        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, c.safe_posting, c.safe_gap_minutes,
+        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, c.safe_posting, c.safe_gap_minutes, c.waiting_since,
             c.edit_kit, c.blur_sensitive, c.post_visibility, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
@@ -179,7 +179,10 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
         by_channel.setdefault(window["channel_id"], []).append(entry)
     return {
         "channels": [
-            {**channel, "is_live": channel["recording_id"] is not None, "windows": by_channel.get(channel["id"], [])[:10]}
+            {**channel, "is_live": channel["recording_id"] is not None,
+             # live but not recorded yet: every recording slot is busy (or the disk is low)
+             "is_waiting": channel["recording_id"] is None and channel["waiting_since"] is not None,
+             "windows": by_channel.get(channel["id"], [])[:10]}
             for channel in channels
         ]
     }
@@ -294,7 +297,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
         return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
-        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive, t.safe_posting, t.limit_posts, t.safe_gap_minutes,
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive, t.safe_posting, t.limit_posts, t.safe_gap_minutes, t.process_min_score,
             (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
                 AND p.created_at > now() - interval '1 day') AS posted_today
         FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
@@ -369,7 +372,7 @@ def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
         if data["visibility"] not in ("public", "private"):
             raise HTTPException(status_code=422, detail="visibility must be public or private")
         settings["visibility"] = data["visibility"]
-    for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100), ("safe_gap_minutes", 1, 240)):
+    for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100), ("safe_gap_minutes", 1, 240), ("process_min_score", 0, 100)):
         if key in data:
             value = data[key]
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:

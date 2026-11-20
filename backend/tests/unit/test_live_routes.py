@@ -126,3 +126,10 @@ def test_safe_posting_minutes_on_channels_and_accounts():
             _settings({"safe_gap_minutes": bad})
         with pytest.raises(HTTPException):
             _target_settings({"safe_gap_minutes": bad})
+
+
+def test_target_settings_accept_the_processing_score():
+    from src.api.routes.live import _target_settings
+    assert _target_settings({"process_min_score": 80}) == {"process_min_score": 80}
+    with pytest.raises(HTTPException):
+        _target_settings({"process_min_score": 101})

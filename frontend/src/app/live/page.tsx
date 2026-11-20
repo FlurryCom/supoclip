@@ -62,6 +62,7 @@ interface LiveChannel {
   blur_sensitive: boolean;
   post_visibility: "default" | "unlisted" | "private";
   is_live: boolean;
+  is_waiting: boolean;
   live_title: string | null;
   windows: LiveWindow[];
 }
@@ -238,7 +239,13 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
             >
               {channel.channel}
             </a>
-            {channel.is_live ? <Badge variant="destructive">{t("live")}</Badge> : <Badge variant="outline">{t("offline")}</Badge>}
+            {channel.is_live ? (
+              <Badge variant="destructive">{t("live")}</Badge>
+            ) : channel.is_waiting ? (
+              <Badge variant="outline" className="border-amber-500 text-amber-600" title={t("waitingHint")}>{t("waiting")}</Badge>
+            ) : (
+              <Badge variant="outline">{t("offline")}</Badge>
+            )}
           </div>
           {channel.is_live && channel.live_title ? (
             <p className="mt-1 truncate text-sm text-muted-foreground">{channel.live_title}</p>
