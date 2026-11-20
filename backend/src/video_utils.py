@@ -279,6 +279,8 @@ def create_optimized_clip(
     broll_overlays: Optional[List[Dict[str, Any]]] = None,
     output_offsets: Optional[List[float]] = None,
     point_labels: Optional[List[Dict[str, Any]]] = None,
+    kit_layout: Optional[str] = None,
+    layout_title: Optional[str] = None,
 ) -> bool:
     """Create clip with optional subtitles. output_format: 'vertical' (9:16) or 'original' (keep source size).
 
@@ -415,7 +417,17 @@ def create_optimized_clip(
             vertical_plan = None
             caption_y = None
             plan_report: Dict[str, Any] = {}
-            if reframe_format == "vertical":
+            if reframe_format == "vertical" and kit_layout == "streamer_split" and src_w > src_h:
+                # Fork: Cat Clips v2 — streamer on top, title bar, gameplay below.
+                try:
+                    from .media.streamer_split import plan_streamer_split
+                    video_filter, mode, caption_y = plan_streamer_split(
+                        source_clip_path, src_w, src_h, layout_title or "")
+                    vertical_plan = (video_filter, mode)
+                    plan_report["kind"] = "streamer_split"
+                except Exception as exc:
+                    logger.warning("Streamer split layout failed (%s); using the normal layout", exc)
+            if reframe_format == "vertical" and vertical_plan is None:
                 if get_config().speaker_framing:
                     try:
                         speaker_turns, speaker_words = build_clip_speaker_turns(

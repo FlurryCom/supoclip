@@ -19,6 +19,7 @@ KITS: dict[str, dict[str, Any]] = {
         "caption_template": None,
         "chat_overlay": False,
         "burn_hook_title": True,
+        "layout": None,
         "sfx": [],
         "end_card": None,
         "cta_seconds": 0.0,
@@ -30,6 +31,7 @@ KITS: dict[str, dict[str, Any]] = {
         "caption_template": "catclips",
         "chat_overlay": True,
         "burn_hook_title": True,
+        "layout": None,
         "sfx": [
             {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
@@ -45,9 +47,11 @@ KITS["catclips_v2"] = {
     **KITS["catclips"],
     "id": "catclips_v2",
     "name": "Cat Clips v2",
-    # Owner (2026-11-20): only the captions over the video, no chat bubbles or burned title.
+    # Owner (2026-11-20): streamer on top, title on a yellow bar, gameplay below with the captions;
+    # no chat bubbles or title over the video (the title lives in the bar).
     "chat_overlay": False,
     "burn_hook_title": False,
+    "layout": "streamer_split",
 }
 
 

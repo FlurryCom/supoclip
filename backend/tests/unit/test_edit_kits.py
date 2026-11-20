@@ -16,6 +16,7 @@ def test_catclips_v2_keeps_the_look_without_text_over_the_video():
     v1, v2 = get_kit("catclips"), get_kit("catclips_v2")
     assert v2["name"] == "Cat Clips v2"
     assert v2["chat_overlay"] is False and v2["burn_hook_title"] is False
+    assert v2["layout"] == "streamer_split" and v1["layout"] is None
     assert v2["sfx"] == v1["sfx"] and v2["caption_template"] == "catclips" and v2["cta_seconds"] == 2.5
 
 
