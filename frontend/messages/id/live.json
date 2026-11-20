@@ -125,6 +125,8 @@
     "loadError": "Gagal memuat kanal populer",
     "addError": "Gagal menambahkan kanal",
     "atLimit": "Batas {limit} kanal dipantau",
-    "notConfigured": "Atur API Twitch: isi TWITCH_CLIENT_ID dan TWITCH_CLIENT_SECRET di .env lalu restart backend."
+    "notConfigured": "Atur API Twitch: isi TWITCH_CLIENT_ID dan TWITCH_CLIENT_SECRET di .env lalu restart backend.",
+    "limitReached": "Batas tercapai",
+    "atLimitBanner": "Kamu sudah memantau {limit} kanal, batas maksimal. Untuk menambah dari sini, hapus kanal lain di daftar kanal di bawah (ikon tempat sampah)."
   }
 }

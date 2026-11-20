@@ -125,6 +125,8 @@
     "loadError": "Couldn't load trending channels",
     "addError": "Couldn't add the channel",
     "atLimit": "Limit of {limit} monitored channels",
-    "notConfigured": "Set up the Twitch API: put TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env and restart the backend."
+    "notConfigured": "Set up the Twitch API: put TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env and restart the backend.",
+    "limitReached": "Limit reached",
+    "atLimitBanner": "You already monitor {limit} channels, the maximum. To add one from here, remove another from the channel list below (trash icon)."
   }
 }

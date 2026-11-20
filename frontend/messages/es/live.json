@@ -125,6 +125,8 @@
     "loadError": "No se pudieron cargar los canales en tendencia",
     "addError": "No se pudo añadir el canal",
     "atLimit": "Límite de {limit} canales monitoreados",
-    "notConfigured": "Configura la API de Twitch: pon TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET en .env y reinicia el backend."
+    "notConfigured": "Configura la API de Twitch: pon TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET en .env y reinicia el backend.",
+    "limitReached": "Límite alcanzado",
+    "atLimitBanner": "Ya monitoreas {limit} canales, el máximo. Para añadir uno desde aquí, quita otro de la lista de canales de abajo (icono de papelera)."
   }
 }

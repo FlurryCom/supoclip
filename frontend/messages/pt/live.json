@@ -125,6 +125,8 @@
     "loadError": "Não foi possível carregar os canais em alta",
     "addError": "Não foi possível adicionar o canal",
     "atLimit": "Limite de {limit} canais monitorados",
-    "notConfigured": "Configure a API da Twitch: coloque TWITCH_CLIENT_ID e TWITCH_CLIENT_SECRET no .env e reinicie o backend."
+    "notConfigured": "Configure a API da Twitch: coloque TWITCH_CLIENT_ID e TWITCH_CLIENT_SECRET no .env e reinicie o backend.",
+    "limitReached": "Limite atingido",
+    "atLimitBanner": "Você já monitora {limit} canais, o máximo. Para adicionar um canal daqui, remova outro na lista de canais abaixo (ícone de lixeira)."
   }
 }

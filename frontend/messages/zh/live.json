@@ -125,6 +125,8 @@
     "loadError": "无法加载热门频道",
     "addError": "无法添加频道",
     "atLimit": "已达 {limit} 个监控频道上限",
-    "notConfigured": "配置 Twitch API：在 .env 中填写 TWITCH_CLIENT_ID 和 TWITCH_CLIENT_SECRET，然后重启后端。"
+    "notConfigured": "配置 Twitch API：在 .env 中填写 TWITCH_CLIENT_ID 和 TWITCH_CLIENT_SECRET，然后重启后端。",
+    "limitReached": "已达上限",
+    "atLimitBanner": "你已监控 {limit} 个频道，已达上限。要从这里添加，请先在下方频道列表中删除一个（垃圾桶图标）。"
   }
 }

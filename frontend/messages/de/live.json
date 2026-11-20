@@ -125,6 +125,8 @@
     "loadError": "Angesagte Kanäle konnten nicht geladen werden",
     "addError": "Kanal konnte nicht hinzugefügt werden",
     "atLimit": "Limit von {limit} überwachten Kanälen",
-    "notConfigured": "Twitch-API einrichten: TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET in .env eintragen und das Backend neu starten."
+    "notConfigured": "Twitch-API einrichten: TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET in .env eintragen und das Backend neu starten.",
+    "limitReached": "Limit erreicht",
+    "atLimitBanner": "Du überwachst bereits {limit} Kanäle, das Maximum. Um hier einen hinzuzufügen, entferne einen anderen aus der Kanalliste unten (Papierkorb-Symbol)."
   }
 }

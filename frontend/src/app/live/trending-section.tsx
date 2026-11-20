@@ -90,6 +90,11 @@ export function TrendingSection({ onAdded }: { onAdded: () => void }) {
         </div>
       </div>
       {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
+      {state?.at_limit ? (
+        <p className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          {t("atLimitBanner", { limit: state.limit ?? 20 })}
+        </p>
+      ) : null}
       {state && !state.configured ? (
         <p className="text-sm text-muted-foreground">{t("notConfigured")}</p>
       ) : state ? (
@@ -113,7 +118,7 @@ export function TrendingSection({ onAdded }: { onAdded: () => void }) {
                   title={state.at_limit ? t("atLimit", { limit: state.limit ?? 20 }) : undefined}
                   onClick={() => void add(channel.login)}
                 >
-                  {adding === channel.login ? t("adding") : t("add")}
+                  {adding === channel.login ? t("adding") : state.at_limit ? t("limitReached") : t("add")}
                 </Button>
               )}
             </li>
@@ -122,7 +127,6 @@ export function TrendingSection({ onAdded }: { onAdded: () => void }) {
       ) : (
         <p className="text-sm text-muted-foreground">{t("loading")}</p>
       )}
-      {state?.at_limit ? <p className="mt-2 text-xs text-muted-foreground">{t("atLimit", { limit: state.limit ?? 20 })}</p> : null}
     </section>
   );
 }
