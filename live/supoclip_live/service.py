@@ -16,7 +16,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from . import cta, postiz, recorder, sensitive
+from . import cta, postiz, recorder, reform, sensitive
 from .backend import Backend
 from .chat import watch_chat, watch_youtube_chat
 from .heat import chat_heat, chat_hints, final_score
@@ -179,6 +179,10 @@ class LiveService:
         for recording in await self.fetch("SELECT r.*, c.user_id, c.platform, c.channel, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, (SELECT min(t.process_min_score) FROM live_post_targets t WHERE t.user_id = c.user_id AND t.enabled) AS account_min FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id WHERE r.ended_at IS NULL OR EXISTS (SELECT 1 FROM live_windows w WHERE w.recording_id = r.id AND w.status = 'submitted') OR r.pending_from < r.ended_at"):
             await self.advance(recording)
             await self.collect(recording)
+        try:
+            await reform.cycle(self)  # Reformular: one ready-made clip at a time, after the lives
+        except Exception:
+            logger.exception("reform step failed; lives carry on")
         await self.post_clips()
         await self.confirm_posts()
         await self.cleanup()
