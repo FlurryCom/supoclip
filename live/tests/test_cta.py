@@ -75,6 +75,7 @@ def test_no_cta_for_none_kit_returns_the_clip(tmp_path):
     assert cta.with_cta(clip, "none", "tiktok") == clip
 
 
-def test_catclips_v2_uses_the_catclips_ctas():
+def test_catclips_v2_has_its_own_ctas_over_the_title_bar():
     from supoclip_live.cta import cta_file
-    assert cta_file("catclips_v2", "tiktok") == cta_file("catclips", "tiktok") != None
+    for provider in ("tiktok", "youtube", "instagram"):
+        assert cta_file("catclips_v2", provider).parent.name == "catclips_v2"

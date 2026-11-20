@@ -37,6 +37,8 @@ WHITE, BLACK = (255, 255, 255, 255), (17, 17, 17, 255)
 # is drawn at 1x, then scaled and centred in that gap.
 SCALE = 0.8
 FINAL_CY = 1338
+# Cat Clips v2 (streamer on top, title bar at 720-920 px): the CTA covers the title bar at the end.
+KIT_CY = {"catclips": FINAL_CY, "catclips_v2": 820}
 
 # Timeline (seconds).
 CARD_IN, POINTER_FROM, POINTER_TO, PRESS, TOGGLE, FADE_FROM = 0.30, 0.30, 1.05, 1.05, 1.10, 2.20
@@ -106,7 +108,7 @@ def layout(provider: str) -> dict:
             "tip": (cx + 305, cy - 4)}  # the pointer rests on the pill's end, clear of the label
 
 
-def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image:
+def frame(provider: str, t: float, faces: dict[int, Image.Image], final_cy: float = FINAL_CY) -> Image.Image:
     img = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     L = layout(provider)
@@ -174,7 +176,7 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
             img.alpha_composite(ring)
         pointer(d, tip, press)
 
-    img = place(img, cy)
+    img = place(img, cy, final_cy)
     alpha = min(1.0, t / CARD_IN) * (1 - ease_out((t - FADE_FROM) / (SECONDS - FADE_FROM)) if t > FADE_FROM else 1.0)
     if alpha < 1:
         a = img.getchannel("A").point(lambda v: int(v * alpha))
@@ -182,12 +184,12 @@ def frame(provider: str, t: float, faces: dict[int, Image.Image]) -> Image.Image
     return img.resize((W, H), Image.LANCZOS)
 
 
-def place(img: Image.Image, cy: float) -> Image.Image:
+def place(img: Image.Image, cy: float, final_cy: float = FINAL_CY) -> Image.Image:
     """Shrink the drawn CTA around its card centre and move that centre to the bottom of the frame."""
     small = img.resize((round(img.width * SCALE), round(img.height * SCALE)), Image.LANCZOS)
     out = Image.new("RGBA", img.size, (0, 0, 0, 0))
     x = round(W / 2 * SS - W / 2 * SS * SCALE)
-    y = round(FINAL_CY * SS - cy * SS * SCALE)
+    y = round(final_cy * SS - cy * SS * SCALE)
     out.alpha_composite(small, (x, y)) if y >= 0 else out.paste(small.crop((0, -y, small.width, small.height)), (x, 0))
     return out
 
@@ -217,7 +219,7 @@ def build(kit: str, provider: str) -> Path:
         tmp = Path(tmp)
         faces: dict[int, Image.Image] = {}
         for i in range(int(FPS * SECONDS)):
-            frame(provider, i / FPS, faces).save(tmp / f"{i:03d}.png")
+            frame(provider, i / FPS, faces, KIT_CY[kit]).save(tmp / f"{i:03d}.png")
         with wave.open(str(tmp / "audio.wav"), "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
@@ -232,5 +234,6 @@ def build(kit: str, provider: str) -> Path:
 
 
 if __name__ == "__main__":
-    for provider in ("tiktok", "youtube", "instagram"):
-        print(build("catclips", provider))
+    for kit in KIT_CY:
+        for provider in ("tiktok", "youtube", "instagram"):
+            print(build(kit, provider))

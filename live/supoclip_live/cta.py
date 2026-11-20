@@ -20,14 +20,11 @@ CTA_SECONDS = 2.5  # keep in step with KITS[...]["cta_seconds"] in the backend
 PROVIDER_FILES = {"tiktok": "tiktok", "youtube": "youtube", "instagram": "instagram", "instagram-standalone": "instagram"}
 
 
-CTA_SHARED = {"catclips_v2": "catclips"}  # kit variants that reuse another kit's CTA clips
-
-
 def cta_file(kit: str | None, provider: str) -> Path | None:
     name = PROVIDER_FILES.get(provider)
     if not kit or kit == "none" or not name:
         return None
-    path = CTA_DIR / CTA_SHARED.get(kit, kit) / f"{name}.mov"
+    path = CTA_DIR / kit / f"{name}.mov"
     return path if path.exists() else None
 
 
