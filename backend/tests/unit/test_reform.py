@@ -70,6 +70,7 @@ def test_reform_segment_covers_the_whole_video():
     assert (s["start_time"], s["end_time"], s["max_seconds"]) == ("00:00", "02:30", 150.4)
     assert s["edit_kit"] == {"id": "catclips", "peak_s": 12.0, "chat": []}
     assert s["sensitive_check"] is True
+    assert s["keep_ranges"] == [[0.0, 150.4]]  # fixed ranges: pause cleanup and sentence snapping don't touch a ready cut
     assert s["hook_title"] == "Título"
     assert s["workflow_meta"]["burn_hook_title"] is False
 
@@ -84,3 +85,17 @@ def test_loudest_second_finds_the_loud_part(tmp_path):
         "-filter_complex", "[0][1][2]concat=n=3:v=0:a=1", str(path),
     ], check=True)
     assert 3.5 <= loudest_second(path) <= 5.0
+
+
+def test_reform_segment_keeps_full_length_through_render_ranges(tmp_path):
+    from src.media.render_ranges import resolve_render_ranges
+    video = tmp_path / "long.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=16x16:r=1:d=150",
+        "-f", "lavfi", "-i", "anullsrc=r=8000:cl=mono", "-t", "150", "-shortest", str(video),
+    ], check=True)
+    cleanup = {"enabled": True, "remove_pauses": True, "remove_filler_words": True}
+    segment = reform_segment(150.0, "t", "catclips", 3.0)
+    # task_service caps a segment at its own max_seconds when it has one
+    resolved = resolve_render_ranges(video, segment, cleanup, float(segment["max_seconds"]))
+    assert resolved.keep_ranges == [(0.0, 150.0)]

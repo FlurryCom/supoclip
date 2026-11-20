@@ -121,6 +121,7 @@ def reform_segment(duration: float, title: str, kit_id: str, peak_s: float) -> d
         "start_time": "00:00",
         "end_time": seconds_to_mmss(duration),
         "max_seconds": duration,
+        "keep_ranges": [[0.0, duration]],
         "text": title,
         "hook_title": title,
         "relevance_score": 1.0,

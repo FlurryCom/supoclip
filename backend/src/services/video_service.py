@@ -16,6 +16,7 @@ from ..stream_transfer import run_stream_download
 from ..edit_kits import get_kit
 from ..media.edit_kit_render import apply_edit_kit, map_to_clip
 from ..live_scoring import gate_live_segments, parse_clip_time
+from ..reform import reform_segments
 from ..utils.async_helpers import run_in_thread
 from ..download_progress import (
     DownloadRecovery,
@@ -1064,7 +1065,7 @@ class VideoService:
                 kit["caption_template"] or caption_template,
                 output_format,
                 keep_ranges,
-                burned_hook_title(segment),
+                burned_hook_title(segment) if kit["burn_hook_title"] else None,
                 extend_to_sentence=False,
                 layout_report=render_report,
                 broll_overlays=broll_overlays,
@@ -1617,7 +1618,11 @@ class VideoService:
             workflow_result: Optional[WorkflowResult] = None
             workflow_final = checkpoint.get("workflow_final") if workflow != "highlights" else None
             final_plan = False
-            if workflow == "highlights":
+            # Fork: a Reformular task renders the whole ready-made clip with its edit kit, no AI selection.
+            reform = await reform_segments(task_id, video_path, float(file_duration or 0.0)) if workflow == "highlights" and task_id else None
+            if reform is not None:
+                relevant_parts, segments_json, clip_limit, final_plan = None, reform, 1, True
+            elif workflow == "highlights":
                 instructions = workflow_spec.options.instructions if workflow_spec is not None else ""
                 requested_clips = workflow_spec.setting("max_clips") if workflow_spec is not None else None
                 relevant_parts, segments_json, clip_limit, final_plan = await VideoService._select_highlight_segments(
