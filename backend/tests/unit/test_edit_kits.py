@@ -55,6 +55,7 @@ def test_sfx_files_are_short_and_loud_enough():
         assert 0.3 <= np.abs(samples).max() <= 1.0, name
 
 
-def test_v2_kit_has_voice_roles_off_until_approved():
-    assert get_kit("catclips_v2")["voice_roles"] is False
+def test_v2_kit_splits_streamer_friend_and_game_captions():
+    # Owner approved the real preview (2026-11-20): on for every v2 channel.
+    assert get_kit("catclips_v2")["voice_roles"] is True
     assert get_kit("catclips")["voice_roles"] is False and get_kit("none")["voice_roles"] is False

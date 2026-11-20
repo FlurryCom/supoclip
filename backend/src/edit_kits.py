@@ -54,8 +54,8 @@ KITS["catclips_v2"] = {
     "chat_overlay": False,
     "burn_hook_title": False,
     "layout": "streamer_split",
-    # Streamer / friend / game captions: on once the owner approves the real preview.
-    "voice_roles": False,
+    # Streamer / friend / game captions (owner approved the real preview, 2026-11-20).
+    "voice_roles": True,
 }
 
 
