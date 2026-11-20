@@ -21,13 +21,14 @@ def test_window_cap_follows_the_channel_switch():
     assert window_cap({"limit_windows": False, "daily_window_cap": 48}) > 10_000  # off: no daily limit
 
 
-def test_backlog_older_than_an_hour_is_skipped():
+def test_backlog_older_than_20_minutes_is_skipped():
     from datetime import datetime, timedelta, timezone
     from supoclip_live.service import MAX_BACKLOG, skip_backlog
     end = datetime(2026, 11, 20, 6, 0, tzinfo=timezone.utc)
-    assert MAX_BACKLOG == timedelta(hours=1)
-    assert skip_backlog(end - timedelta(minutes=50), end) is None  # within an hour: keep it
-    assert skip_backlog(end - timedelta(hours=6), end) == end - MAX_BACKLOG  # jump to the last hour
+    # Owner (2026-11-20, disk full again): at most 20 minutes of unprocessed live per channel.
+    assert MAX_BACKLOG == timedelta(minutes=20)
+    assert skip_backlog(end - timedelta(minutes=15), end) is None  # within 20 min: keep it
+    assert skip_backlog(end - timedelta(minutes=50), end) == end - MAX_BACKLOG  # jump to the last 20 min
 
 
 def test_recordings_stop_when_the_disk_is_almost_full(monkeypatch):

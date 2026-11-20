@@ -40,7 +40,7 @@ MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
 MIN_FREE_GB = float(os.getenv("LIVE_MIN_FREE_GB", "10"))  # don't start recordings below this
 # Below this, running recordings stop too: a full disk took Postgres down once (2026-11-19).
 STOP_FREE_GB = float(os.getenv("LIVE_STOP_FREE_GB", str(MIN_FREE_GB / 2)))
-MAX_BACKLOG = timedelta(hours=1)  # older unprocessed live is skipped instead of piling up on disk
+MAX_BACKLOG = timedelta(minutes=20)  # older unprocessed live is skipped instead of piling up on disk (owner, 2026-11-20)
 
 
 def skip_backlog(pending_from: datetime, content_end: datetime) -> datetime | None:
