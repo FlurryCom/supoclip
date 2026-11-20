@@ -140,3 +140,29 @@ def test_cycle_runs_the_slow_submit_in_the_background(monkeypatch):
         release.set()
 
     asyncio.run(scenario())
+
+
+def test_a_busy_backend_backs_off_before_downloading_again(monkeypatch, tmp_path):
+    downloads = []
+
+    def fake_download(url, dest):
+        downloads.append(url)
+        Path(dest).write_bytes(b"video")
+        return {"width": 1920, "height": 1080, "duration": 30.0}
+
+    async def busy(*args, **kwargs):
+        request = httpx.Request("POST", "http://backend/tasks/")
+        raise httpx.HTTPStatusError("busy", request=request, response=httpx.Response(429, request=request))
+
+    monkeypatch.setattr(FakeBackend, "upload", busy)
+    monkeypatch.setattr(service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(reform, "download", fake_download)
+    live = service.LiveService("", FakeBackend())
+
+    async def fetch(sql, params=()):
+        return [dict(ITEM)] if "WHERE ri.status = 'pending'" in sql else []
+
+    live.fetch = fetch
+    asyncio.run(reform.submit_next(live))
+    asyncio.run(reform.submit_next(live))  # right after: still backing off, no second download
+    assert len(downloads) == 1

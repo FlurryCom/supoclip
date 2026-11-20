@@ -27,6 +27,7 @@ BAND_TOP, BAND_BOTTOM = 0.66, 0.88
 TRANSIENT = {429, 502, 503, 504}  # a 409 (idempotency key clash) won't heal by retrying
 MAX_SECONDS = 180  # ready-made cuts only (same cap as the backend's list)
 MAX_BYTES = 500 * 1024 * 1024
+RETRY_AFTER = 120.0  # seconds to wait after a busy backend before downloading again
 # The oldest request of a user with no remake running: one remake at a time per user,
 # queued behind the live windows already waiting, so 30 picks never jump ahead of the lives.
 NEXT_PENDING_SQL = """
@@ -128,6 +129,9 @@ async def collect(svc) -> None:
 async def submit_next(svc) -> None:
     from .service import DATA_DIR  # read at call time (tests point it elsewhere)
 
+    loop = asyncio.get_running_loop()
+    if loop.time() < getattr(svc, "reform_retry_at", 0.0):
+        return  # the backend was busy a moment ago; don't download the same video again yet
     items = await svc.fetch(NEXT_PENDING_SQL)
     if not items:
         return
@@ -154,10 +158,12 @@ async def submit_next(svc) -> None:
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in TRANSIENT:
             logger.warning("backend busy (%s); reform %s retries later", exc.response.status_code, item["id"])
+            svc.reform_retry_at = asyncio.get_running_loop().time() + RETRY_AFTER
         else:
             await _fail(svc, item, f"{exc.response.status_code}: {exc.response.text[:300]}")
     except httpx.TransportError as exc:
         logger.warning("backend unreachable (%s); reform %s retries later", exc, item["id"])
+        svc.reform_retry_at = asyncio.get_running_loop().time() + RETRY_AFTER
     except Exception as exc:  # download or ffmpeg: the video is gone, private, or broken
         logger.warning("reform %s failed: %s", item["id"], exc)
         await _fail(svc, item, str(exc)[:300])
