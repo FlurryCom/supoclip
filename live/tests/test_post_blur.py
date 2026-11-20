@@ -187,3 +187,32 @@ def test_a_channel_with_safe_posting_waits_its_own_minutes(monkeypatch, tmp_path
 
     assert run(20) == []  # account gap (15) met, channel gap (30) not yet
     assert run(31) != []
+
+
+def test_post_clips_posts_a_reform_request(monkeypatch, tmp_path):
+    """A remade clip asked for by hand (live_post_requests) goes through the same posting steps."""
+    monkeypatch.setattr(service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(service, "POSTIZ_ALLOWED_USER_IDS", ["u1"])
+    monkeypatch.setattr(cta, "_probe", lambda path: (60.0, True, (1080, 1920)))
+    monkeypatch.setattr(cta, "finish_clip", lambda clip, kit, provider, regions, must_blur: clip)
+    postiz = FakePostiz()
+    live = service.LiveService("", FakeBackend(), postiz)
+    recorded = []
+    reform_row = candidate(clip_id="r1", platform="tiktok", channel="khaby.lame", edit_kit="catclips_v2",
+                           live_title=None, channel_safe=False, regions=[], checked_duration=60.0)
+
+    async def fetch(sql, params=()):
+        if "JOIN reform_items ri" in sql:
+            return [reform_row]
+        if "live_feature_marks" in sql:
+            return [{"at": SINCE}]
+        if "count(*) AS n" in sql:
+            return [{"n": 0, "last_posted": None}]
+        if sql.startswith("INSERT INTO live_posts"):
+            recorded.append((params[1], params[3]))
+        return []
+
+    live.fetch = fetch
+    asyncio.run(live.post_clips())
+    assert postiz.uploads == ["post-r1.mp4"]
+    assert recorded == [("r1", "posted")]

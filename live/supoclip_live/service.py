@@ -428,6 +428,8 @@ class LiveService:
                        AND g.created_at > now() - interval '1 day'))
             ORDER BY q.created_at NULLS LAST, lc.final_score DESC LIMIT 50
         """, (POSTIZ_ALLOWED_USER_IDS,))
+        # Remade clips (Reformular) the owner asked to publish go first, through the same steps.
+        candidates = await reform.post_candidates(self, POSTIZ_ALLOWED_USER_IDS) + candidates
         if not candidates:
             return
         try:

@@ -77,7 +77,8 @@ def refusal_reason(target: dict, integrations: list[dict]) -> str | None:
 
 def caption(hook_title: str, channel: str, live_title: str | None, platform: str = "twitch") -> str:
     name = channel.split("/")[-1].lstrip("@")
-    source = f"youtube.com/{channel}" if platform == "youtube" else f"twitch.tv/{channel}"
+    sources = {"youtube": f"youtube.com/{channel}", "tiktok": f"tiktok.com/@{name}"}
+    source = sources.get(platform, f"twitch.tv/{channel}")
     tags = [f"#{platform}", "#clips", f"#{re.sub(r'[^A-Za-z0-9]', '', name).lower()}"]
     if live_title and "gta" in live_title.lower():
         tags.insert(0, "#gta6")

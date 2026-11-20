@@ -54,6 +54,11 @@ def test_caption_credits_a_youtube_channel():
     assert "youtube.com/@loudcoringa" in text and "#youtube" in text and "#loudcoringa" in text
 
 
+def test_caption_credits_tiktok_source():
+    text = caption("Coach, trust me", "khaby.lame", None, "tiktok")
+    assert "🎮 tiktok.com/@khaby.lame" in text and "#tiktok" in text and "#khabylame" in text
+
+
 def test_private_visibility_reaches_each_platform():
     assert provider_settings("tiktok", "t", "private")["privacy_level"] == "SELF_ONLY"
     assert provider_settings("tiktok", "t")["privacy_level"] == "PUBLIC_TO_EVERYONE"
