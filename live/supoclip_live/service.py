@@ -38,6 +38,14 @@ CONFIRM_EVERY = timedelta(minutes=10)
 CONFIRM_WINDOW = timedelta(hours=2)
 MAX_RECORDINGS = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "3")))
 MIN_FREE_GB = float(os.getenv("LIVE_MIN_FREE_GB", "10"))  # don't start recordings below this
+# Below this, running recordings stop too: a full disk took Postgres down once (2026-11-19).
+STOP_FREE_GB = float(os.getenv("LIVE_STOP_FREE_GB", str(MIN_FREE_GB / 2)))
+MAX_BACKLOG = timedelta(hours=1)  # older unprocessed live is skipped instead of piling up on disk
+
+
+def skip_backlog(pending_from: datetime, content_end: datetime) -> datetime | None:
+    """Where to restart a live that fell more than MAX_BACKLOG behind; None if it is within it."""
+    return content_end - MAX_BACKLOG if content_end - pending_from > MAX_BACKLOG else None
 # One Postiz key serves the server: only these SupoClip user ids may post through it.
 POSTIZ_ALLOWED_USER_IDS = [i.strip() for i in os.getenv("POSTIZ_ALLOWED_USER_IDS", "").split(",") if i.strip()]
 # Live clips aim for TikTok monetization: "long" asks for 61-120 s, and a clip
@@ -149,7 +157,16 @@ class LiveService:
                 logger.exception("live cycle failed")
             await asyncio.sleep(POLL_SECONDS)
 
+    async def stop_if_disk_low(self) -> None:
+        free_gb = shutil.disk_usage(DATA_DIR).free / 2**30
+        if free_gb >= STOP_FREE_GB or not self.sessions:
+            return
+        logger.warning("only %.1f GB free (stop line %.0f GB); stopping %d recordings", free_gb, STOP_FREE_GB, len(self.sessions))
+        for channel_id in list(self.sessions):
+            await self.end(channel_id)
+
     async def cycle(self) -> None:
+        await self.stop_if_disk_low()
         channels = {c["id"]: c for c in await self.fetch(CHANNELS_SQL)}
         self.owners = len({c["user_id"] for c in channels.values()})
         for channel_id in list(self.sessions):
@@ -255,6 +272,11 @@ class LiveService:
                 await self.fetch("UPDATE live_recordings SET pending_from = ended_at WHERE id = %s", (rec["id"],))
             return
         content_end = chunks[-1][1].end
+        caught_up = skip_backlog(rec["pending_from"], content_end)
+        if caught_up is not None:
+            logger.warning("%s is %s behind; skipping to the last hour", rec["channel"], content_end - rec["pending_from"])
+            await self.fetch("UPDATE live_recordings SET pending_from = %s WHERE id = %s", (caught_up, rec["id"]))
+            rec["pending_from"] = caught_up
         busy = bool(await self.fetch(
             "SELECT 1 FROM live_windows w JOIN live_recordings r ON r.id = w.recording_id WHERE r.channel_id = %s AND w.status = 'submitted' LIMIT 1",
             (rec["channel_id"],),
