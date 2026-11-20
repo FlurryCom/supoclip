@@ -5,10 +5,20 @@ from pathlib import Path
 from supoclip_live import reform, service
 
 
-def test_can_submit_waits_for_an_empty_queue():
-    assert reform.can_submit(0, 0)
-    assert not reform.can_submit(1, 0)
-    assert not reform.can_submit(0, 1)
+def test_check_duration_refuses_long_or_unknown_videos():
+    reform.check_duration(180.0)
+    for bad in (None, 0, 181.0, "x"):
+        try:
+            reform.check_duration(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad!r} accepted")
+
+
+def test_submit_query_skips_users_with_a_queue():
+    # The queue rule lives in the SELECT, so one busy user can't hold up the others.
+    sql = reform.NEXT_PENDING_SQL
+    assert "t.status IN ('pending', 'queued')" in sql and "o.status = 'submitted'" in sql
 
 
 def test_band_filter_only_for_vertical():

@@ -25,11 +25,24 @@ logger = logging.getLogger("supoclip_live.reform")
 # The kit's captions (position_y 0.74) and the follow CTA (~0.70) land inside it.
 BAND_TOP, BAND_BOTTOM = 0.66, 0.88
 TRANSIENT = {409, 429, 502, 503, 504}
+MAX_SECONDS = 180  # ready-made cuts only (same cap as the backend's list)
+MAX_BYTES = 500 * 1024 * 1024
+# The oldest request of a user with nothing waiting in the queue and no remake running:
+# one remake in the system at a time per user, never ahead of a waiting live window.
+NEXT_PENDING_SQL = """
+    SELECT ri.* FROM reform_items ri
+    WHERE ri.status = 'pending'
+      AND NOT EXISTS (SELECT 1 FROM tasks t WHERE t.user_id = ri.user_id AND t.status IN ('pending', 'queued'))
+      AND NOT EXISTS (SELECT 1 FROM reform_items o JOIN tasks t ON t.id = o.task_id
+                      WHERE o.user_id = ri.user_id AND o.status = 'submitted'
+                        AND t.status IN ('pending', 'queued', 'processing'))
+    ORDER BY ri.created_at LIMIT 1
+"""
 
 
-def can_submit(queued_tasks: int, in_flight: int) -> bool:
-    """One remake in the system at a time, and only while nothing waits in the queue."""
-    return queued_tasks == 0 and in_flight == 0
+def check_duration(duration) -> None:
+    if not isinstance(duration, (int, float)) or not 0 < duration <= MAX_SECONDS:
+        raise ValueError(f"vídeo com duração inválida ou acima de {MAX_SECONDS} s")
 
 
 def band_filter(width: int, height: int, top: float = BAND_TOP, bottom: float = BAND_BOTTOM) -> str | None:
@@ -47,11 +60,13 @@ def download(url: str, dest: Path) -> dict:
     options = {
         "quiet": True, "no_warnings": True, "noplaylist": True,
         "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
-        "merge_output_format": "mp4", "outtmpl": str(dest),
+        "merge_output_format": "mp4", "outtmpl": str(dest), "max_filesize": MAX_BYTES,
     }
     with yt_dlp.YoutubeDL(options) as ydl:
+        check_duration((ydl.extract_info(url, download=False) or {}).get("duration"))  # before spending the bandwidth
         ydl.download([url])
     duration, _, (width, height) = cta._probe(dest)
+    check_duration(duration)
     return {"width": width, "height": height, "duration": duration}
 
 
@@ -104,20 +119,10 @@ async def collect(svc) -> None:
 async def submit_next(svc) -> None:
     from .service import DATA_DIR  # read at call time (tests point it elsewhere)
 
-    items = await svc.fetch("""
-        SELECT ri.* FROM reform_items ri WHERE ri.status = 'pending' ORDER BY ri.created_at LIMIT 1
-    """)
+    items = await svc.fetch(NEXT_PENDING_SQL)
     if not items:
         return
     item = items[0]
-    queued = (await svc.fetch(
-        "SELECT count(*) AS n FROM tasks WHERE user_id = %s AND status IN ('pending', 'queued')", (item["user_id"],)))
-    in_flight = (await svc.fetch(
-        "SELECT count(*) AS n FROM reform_items ri JOIN tasks t ON t.id = ri.task_id "
-        "WHERE ri.user_id = %s AND ri.status = 'submitted' AND t.status IN ('pending', 'queued', 'processing')",
-        (item["user_id"],)))
-    if not can_submit(queued[0]["n"] if queued else 0, in_flight[0]["n"] if in_flight else 0):
-        return
     work = DATA_DIR / f"reform-{item['id']}"
     work.mkdir(parents=True, exist_ok=True)
     try:

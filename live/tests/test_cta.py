@@ -73,3 +73,8 @@ def test_no_cta_for_none_kit_returns_the_clip(tmp_path):
     clip = tmp_path / "clip.mp4"
     clip.write_bytes(b"x")
     assert cta.with_cta(clip, "none", "tiktok") == clip
+
+
+def test_catclips_v2_uses_the_catclips_ctas():
+    from supoclip_live.cta import cta_file
+    assert cta_file("catclips_v2", "tiktok") == cta_file("catclips", "tiktok") != None
