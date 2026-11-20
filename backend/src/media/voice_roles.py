@@ -131,3 +131,86 @@ def cluster(vectors: list[np.ndarray], threshold: float = 0.35) -> list[int]:
     owner = {member: g for g, members in enumerate(groups) for member in members}
     order: dict[int, int] = {}
     return [order.setdefault(owner[i], len(order)) for i in range(len(vectors))]
+
+
+MOUTH_LIFT_MIN = 0.15  # the streamer's mouth must move clearly more while their voice talks
+
+
+def assign_roles(
+    sequence: list[int],
+    seconds: dict[int, float],
+    mouth_lift: Optional[dict[int, float]],
+    subs_share: dict[int, float],
+) -> dict[int, str]:
+    """Voice group -> "streamer" | "game" | "friend" | "unsure".
+
+    ``sequence``: each speech stretch's group, in time order. ``mouth_lift``: how much more the
+    webcam mouth moves while each group talks (None without a cam). ``subs_share``: share of each
+    group's speech with the game's own subtitles on screen.
+    """
+    if not seconds:
+        return {}
+    if mouth_lift and max(mouth_lift.values()) >= MOUTH_LIFT_MIN:
+        streamer = max(mouth_lift, key=mouth_lift.get)
+    else:
+        streamer = max(seconds, key=seconds.get)
+    # Back-and-forth with the streamer: how often a group's stretch sits next to the streamer's.
+    turns = {group: 0 for group in seconds}
+    for a, b in zip(sequence, sequence[1:]):
+        if a != b and streamer in (a, b):
+            turns[b if a == streamer else a] += 1
+    roles = {}
+    for group in seconds:
+        if group == streamer:
+            roles[group] = "streamer"
+        elif subs_share.get(group, 0.0) >= 0.5:
+            roles[group] = "game"
+        elif turns[group] >= 2 and subs_share.get(group, 0.0) < 0.2:
+            roles[group] = "friend"
+        else:
+            roles[group] = "unsure"  # owner: when in doubt, leave it out
+    return roles
+
+
+def _frame_at(cap, seconds: float):
+    import cv2
+
+    cap.set(cv2.CAP_PROP_POS_MSEC, max(0.0, seconds) * 1000.0)
+    ok, frame = cap.read()
+    return frame if ok else None
+
+
+def mouth_motion(path: Path, face: tuple[float, float, float, float], times: list[float]) -> np.ndarray:
+    """How much the lower half of the webcam face changes around each time (mean grey difference)."""
+    import cv2
+
+    fx, fy, fw, fh = (int(v) for v in face)
+    y0, y1, x0, x1 = fy + fh // 2, fy + fh, fx, fx + fw
+    cap = cv2.VideoCapture(str(path))
+    values = []
+    try:
+        for t in times:
+            a, b = _frame_at(cap, t), _frame_at(cap, t + 0.1)
+            if a is None or b is None:
+                values.append(0.0)
+                continue
+            ga = cv2.cvtColor(a[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
+            gb = cv2.cvtColor(b[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
+            values.append(float(np.abs(ga - gb).mean()) if ga.size else 0.0)
+    finally:
+        cap.release()
+    return np.array(values, dtype=np.float32)
+
+
+def game_subtitles_on(path: Path, times: list[float]) -> list[bool]:
+    """Whether the frame at each time shows burned-in subtitle lines (the game's own)."""
+    import cv2
+
+    from .source_captions import caption_lines_in_frame
+
+    cap = cv2.VideoCapture(str(path))
+    try:
+        return [bool(caption_lines_in_frame(frame)) if (frame := _frame_at(cap, t)) is not None else False
+                for t in times]
+    finally:
+        cap.release()
