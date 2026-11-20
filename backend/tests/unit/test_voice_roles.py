@@ -128,3 +128,20 @@ def test_game_words_without_subtitles_on_screen_stay(monkeypatch):
     _fake_pipeline(monkeypatch, subs=lambda t: 4 <= t <= 6)
     out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None)
     assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("d", "game")]
+
+
+def _scene(tmp_path, name, text_x):
+    font = "/app/fonts/ArchivoBlack-Regular.ttf"
+    return _video(tmp_path, name, f"drawtext=fontfile={font}:text='Cal where is Jay':fontsize=18:fontcolor=white:"
+                  f"x={text_x}:y=318:enable='between(t,1,2.5)'")
+
+
+def test_plain_white_centered_game_subtitle_is_seen(tmp_path):
+    # GTA-style subtitles: plain white, no outline, centred near the bottom of a dark scene.
+    path = _scene(tmp_path, "g.mp4", "(w-text_w)/2")
+    assert vr.game_subtitles_on(path, [0.5, 1.5, 3.2]) == [False, True, False]
+
+
+def test_corner_hud_text_is_not_a_subtitle(tmp_path):
+    path = _scene(tmp_path, "h.mp4", "12")  # an objective line in the bottom-left corner
+    assert vr.game_subtitles_on(path, [1.5]) == [False]

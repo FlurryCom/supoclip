@@ -205,15 +205,35 @@ def mouth_motion(path: Path, face: tuple[float, float, float, float], times: lis
     return np.array(values, dtype=np.float32)
 
 
+def plain_subtitle_on(frame: np.ndarray) -> bool:
+    """A centred line of plain light text near the bottom (GTA-style subtitles, no outline)."""
+    import cv2
+
+    h, w = frame.shape[:2]
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
+    region = gray[int(0.80 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)]
+    bright = region > 200
+    if bright.mean() > 0.08:  # a bright sky or a white wall, not text
+        return False
+    rows = np.flatnonzero(bright.sum(axis=1) > 0.004 * region.shape[1])
+    if len(rows) < 0.012 * h:
+        return False
+    cols = np.flatnonzero(bright[rows].any(axis=0))
+    left, right = int(cols[0]), int(cols[-1])
+    centre = (left + right) / 2 - region.shape[1] / 2
+    return right - left >= 0.06 * w and abs(centre) <= 0.12 * w
+
+
 def game_subtitles_on(path: Path, times: list[float]) -> list[bool]:
-    """Whether the frame at each time shows burned-in subtitle lines (the game's own)."""
+    """Whether the frame at each time shows the game's own subtitles (outlined or plain)."""
     import cv2
 
     from .source_captions import caption_lines_in_frame
 
     cap = cv2.VideoCapture(str(path))
     try:
-        return [bool(caption_lines_in_frame(frame)) if (frame := _frame_at(cap, t)) is not None else False
+        return [(bool(caption_lines_in_frame(frame)) or plain_subtitle_on(frame))
+                if (frame := _frame_at(cap, t)) is not None else False
                 for t in times]
     finally:
         cap.release()
