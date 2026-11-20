@@ -38,7 +38,7 @@
 - `speech_segments(words: list[dict], gap: float = 0.6) -> list[tuple[float, float, list[int]]]` (início, fim, índices das palavras; palavras com `start`/`end` em ms, como no cache de transcrição).
 - `fbank(samples: np.ndarray, rate: int = 16000) -> np.ndarray` (frames × 80, log-mel estilo Kaldi: janela 25 ms, passo 10 ms, pré-ênfase 0.97, Povey/Hamming, média subtraída).
 - `embed(samples: np.ndarray) -> np.ndarray | None` (vetor normalizado; None se < 0,8 s).
-- `cluster(vectors: list[np.ndarray], threshold: float = 0.55) -> list[int]` (aglomerativo por média, cosseno).
+- `cluster(vectors: list[np.ndarray], threshold: float = 0.35) -> list[int]` (aglomerativo por média, cosseno).
 - `ensure_model() -> Path | None` (baixa se faltar; None se não der).
 
 - [ ] Testes: `test_speech_segments_split_on_pauses` (palavras 0–1 s, 1,1–2 s, pausa, 3–4 s → 2 trechos); `test_fbank_shape` (1 s de seno → (98..100, 80)); `test_cluster_groups_same_voice` (vetores sintéticos A, A', B → [0, 0, 1]); `test_cluster_single_vector` → [0].
