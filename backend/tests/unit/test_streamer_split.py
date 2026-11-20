@@ -68,3 +68,8 @@ def test_filter_renders_a_1080x1920_frame(tmp_path, cam):
                             str(out)], capture_output=True, text=True, check=True).stdout.strip()
     assert probe == "1080,1920"
     assert TOP_H + BAR_H + GAME_H == 1920
+
+
+def test_title_is_white_with_a_black_border():
+    graph = build_split_filter(W, H, CAM, "Big moment")
+    assert "fontcolor=0xFFFFFF" in graph and "bordercolor=0x111111" in graph and "borderw=" in graph

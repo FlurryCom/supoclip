@@ -17,7 +17,7 @@ from .ffmpeg import clamp_even, round_to_even
 
 Box = Tuple[float, float, float, float]
 TOP_H, BAR_H, GAME_H = 720, 200, 1000
-YELLOW, BLACK = "0xFEC803", "0x111111"
+YELLOW, BLACK, WHITE = "0xFEC803", "0x111111", "0xFFFFFF"  # owner: white title with a black border
 TITLE_FONT = FONTS_DIR / "ArchivoBlack-Regular.ttf"
 MAX_TITLE_PX, MAX_LINE_CHARS = 64, 26
 # Captions start at the top of the gameplay, just under the bar.
@@ -112,7 +112,8 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str)
     line_h = int(size * 1.15)
     first_y = TOP_H + (BAR_H - line_h * len(lines)) // 2
     draws = "".join(
-        f",drawtext=fontfile={TITLE_FONT}:expansion=none:text={_drawtext_value(line)}:fontcolor={BLACK}"
+        f",drawtext=fontfile={TITLE_FONT}:expansion=none:text={_drawtext_value(line)}:fontcolor={WHITE}"
+        f":borderw={max(3, size // 12)}:bordercolor={BLACK}"
         f":fontsize={size}:x=(w-text_w)/2:y={first_y + i * line_h}"
         for i, line in enumerate(lines) if line
     )
