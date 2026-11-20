@@ -399,7 +399,8 @@ class LiveService:
         """Send kept clips to the Postiz accounts the user authorized, at most once each.
 
         Only clips made after an account was authorized go to it, so authorizing
-        an account never floods it with old clips.
+        an account never floods it with old clips; clips the owner publishes by
+        hand from the Library (live_post_requests) skip that and the minimum score.
         """
         if self.postiz is None:
             return
@@ -415,10 +416,13 @@ class LiveService:
             JOIN live_recordings r ON r.id = lc.recording_id
             JOIN live_channels c ON c.id = r.channel_id
             JOIN live_post_targets t ON t.user_id = c.user_id AND t.enabled
-            WHERE lc.final_score >= t.min_score AND t.user_id = ANY(%s)
-              AND g.created_at >= t.created_at AND g.created_at > now() - interval '1 day'
+            LEFT JOIN live_post_requests q ON q.clip_id = lc.clip_id AND q.target_id = t.id
+            WHERE t.user_id = ANY(%s)
               AND NOT EXISTS (SELECT 1 FROM live_posts p WHERE p.clip_id = lc.clip_id AND p.target_id = t.id)
-            ORDER BY lc.final_score DESC LIMIT 5
+              AND (q.id IS NOT NULL  -- published by hand from the Library: any score, any age
+                   OR (lc.final_score >= t.min_score AND g.created_at >= t.created_at
+                       AND g.created_at > now() - interval '1 day'))
+            ORDER BY q.created_at NULLS LAST, lc.final_score DESC LIMIT 50
         """, (POSTIZ_ALLOWED_USER_IDS,))
         if not candidates:
             return

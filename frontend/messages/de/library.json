@@ -99,5 +99,19 @@
   "emptyBody": "Füg einen YouTube-, Twitch- oder Kick-Link ein oder lad ein Video hoch, dann landen deine Clips hier.",
   "create": "Neue Generierung erstellen",
   "noQuery": "Nichts passt zu „{query}“.",
-  "noFilter": "Nichts passt zu diesem Filter."
+  "noFilter": "Nichts passt zu diesem Filter.",
+  "publish": {
+    "action": "Veröffentlichen",
+    "tooltip": "Live-Clips {count, plural, one {dieser Generierung} other {von # Generierungen}} veröffentlichen",
+    "title": "{count, plural, one {# Generierung} other {# Generierungen}} veröffentlichen",
+    "body": "Alle Live-Clips gehen an die markierten Konten, auch mit niedriger Bewertung. Gleicher Ablauf wie beim automatischen Posten (CTA, Unschärfe und Abstand des sicheren Postens). Ein bereits auf einem Konto geposteter Clip wird dort nicht erneut gepostet.",
+    "noAccounts": "Kein autorisiertes, aktives Konto. Autorisiere eins unter Live → Posten.",
+    "cancel": "Abbrechen",
+    "confirm": "Veröffentlichen",
+    "loadError": "Konten konnten nicht geladen werden.",
+    "sendError": "Veröffentlichen fehlgeschlagen.",
+    "queued": "{count, plural, =0 {Nichts Neues zu veröffentlichen} one {# Post in der Warteschlange} other {# Posts in der Warteschlange}}",
+    "already": "{count, plural, one {# bereits gepostet} other {# bereits gepostet}}",
+    "notLive": "{count, plural, one {# Clip ist nicht aus einem Live} other {# Clips sind nicht aus einem Live}}"
+  }
 }

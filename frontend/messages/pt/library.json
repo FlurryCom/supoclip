@@ -99,5 +99,19 @@
   "emptyBody": "Cole um link do YouTube, da Twitch ou da Kick ou envie um vídeo e seus clipes aparecem aqui.",
   "create": "Criar nova geração",
   "noQuery": "Nada corresponde a “{query}”.",
-  "noFilter": "Nada corresponde a este filtro."
+  "noFilter": "Nada corresponde a este filtro.",
+  "publish": {
+    "action": "Publicar",
+    "tooltip": "Publicar os clipes de live {count, plural, one {da geração} other {das # gerações}}",
+    "title": "Publicar {count, plural, one {# geração} other {# gerações}}",
+    "body": "Todos os clipes de live vão para as contas marcadas, mesmo com nota baixa. Mesmo processo da postagem automática (CTA, borrão e intervalo da postagem segura). Clipe já postado numa conta não vai de novo.",
+    "noAccounts": "Nenhuma conta autorizada e ativa. Autorize uma em Ao vivo → Postagem.",
+    "cancel": "Cancelar",
+    "confirm": "Publicar",
+    "loadError": "Não deu para carregar as contas.",
+    "sendError": "Não deu para publicar.",
+    "queued": "{count, plural, =0 {Nada novo para publicar} one {# envio na fila} other {# envios na fila}}",
+    "already": "{count, plural, one {# já postado} other {# já postados}}",
+    "notLive": "{count, plural, one {# clipe não é de live} other {# clipes não são de live}}"
+  }
 }

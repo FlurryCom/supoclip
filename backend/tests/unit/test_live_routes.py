@@ -133,3 +133,11 @@ def test_target_settings_accept_the_processing_score():
     assert _target_settings({"process_min_score": 80}) == {"process_min_score": 80}
     with pytest.raises(HTTPException):
         _target_settings({"process_min_score": 101})
+
+
+def test_publish_plan_queues_every_live_clip_once_per_account():
+    from src.api.routes.live import publish_plan
+    clips = ["c1", "c2"]  # live clips of the selected generations
+    plan = publish_plan(clips, ["tiktok", "youtube"], already={("c1", "tiktok")})
+    assert plan == [("c1", "youtube"), ("c2", "tiktok"), ("c2", "youtube")]
+    assert publish_plan([], ["tiktok"], already=set()) == []

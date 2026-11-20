@@ -43,10 +43,12 @@ import {
   Loader2,
   PauseCircle,
   RotateCcw,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { PublishDialog } from "./publish-dialog";
 
 type Task = GenerationSummary;
 
@@ -72,6 +74,7 @@ export default function ListPage() {
   } | null>(null);
   const [activeBatchAction, setActiveBatchAction] = useState<BatchAction>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "ready" | "active" | "attention">("all");
   const [sort, setSort] = useState<LibrarySort>("newest");
@@ -512,6 +515,24 @@ export default function ListPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => setShowPublishDialog(true)}
+                    disabled={selectedCount === 0 || activeBatchAction !== null}
+                    className="text-stone-300 hover:text-white hover:bg-stone-800 disabled:text-stone-600 disabled:hover:bg-transparent dark:hover:bg-stone-700 dark:disabled:text-stone-500"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t("publish.action")}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={8}>
+                  {t("publish.tooltip", { count: selectedCount })}
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => void handleCancelSelected()}
                     disabled={cancelableCount === 0 || activeBatchAction !== null}
                     className="text-stone-300 hover:text-white hover:bg-stone-800 disabled:text-stone-600 disabled:hover:bg-transparent dark:hover:bg-stone-700 dark:disabled:text-stone-500"
@@ -608,6 +629,13 @@ export default function ListPage() {
           </div>
         </div>
       )}
+
+      <PublishDialog
+        open={showPublishDialog}
+        onOpenChange={setShowPublishDialog}
+        taskIds={selectedTaskIds}
+        onDone={(message, tone) => setBatchNotice({ tone, message })}
+      />
 
       {/* ── Delete confirmation dialog ────────────────────────── */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

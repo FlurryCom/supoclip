@@ -99,5 +99,19 @@
   "emptyBody": "Pega un enlace de YouTube, Twitch o Kick o sube un video y tus clips aparecerán aquí.",
   "create": "Crear nueva generación",
   "noQuery": "Nada coincide con “{query}”.",
-  "noFilter": "Nada coincide con este filtro."
+  "noFilter": "Nada coincide con este filtro.",
+  "publish": {
+    "action": "Publicar",
+    "tooltip": "Publicar los clips en vivo de {count, plural, one {la generación} other {las # generaciones}}",
+    "title": "Publicar {count, plural, one {# generación} other {# generaciones}}",
+    "body": "Todos los clips en vivo van a las cuentas marcadas, aun con nota baja. Mismo proceso que la publicación automática (CTA, desenfoque e intervalo de publicación segura). Un clip ya publicado en una cuenta no se vuelve a publicar.",
+    "noAccounts": "Ninguna cuenta autorizada y activa. Autoriza una en En vivo → Publicación.",
+    "cancel": "Cancelar",
+    "confirm": "Publicar",
+    "loadError": "No se pudieron cargar las cuentas.",
+    "sendError": "No se pudo publicar.",
+    "queued": "{count, plural, =0 {Nada nuevo para publicar} one {# envío en cola} other {# envíos en cola}}",
+    "already": "{count, plural, one {# ya publicado} other {# ya publicados}}",
+    "notLive": "{count, plural, one {# clip no es de un directo} other {# clips no son de un directo}}"
+  }
 }

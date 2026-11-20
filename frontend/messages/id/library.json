@@ -99,5 +99,19 @@
   "emptyBody": "Tempel tautan YouTube, Twitch, atau Kick, atau unggah video, dan clip-mu akan mendarat di sini.",
   "create": "Buat generasi baru",
   "noQuery": "Tidak ada yang cocok dengan “{query}”.",
-  "noFilter": "Tidak ada yang cocok dengan filter ini."
+  "noFilter": "Tidak ada yang cocok dengan filter ini.",
+  "publish": {
+    "action": "Terbitkan",
+    "tooltip": "Terbitkan klip live dari {count, plural, other {# generasi}}",
+    "title": "Terbitkan {count, plural, other {# generasi}}",
+    "body": "Semua klip live dikirim ke akun yang dicentang, meski nilainya rendah. Proses sama seperti posting otomatis (CTA, blur, dan jeda posting aman). Klip yang sudah diposting di suatu akun tidak diposting lagi di sana.",
+    "noAccounts": "Tidak ada akun yang diizinkan dan aktif. Izinkan satu di Live → Posting.",
+    "cancel": "Batal",
+    "confirm": "Terbitkan",
+    "loadError": "Gagal memuat akun.",
+    "sendError": "Gagal menerbitkan.",
+    "queued": "{count, plural, =0 {Tidak ada yang baru untuk diterbitkan} other {# posting dalam antrean}}",
+    "already": "{count, plural, other {# sudah diposting}}",
+    "notLive": "{count, plural, other {# klip bukan dari live}}"
+  }
 }

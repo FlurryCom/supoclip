@@ -412,6 +412,53 @@ async def revoke_postiz_target(target_id: str, request: Request, db: AsyncSessio
     return {"revoked": target_id}
 
 
+def publish_plan(clip_ids: list[str], target_ids: list[str], already: set[tuple[str, str]]) -> list[tuple[str, str]]:
+    """(clip, account) pairs to queue: each live clip once per chosen account, minus pairs already posted or queued."""
+    return [(c, t) for c in clip_ids for t in target_ids if (c, t) not in already]
+
+
+def _id_list(value: Any, name: str) -> list[str]:
+    if not isinstance(value, list) or not value or len(value) > 200 or not all(isinstance(v, str) and 0 < len(v) <= 36 for v in value):
+        raise HTTPException(status_code=422, detail=f"{name} must be a list of 1-200 ids")
+    return list(dict.fromkeys(value))
+
+
+@router.post("/publish")
+async def publish_clips(request: Request, db: AsyncSession = Depends(get_db)):
+    """Queue every live clip of the chosen generations for the chosen accounts, whatever its score.
+
+    The recorder posts them like automatic posts (CTA, blur, safe posting gap), never twice on one account.
+    """
+    user_id = await _postiz_user(request, db)
+    body = await _body(request)
+    task_ids = _id_list(body.get("task_ids"), "task_ids")
+    target_ids = _id_list(body.get("target_ids"), "target_ids")
+    targets = [r[0] for r in (await db.execute(text(
+        "SELECT id FROM live_post_targets WHERE user_id = :u AND enabled AND id = ANY(:ids) ORDER BY created_at"
+    ), {"u": user_id, "ids": target_ids})).all()]
+    if not targets:
+        raise HTTPException(status_code=422, detail="No active account chosen")
+    rows = (await db.execute(text("""
+        SELECT g.id, lc.clip_id IS NOT NULL AS live FROM generated_clips g
+        JOIN tasks tk ON tk.id = g.task_id AND tk.user_id = :u
+        LEFT JOIN live_clips lc ON lc.clip_id = g.id
+        WHERE g.task_id = ANY(:tasks) ORDER BY g.task_id, g.clip_order
+    """), {"u": user_id, "tasks": task_ids})).all()
+    clips = [r[0] for r in rows if r[1]]
+    already = {tuple(r) for r in (await db.execute(text("""
+        SELECT clip_id, target_id FROM live_posts WHERE clip_id = ANY(:c) AND target_id = ANY(:t)
+        UNION SELECT clip_id, target_id FROM live_post_requests WHERE clip_id = ANY(:c) AND target_id = ANY(:t)
+    """), {"c": clips, "t": targets})).all()} if clips else set()
+    plan = publish_plan(clips, targets, already)
+    for clip_id, target_id in plan:
+        await db.execute(text(
+            "INSERT INTO live_post_requests (id, user_id, clip_id, target_id) VALUES (:id, :u, :c, :t) "
+            "ON CONFLICT (clip_id, target_id) DO NOTHING"
+        ), {"id": str(uuid.uuid4()), "u": user_id, "c": clip_id, "t": target_id})
+    await db.commit()
+    return {"queued": len(plan), "already": len(clips) * len(targets) - len(plan), "not_live": len(rows) - len(clips)}
+
+
 @router.post("/windows/{window_id}/release-source")
 async def release_window_source(window_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     """Delete a finished window's uploaded copy of the broadcast. Its clips stay.

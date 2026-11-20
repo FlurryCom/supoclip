@@ -99,5 +99,19 @@
   "emptyBody": "粘贴 YouTube、Twitch 或 Kick 链接或上传视频，片段会出现在这里。",
   "create": "新建生成",
   "noQuery": "没有与“{query}”匹配的内容。",
-  "noFilter": "没有与此筛选匹配的内容。"
+  "noFilter": "没有与此筛选匹配的内容。",
+  "publish": {
+    "action": "发布",
+    "tooltip": "发布 {count, plural, other {# 个生成}}中的直播片段",
+    "title": "发布 {count, plural, other {# 个生成}}",
+    "body": "所有直播片段都会发到勾选的账号，即使评分较低。流程与自动发布相同（CTA、模糊和安全发布间隔）。已在某账号发布过的片段不会再次发布。",
+    "noAccounts": "没有已授权且启用的账号。请在 直播 → 发布 中授权。",
+    "cancel": "取消",
+    "confirm": "发布",
+    "loadError": "无法加载账号。",
+    "sendError": "发布失败。",
+    "queued": "{count, plural, =0 {没有新的可发布内容} other {# 条发布已排队}}",
+    "already": "{count, plural, other {# 条已发布}}",
+    "notLive": "{count, plural, other {# 个片段不是直播片段}}"
+  }
 }

@@ -99,5 +99,19 @@
   "emptyBody": "Paste a YouTube, Twitch, or Kick link or upload a video and your clips will land here.",
   "create": "Create New Generation",
   "noQuery": "Nothing matches “{query}”.",
-  "noFilter": "Nothing matches this filter."
+  "noFilter": "Nothing matches this filter.",
+  "publish": {
+    "action": "Publish",
+    "tooltip": "Publish the live clips of {count, plural, one {this generation} other {# generations}}",
+    "title": "Publish {count, plural, one {# generation} other {# generations}}",
+    "body": "Every live clip goes to the checked accounts, even low-scored ones. Same process as auto-posting (CTA, blur and the safe posting gap). A clip already posted to an account isn't posted there again.",
+    "noAccounts": "No authorized, active account. Authorize one in Live → Posting.",
+    "cancel": "Cancel",
+    "confirm": "Publish",
+    "loadError": "Couldn't load the accounts.",
+    "sendError": "Couldn't publish.",
+    "queued": "{count, plural, =0 {Nothing new to publish} one {# post queued} other {# posts queued}}",
+    "already": "{count, plural, one {# already posted} other {# already posted}}",
+    "notLive": "{count, plural, one {# clip isn't from a live} other {# clips aren't from a live}}"
+  }
 }
