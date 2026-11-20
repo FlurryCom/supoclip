@@ -79,3 +79,22 @@ def test_catclips_v2_has_its_own_ctas_over_the_title_bar():
     from supoclip_live.cta import cta_file
     for provider in ("tiktok", "youtube", "instagram"):
         assert cta_file("catclips_v2", provider).parent.name == "catclips_v2"
+
+
+def _clip(path, with_bar):
+    import subprocess
+    draw = ",drawbox=x=0:y=720:w=1080:h=200:color=0xFEC803:t=fill" if with_bar else ""
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=1080x1920:r=10:d=3",
+                    "-vf", "format=yuv420p" + draw, str(path)], check=True)
+    return path
+
+
+def test_v2_cta_only_when_the_clip_has_the_title_bar(tmp_path):
+    from supoclip_live import cta
+    split = _clip(tmp_path / "split.mp4", True)
+    plain = _clip(tmp_path / "plain.mp4", False)
+    assert cta.has_title_bar(split) and not cta.has_title_bar(plain)
+    assert cta.cta_for(split, "catclips_v2", "tiktok").parent.name == "catclips_v2"
+    # A vertical remake or a fallback layout has no bar: the card goes low, in the caption band.
+    assert cta.cta_for(plain, "catclips_v2", "tiktok").parent.name == "catclips"
+    assert cta.cta_for(plain, "catclips", "tiktok").parent.name == "catclips"

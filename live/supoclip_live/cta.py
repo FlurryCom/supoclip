@@ -78,13 +78,44 @@ class BlurFailed(RuntimeError):
     """The clip had to be blurred for this account and couldn't be: don't post it."""
 
 
+# Cat Clips v2's yellow title bar (rows 720-920 of 1920) and the kit to fall back on without it.
+BAR_ROWS, BAR_RGB = (720, 920), (254, 200, 3)
+BAR_FALLBACK = {"catclips_v2": "catclips"}
+
+
+def has_title_bar(clip: Path) -> bool:
+    """Whether the clip shows the v2 title bar (a vertical remake or a fallback layout doesn't)."""
+    try:
+        raw = subprocess.run(
+            ["ffmpeg", "-loglevel", "error", "-ss", "1", "-i", str(clip), "-frames:v", "1",
+             "-vf", "scale=54:96", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True, timeout=60,
+        ).stdout
+    except Exception:
+        return False
+    if len(raw) != 54 * 96 * 3:
+        return False
+    top, bottom = BAR_ROWS[0] * 96 // 1920 + 1, BAR_ROWS[1] * 96 // 1920 - 1
+    rows = raw[top * 54 * 3: bottom * 54 * 3]
+    pixels = [rows[i:i + 3] for i in range(0, len(rows), 3)]
+    yellow = sum(1 for p in pixels if all(abs(p[c] - BAR_RGB[c]) < 40 for c in range(3)))
+    return yellow > 0.6 * len(pixels)
+
+
+def cta_for(clip: Path, kit: str | None, provider: str) -> Path | None:
+    """The CTA that fits this clip's layout: v2's sits on the title bar, so without the bar use the low one."""
+    if kit in BAR_FALLBACK and not has_title_bar(clip):
+        kit = BAR_FALLBACK[kit]
+    return cta_file(kit, provider)
+
+
 def finish_clip(clip: Path, kit: str | None, provider: str, regions: list, must_blur: bool) -> Path:
     """The file to upload: ``clip`` blurred where needed and with the platform's CTA.
 
     Without anything to add it returns ``clip``. If adding fails it returns
     ``clip`` too, unless the blur was required: then it raises BlurFailed.
     """
-    cta = cta_file(kit, provider)
+    cta = cta_for(clip, kit, provider)
     regions = regions if must_blur else []
     if cta is None and not regions:
         return clip

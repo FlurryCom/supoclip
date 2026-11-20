@@ -99,3 +99,10 @@ def test_reform_segment_keeps_full_length_through_render_ranges(tmp_path):
     # task_service caps a segment at its own max_seconds when it has one
     resolved = resolve_render_ranges(video, segment, cleanup, float(segment["max_seconds"]))
     assert resolved.keep_ranges == [(0.0, 150.0)]
+
+
+def test_loudest_second_without_audio_is_zero(tmp_path):
+    silent = tmp_path / "mute.mp4"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=16x16:r=5:d=2",
+                    str(silent)], check=True)
+    assert loudest_second(silent) == 0.0

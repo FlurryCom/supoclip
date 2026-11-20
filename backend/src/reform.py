@@ -102,10 +102,13 @@ def clean_title(title: str) -> str:
 def loudest_second(path: Path) -> float:
     """Where the audio is loudest (seconds), for the kit's boom; 0.5-s windows."""
     rate = 8000
-    pcm = subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(rate), "-f", "s16le", "-"],
-        capture_output=True, check=True, timeout=300,
-    ).stdout
+    try:
+        pcm = subprocess.run(
+            ["ffmpeg", "-loglevel", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(rate), "-f", "s16le", "-"],
+            capture_output=True, check=True, timeout=300,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return 0.0  # no audio stream (muted clip): the boom just goes at the start
     samples = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
     window = rate // 2
     if len(samples) < window:

@@ -1,6 +1,9 @@
 """Reformular: the recorder submits ready-made clips one at a time, after covering old captions."""
 import asyncio
+from datetime import datetime, timezone
 from pathlib import Path
+
+import httpx
 
 from supoclip_live import reform, service
 
@@ -15,10 +18,12 @@ def test_check_duration_refuses_long_or_unknown_videos():
         raise AssertionError(f"{bad!r} accepted")
 
 
-def test_submit_query_skips_users_with_a_queue():
-    # The queue rule lives in the SELECT, so one busy user can't hold up the others.
+def test_submit_query_allows_one_remake_in_flight_per_user():
+    # One remake at a time, queued behind whatever is already waiting. Waiting for an empty
+    # queue starved remakes: with 20 live channels a window is almost always queued.
     sql = reform.NEXT_PENDING_SQL
-    assert "t.status IN ('pending', 'queued')" in sql and "o.status = 'submitted'" in sql
+    assert "o.status = 'submitted'" in sql
+    assert "t.status IN ('pending', 'queued'))" not in sql
 
 
 def test_band_filter_only_for_vertical():
@@ -30,7 +35,9 @@ def test_band_filter_only_for_vertical():
 
 ITEM = {"id": "r1", "user_id": "u1", "platform": "tiktok", "video_id": "7709194461913419038",
         "source_url": "https://www.tiktok.com/@khaby.lame/video/7709194461913419038",
-        "source_channel": "khaby.lame", "title": "Coach #comedy"}
+        "source_channel": "khaby.lame", "title": "Coach #comedy",
+        "updated_at": datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc)}
+ATTEMPT = int(ITEM["updated_at"].timestamp())
 
 
 class FakeBackend:
@@ -84,7 +91,52 @@ def test_horizontal_clip_is_sent_as_is(monkeypatch, tmp_path):
         return {"width": 1920, "height": 1080, "duration": 30.0}
 
     backend, updates = run_submit(monkeypatch, tmp_path, fake_download)
-    assert backend.uploads == [("u1", "source.mp4", "reform-upload-r1")]
-    assert backend.tasks == [("u1", "upload://x.mp4", "Coach", "reform-task-r1", "auto")]
+    # Keys carry the attempt: a re-queued video must not replay the first try's upload or task.
+    assert backend.uploads == [("u1", "source.mp4", f"reform-upload-r1-{ATTEMPT}")]
+    assert backend.tasks == [("u1", "upload://x.mp4", "Coach", f"reform-task-r1-{ATTEMPT}", "auto")]
     assert "status = 'submitted'" in updates[0][0] and updates[0][1] == ("task-1", "r1")
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_409_from_the_backend_is_a_failure_not_a_retry(monkeypatch, tmp_path):
+    def fake_download(url, dest):
+        Path(dest).write_bytes(b"video")
+        return {"width": 1920, "height": 1080, "duration": 30.0}
+
+    async def conflict(*args, **kwargs):
+        request = httpx.Request("POST", "http://backend/upload")
+        raise httpx.HTTPStatusError("conflict", request=request, response=httpx.Response(409, request=request, text="key used"))
+
+    monkeypatch.setattr(FakeBackend, "upload", conflict)
+    backend, updates = run_submit(monkeypatch, tmp_path, fake_download)
+    assert len(updates) == 1 and "status = 'error'" in updates[0][0]
+
+
+def test_cycle_runs_the_slow_submit_in_the_background(monkeypatch):
+    started, release = [], asyncio.Event()
+
+    async def slow_submit(svc):
+        started.append(1)
+        await release.wait()
+
+    async def no_collect(svc):
+        return None
+
+    monkeypatch.setattr(reform, "submit_next", slow_submit)
+    monkeypatch.setattr(reform, "collect", no_collect)
+
+    async def scenario():
+        live = service.LiveService("", FakeBackend())
+        await asyncio.wait_for(reform.cycle(live), 1)  # returns while the download would still run
+        await asyncio.sleep(0)
+        await asyncio.wait_for(reform.cycle(live), 1)  # one remake at a time: no second submit
+        assert started == [1]
+        release.set()
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        await asyncio.wait_for(reform.cycle(live), 1)
+        await asyncio.sleep(0)
+        assert started == [1, 1]
+        release.set()
+
+    asyncio.run(scenario())

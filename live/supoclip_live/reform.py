@@ -1,7 +1,7 @@
 """Reformular (fork feature): ready-made clips from other channels, remade with the edit kit.
 
 The backend records requests in ``reform_items``. Here the recorder downloads one at a
-time (only while no task waits in the queue, so live windows aren't held up), covers the
+time (one remake in the queue per user, so the lives wait for one short clip at most), covers the
 old burned-in captions of vertical videos with a black band, and submits it the same way
 as a live window. When the task is done it queues the auto-publish posts, and
 ``post_candidates`` hands those posts to ``post_clips``.
@@ -24,15 +24,14 @@ logger = logging.getLogger("supoclip_live.reform")
 # Black band over the bottom of vertical videos, where their own captions usually sit.
 # The kit's captions (position_y 0.74) and the follow CTA (~0.70) land inside it.
 BAND_TOP, BAND_BOTTOM = 0.66, 0.88
-TRANSIENT = {409, 429, 502, 503, 504}
+TRANSIENT = {429, 502, 503, 504}  # a 409 (idempotency key clash) won't heal by retrying
 MAX_SECONDS = 180  # ready-made cuts only (same cap as the backend's list)
 MAX_BYTES = 500 * 1024 * 1024
-# The oldest request of a user with nothing waiting in the queue and no remake running:
-# one remake in the system at a time per user, never ahead of a waiting live window.
+# The oldest request of a user with no remake running: one remake at a time per user,
+# queued behind the live windows already waiting, so 30 picks never jump ahead of the lives.
 NEXT_PENDING_SQL = """
     SELECT ri.* FROM reform_items ri
     WHERE ri.status = 'pending'
-      AND NOT EXISTS (SELECT 1 FROM tasks t WHERE t.user_id = ri.user_id AND t.status IN ('pending', 'queued'))
       AND NOT EXISTS (SELECT 1 FROM reform_items o JOIN tasks t ON t.id = o.task_id
                       WHERE o.user_id = ri.user_id AND o.status = 'submitted'
                         AND t.status IN ('pending', 'queued', 'processing'))
@@ -83,8 +82,18 @@ def task_title(title: str) -> str:
 
 
 async def cycle(svc) -> None:
+    """Called every live cycle; the download and re-encode run beside it, never holding up the lives."""
     await collect(svc)
-    await submit_next(svc)
+    running = getattr(svc, "reform_job", None)
+    if running is None or running.done():
+        svc.reform_job = asyncio.create_task(_submit_logged(svc))
+
+
+async def _submit_logged(svc) -> None:
+    try:
+        await submit_next(svc)
+    except Exception:
+        logger.exception("reform submit failed")
 
 
 async def collect(svc) -> None:
@@ -133,9 +142,11 @@ async def submit_next(svc) -> None:
         if video_filter:
             upload = work / "covered.mp4"
             await asyncio.to_thread(cover, source, upload, video_filter)
-        video_path = await svc.backend.upload(item["user_id"], upload, f"reform-upload-{item['id']}")
+        # Re-queuing a video (after an error or a deleted generation) bumps updated_at: a new attempt, new keys.
+        attempt = f"{item['id']}-{int(item['updated_at'].timestamp())}"
+        video_path = await svc.backend.upload(item["user_id"], upload, f"reform-upload-{attempt}")
         task_id = await svc.backend.create_task(
-            item["user_id"], video_path, task_title(item["title"]), f"reform-task-{item['id']}", "auto")
+            item["user_id"], video_path, task_title(item["title"]), f"reform-task-{attempt}", "auto")
         await svc.fetch(
             "UPDATE reform_items SET status = 'submitted', task_id = %s, updated_at = now() WHERE id = %s",
             (task_id, item["id"]))
