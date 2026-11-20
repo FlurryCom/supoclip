@@ -83,7 +83,12 @@ def test_catclips_v2_has_its_own_ctas_over_the_title_bar():
 
 def _clip(path, with_bar):
     import subprocess
-    draw = ",drawbox=x=0:y=720:w=1080:h=200:color=0xFEC803:t=fill" if with_bar else ""
+    font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # The real bar carries a big white title with a black border over most of it.
+    draw = (",drawbox=x=0:y=720:w=1080:h=200:color=0xFEC803:t=fill"
+            f",drawtext=fontfile={font}:text=XQC SHARES HIS THOUGHTS ON:fontsize=70:fontcolor=white:borderw=6:x=(w-text_w)/2:y=750"
+            f",drawtext=fontfile={font}:text=GTA VI AFTER A 24HR STREAM:fontsize=70:fontcolor=white:borderw=6:x=(w-text_w)/2:y=825"
+            if with_bar else "")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=1080x1920:r=10:d=3",
                     "-vf", "format=yuv420p" + draw, str(path)], check=True)
     return path

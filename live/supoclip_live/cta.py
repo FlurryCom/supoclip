@@ -84,22 +84,33 @@ BAR_FALLBACK = {"catclips_v2": "catclips"}
 
 
 def has_title_bar(clip: Path) -> bool:
-    """Whether the clip shows the v2 title bar (a vertical remake or a fallback layout doesn't)."""
+    """Whether the clip shows the v2 title bar (a vertical remake or a fallback layout doesn't).
+
+    The title covers most of the bar, so only the thin yellow strips above and below the
+    text and the two side margins are checked, on a 108x192 sample of one frame.
+    """
+    w, h = 108, 192
     try:
         raw = subprocess.run(
             ["ffmpeg", "-loglevel", "error", "-ss", "1", "-i", str(clip), "-frames:v", "1",
-             "-vf", "scale=54:96", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+             "-vf", f"scale={w}:{h}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
             capture_output=True, check=True, timeout=60,
         ).stdout
     except Exception:
         return False
-    if len(raw) != 54 * 96 * 3:
+    if len(raw) != w * h * 3:
         return False
-    top, bottom = BAR_ROWS[0] * 96 // 1920 + 1, BAR_ROWS[1] * 96 // 1920 - 1
-    rows = raw[top * 54 * 3: bottom * 54 * 3]
-    pixels = [rows[i:i + 3] for i in range(0, len(rows), 3)]
-    yellow = sum(1 for p in pixels if all(abs(p[c] - BAR_RGB[c]) < 40 for c in range(3)))
-    return yellow > 0.6 * len(pixels)
+    top, bottom = BAR_ROWS[0] * h // 1920, BAR_ROWS[1] * h // 1920  # rows 72..92
+
+    def pixel(x: int, y: int) -> bytes:
+        i = (y * w + x) * 3
+        return raw[i:i + 3]
+
+    strips = [pixel(x, y) for y in (top + 1, bottom - 2) for x in range(w)]
+    margins = [pixel(x, y) for y in range(top + 1, bottom - 1) for x in (0, 1, w - 2, w - 1)]
+    sample = strips + margins
+    yellow = sum(1 for p in sample if all(abs(p[c] - BAR_RGB[c]) < 45 for c in range(3)))
+    return yellow > 0.75 * len(sample)
 
 
 def cta_for(clip: Path, kit: str | None, provider: str) -> Path | None:
