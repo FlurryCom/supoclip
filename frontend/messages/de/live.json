@@ -133,5 +133,7 @@
   "channelSafePosting": "Sicheres Posten",
   "minutesBetween": "Minuten zwischen Videos",
   "channelSafePostingOn": "Clips dieses Kanals warten auf jedem Konto {minutes} Minuten zwischeneinander, zusätzlich zum Abstand des Kontos.",
-  "channelSafePostingOff": "Aus: Clips dieses Kanals folgen nur dem Abstand jedes Kontos."
+  "channelSafePostingOff": "Aus: Clips dieses Kanals folgen nur dem Abstand jedes Kontos.",
+  "save": "Speichern",
+  "saving": "Wird gespeichert…"
 }

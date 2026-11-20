@@ -378,6 +378,31 @@ export default function LivePage() {
     return () => clearInterval(timer);
   }, [access, load]);
 
+  // Setting changes wait here until the owner presses the floating "Salvar" button.
+  const [pending, setPending] = useState<Record<string, Record<string, unknown>>>({});
+  const [saving, setSaving] = useState(false);
+  const [savedTick, setSavedTick] = useState(0);
+  const stage = (path: string, patch: Record<string, unknown>) =>
+    setPending((current) => ({ ...current, [path]: { ...current[path], ...patch } }));
+  const saveAll = async () => {
+    setSaving(true);
+    setError(null);
+    const failed: Record<string, Record<string, unknown>> = {};
+    for (const [path, patch] of Object.entries(pending)) {
+      const response = await fetch(`/api/live/${path}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+      });
+      if (!response.ok) {
+        failed[path] = patch;
+        setError(await errorMessage(response, t("saveError")));
+      }
+    }
+    setPending(failed);
+    await load().catch((err: Error) => setError(err.message));
+    setSavedTick((tick) => tick + 1);
+    setSaving(false);
+  };
+
   const request = async (path: string, init: RequestInit, fallback: string) => {
     setError(null);
     const response = await fetch(`/api/live/${path}`, { ...init, headers: { "Content-Type": "application/json" } });
@@ -433,7 +458,7 @@ export default function LivePage() {
         <p className="mt-2 text-muted-foreground">{t("description")}</p>
       </div>
 
-      <PostingSection />
+      <PostingSection pending={pending} stage={stage} savedTick={savedTick} />
 
       <TrendingSection onAdded={() => void load().catch((err: Error) => setError(err.message))} />
 
@@ -466,14 +491,22 @@ export default function LivePage() {
           {channels.map((channel) => (
             <ChannelCard
               key={channel.id}
-              channel={channel}
+              channel={{ ...channel, ...pending[`channels/${channel.id}`] }}
               kits={kits}
-              onChange={(settings) => void request(`channels/${channel.id}`, { method: "PATCH", body: JSON.stringify(settings) }, t("saveError"))}
+              onChange={(settings) => stage(`channels/${channel.id}`, settings)}
               onRemove={() => void request(`channels/${channel.id}`, { method: "DELETE" }, t("saveError"))}
             />
           ))}
         </ul>
       )}
+
+      {Object.keys(pending).length > 0 ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center md:bottom-8">
+          <Button size="lg" className="pointer-events-auto rounded-full px-10 shadow-lg" disabled={saving} onClick={() => void saveAll()}>
+            {saving ? t("saving") : t("save")}
+          </Button>
+        </div>
+      ) : null}
     </main>
   );
 }

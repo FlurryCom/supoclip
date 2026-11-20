@@ -133,5 +133,7 @@
   "channelSafePosting": "安全发布",
   "minutesBetween": "分钟间隔",
   "channelSafePostingOn": "该频道的片段在每个账号上彼此间隔 {minutes} 分钟，叠加在账号自身的间隔之上。",
-  "channelSafePostingOff": "关闭：该频道的片段只遵循各账号自身的间隔。"
+  "channelSafePostingOff": "关闭：该频道的片段只遵循各账号自身的间隔。",
+  "save": "保存",
+  "saving": "保存中…"
 }

@@ -133,5 +133,7 @@
   "channelSafePosting": "Publicación segura",
   "minutesBetween": "minutos entre videos",
   "channelSafePostingOn": "Los clips de este canal esperan {minutes} minutos entre uno y otro en cada cuenta, además del intervalo de la propia cuenta.",
-  "channelSafePostingOff": "Desactivado: los clips de este canal solo siguen el intervalo de cada cuenta."
+  "channelSafePostingOff": "Desactivado: los clips de este canal solo siguen el intervalo de cada cuenta.",
+  "save": "Guardar",
+  "saving": "Guardando…"
 }

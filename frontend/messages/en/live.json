@@ -133,5 +133,7 @@
   "channelSafePosting": "Safe posting",
   "minutesBetween": "minutes between videos",
   "channelSafePostingOn": "This channel's clips wait {minutes} minutes between each other on every account, on top of the account's own gap.",
-  "channelSafePostingOff": "Off: this channel's clips only follow each account's gap."
+  "channelSafePostingOff": "Off: this channel's clips only follow each account's gap.",
+  "save": "Save",
+  "saving": "Saving…"
 }

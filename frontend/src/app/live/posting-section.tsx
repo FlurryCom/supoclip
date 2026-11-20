@@ -260,7 +260,11 @@ function TargetCard({ target, onChange, onRevoke }: {
   );
 }
 
-export function PostingSection() {
+export function PostingSection({ pending, stage, savedTick }: {
+  pending: Record<string, Record<string, unknown>>;
+  stage: (path: string, patch: Record<string, unknown>) => void;
+  savedTick: number;
+}) {
   const t = useTranslations("live.posting");
   const [state, setState] = useState<PostizState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -273,7 +277,7 @@ export function PostingSection() {
 
   useEffect(() => {
     load().catch((err: Error) => setError(err.message));
-  }, [load]);
+  }, [load, savedTick]);
 
   const request = async (path: string, init: RequestInit) => {
     setError(null);
@@ -313,8 +317,8 @@ export function PostingSection() {
               {state.targets.map((target) => (
                 <TargetCard
                   key={target.id}
-                  target={target}
-                  onChange={(settings) => void request(`targets/${target.id}`, { method: "PATCH", body: JSON.stringify(settings) })}
+                  target={{ ...target, ...pending[`postiz/targets/${target.id}`] } as PostTarget}
+                  onChange={(settings) => stage(`postiz/targets/${target.id}`, settings)}
                   onRevoke={() => void request(`targets/${target.id}`, { method: "DELETE" })}
                 />
               ))}

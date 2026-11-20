@@ -133,5 +133,7 @@
   "channelSafePosting": "Posting aman",
   "minutesBetween": "menit antar video",
   "channelSafePostingOn": "Klip kanal ini menunggu {minutes} menit di antara satu sama lain di setiap akun, selain jeda akun itu sendiri.",
-  "channelSafePostingOff": "Mati: klip kanal ini hanya mengikuti jeda tiap akun."
+  "channelSafePostingOff": "Mati: klip kanal ini hanya mengikuti jeda tiap akun.",
+  "save": "Simpan",
+  "saving": "Menyimpan…"
 }
