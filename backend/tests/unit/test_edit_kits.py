@@ -9,8 +9,14 @@ def test_catclips_kit_points_at_existing_assets():
     assert [(s["path"].name, s["at"]) for s in kit["sfx"]] == [
         ("bell.wav", "start"), ("cartoon-whoosh.wav", "start"), ("boom.wav", "peak")]
     assert all(s["path"].exists() for s in kit["sfx"])
-    # Owner: only captions on screen, no chat bubbles or burned title over the video.
-    assert kit["chat_overlay"] is False and kit["burn_hook_title"] is False
+    assert kit["chat_overlay"] is True and kit["burn_hook_title"] is True
+
+
+def test_catclips_v2_keeps_the_look_without_text_over_the_video():
+    v1, v2 = get_kit("catclips"), get_kit("catclips_v2")
+    assert v2["name"] == "Cat Clips v2"
+    assert v2["chat_overlay"] is False and v2["burn_hook_title"] is False
+    assert v2["sfx"] == v1["sfx"] and v2["caption_template"] == "catclips" and v2["cta_seconds"] == 2.5
 
 
 def test_unknown_kit_is_none():
@@ -22,7 +28,8 @@ def test_unknown_kit_is_none():
 
 
 def test_kit_choices_lists_every_kit():
-    assert kit_choices() == [{"id": "none", "name": "SupoClip"}, {"id": "catclips", "name": "Cat Clips"}]
+    assert kit_choices() == [{"id": "none", "name": "SupoClip"}, {"id": "catclips", "name": "Cat Clips"},
+                            {"id": "catclips_v2", "name": "Cat Clips v2"}]
 
 
 def test_catclips_caption_template():

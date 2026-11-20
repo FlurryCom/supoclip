@@ -28,9 +28,8 @@ KITS: dict[str, dict[str, Any]] = {
         "id": "catclips",
         "name": "Cat Clips",
         "caption_template": "catclips",
-        # Owner (2026-11-20): only the captions on screen, no chat bubbles or title over the video.
-        "chat_overlay": False,
-        "burn_hook_title": False,
+        "chat_overlay": True,
+        "burn_hook_title": True,
         "sfx": [
             {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
@@ -41,6 +40,14 @@ KITS: dict[str, dict[str, Any]] = {
         "cta_seconds": 2.5,
         "colors": {"yellow": "#FEC803", "black": "#111111", "cream": "#F3E9D2"},
     },
+}
+KITS["catclips_v2"] = {
+    **KITS["catclips"],
+    "id": "catclips_v2",
+    "name": "Cat Clips v2",
+    # Owner (2026-11-20): only the captions over the video, no chat bubbles or burned title.
+    "chat_overlay": False,
+    "burn_hook_title": False,
 }
 
 
