@@ -12,16 +12,18 @@ próprio jogo já está mostrando a legenda dele naquele momento, a nossa legend
 
 ## Metas
 
-- Cada palavra da legenda é marcada como **streamer** ou **jogo**.
+- Cada palavra da legenda é marcada como **streamer**, **amigo** (Discord, co-host, alguém na sala) ou **jogo**.
 - **Streamer**: visual Cat Clips de hoje (Archivo Black, creme, destaque amarelo palavra a palavra).
 - **Jogo**: branco, menor (~75 % do tamanho), contorno preto, sem destaque amarelo nem "pulo" da palavra;
   mesmo lugar (logo abaixo da faixa amarela). Decisão minha, aprovada na conversa.
-- **Legenda do jogo já na tela** naquele trecho → as palavras do jogo desse trecho não aparecem.
+- **Amigo** (pedido do dono): outra cor, separada do jogo — mesma fonte Archivo Black e tamanho do streamer,
+  em azul-claro (#7CCBFF, proposta minha) com contorno preto, sem a caixa amarela. Nunca é escondida.
+- **Legenda do jogo já na tela** naquele trecho → só as palavras do **jogo** desse trecho não aparecem.
 - Vale para o kit **Cat Clips v2** (lives e Reformular de clipes deitados). O Cat Clips original não muda.
 
 ## Fora do escopo
 
-- Separar mais de "streamer" e "resto" (não vamos dar cor por personagem).
+- Uma cor por pessoa ou personagem: são três papéis só (streamer, amigo, jogo).
 - Traduzir ou corrigir a legenda do jogo.
 - Vídeos em pé do Reformular (sem câmera separada): continuam com uma legenda só.
 
@@ -45,14 +47,19 @@ próprio jogo já está mostrando a legenda dele naquele momento, a nossa legend
      dele (diferença entre quadros na metade de baixo do rosto) comparado com os momentos em que ele não fala.
      O grupo com a maior diferença é o streamer. Sem câmera ou sem diferença clara: o grupo com mais tempo
      de fala.
+   - **Amigo × jogo** (para cada grupo que não é o streamer):
+     - se em boa parte das falas dele o jogo está mostrando legenda na tela → **jogo** (NPC com legenda);
+     - se ele conversa com o streamer ao longo do clipe (várias falas, alternando com o streamer, sem legenda
+       do jogo junto) → **amigo**;
+     - na dúvida → **jogo** (o erro menos ruim: a fala aparece, só com a cor do jogo).
    - Falha em qualquer etapa (modelo ausente, áudio estranho) → todas as palavras ficam "streamer"
      (exatamente como hoje). Nunca derruba o clipe.
 2. **Legenda do jogo já na tela:** para cada trecho do jogo, olhar 2–3 quadros da área do jogo (parte de
    baixo do quadro original) com `source_captions.caption_lines_in_frame`, que já existe. Se houver texto de
    legenda, as palavras daquele trecho somem.
 3. **Legenda** (`media/captions.py`): as palavras chegam com `role`; os grupos de palavras nunca misturam
-   streamer e jogo (quebra de bloco na troca); blocos do jogo usam um estilo ASS "Game" com as cores e o
-   tamanho acima, sem caixa amarela e sem animação de pulo.
+   papéis (quebra de bloco na troca); blocos do jogo usam um estilo ASS "Game" e os do amigo um estilo
+   "Friend", com as cores e tamanhos acima, sem caixa amarela.
 4. **Onde liga:** só quando o kit tem `"voice_roles": True` (o Cat Clips v2 passa a ter). O modelo é baixado
    uma vez e guardado junto dos outros modelos do backend.
 
@@ -76,7 +83,8 @@ próprio jogo já está mostrando a legenda dele naquele momento, a nossa legend
 
 - Cutscene longa com o streamer calado e mexendo a boca (cantando, rindo) pode inverter os rótulos num
   trecho. A prévia com lives reais mostra se o limiar precisa de ajuste.
-- Lives com várias pessoas na sala (duas vozes "do streamer"): a segunda voz vira "jogo".
+- Amigo que fala pouco (uma frase solta) pode sair com a cor do jogo; NPC que conversa muito sem legenda na
+  tela pode sair com a cor do amigo.
 
 ## Deixado para quem constrói
 
