@@ -551,7 +551,7 @@ async def reform_queue(request: Request, db: AsyncSession = Depends(get_db)):
     """Queue videos to remake; the recorder submits them one at a time so lives aren't held up."""
     user_id = await _postiz_user(request, db)
     body = await _body(request)
-    kit = body.get("edit_kit") or "catclips"
+    kit = body.get("edit_kit") or "catclips_v2"
     if kit not in KITS:
         raise HTTPException(status_code=422, detail="Unknown edit kit")
     items = reform_request(body)
