@@ -32,3 +32,13 @@ def test_role_change_breaks_the_caption_block(tmp_path):
 def test_words_without_roles_render_as_before(tmp_path):
     lines = _ass(tmp_path, [w("go", 0.0, 0.4, None), w("now", 0.4, 0.8, None)])
     assert lines and not any("\\fscx75" in line for line in lines)
+
+
+def test_a_gap_left_by_hidden_lines_ends_the_caption(tmp_path):
+    # "sir" ... (hidden game lines) ... "just": the caption must not hang on screen through the gap.
+    lines = _ass(tmp_path, [w("right", 0.0, 0.4, "streamer"), w("sir", 0.4, 0.8, "streamer"),
+                            w("just", 15.0, 15.4, "streamer"), w("go", 15.4, 15.8, "streamer")])
+    for line in lines:
+        start, end = line.split(",")[1:3]
+        to_s = lambda t: int(t.split(":")[0]) * 3600 + int(t.split(":")[1]) * 60 + float(t.split(":")[2])
+        assert to_s(end) - to_s(start) < 3.0, line

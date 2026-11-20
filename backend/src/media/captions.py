@@ -626,9 +626,11 @@ def build_assemblyai_ass_subtitles(
         return False
     if any(word.get("role") for word in relevant_words):
         # Fork (Cat Clips v2): a caption block never mixes the streamer, a friend and the game.
+        # Nor does it bridge a pause: lines left out leave gaps a caption must not hang through.
         passage_breaks = sorted(set(passage_breaks) | {
             i for i in range(1, len(relevant_words))
             if relevant_words[i].get("role") != relevant_words[i - 1].get("role")
+            or float(relevant_words[i]["start"]) - float(relevant_words[i - 1]["end"]) > 1.0
         })
 
     effective_font_family, template = ensure_glyph_coverage(
