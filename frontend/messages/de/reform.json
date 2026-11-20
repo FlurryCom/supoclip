@@ -1,0 +1,39 @@
+{
+  "title": "Neu schneiden",
+  "subtitle": "Kanal-Link einfügen, fertige Clips wählen, und SupoClip macht jeden mit unserem Kit neu.",
+  "placeholder": "Kanal-Link (YouTube, TikTok oder Twitch)",
+  "search": "Suchen",
+  "sources": "YouTube Shorts · TikTok · Twitch-Clips (Instagram noch nicht)",
+  "videosOf": "Videos von {channel}",
+  "chosen": "{count, plural, =0 {Keins gewählt} other {# gewählt}}",
+  "empty": "Keine Videos auf diesem Kanal gefunden.",
+  "more": "Mehr laden",
+  "tags": {
+    "short": "unter 1 Min.",
+    "tooLong": "zu lang",
+    "taken": "schon neu gemacht ✓"
+  },
+  "kit": "Kit",
+  "autoPublish": "Nach Fertigstellung automatisch veröffentlichen",
+  "noAccounts": "Kein autorisiertes, aktives Konto. Autorisiere eins unter Live → Posten.",
+  "manualHint": "Fertige Videos landen in der Bibliothek; veröffentliche sie mit dem Button Veröffentlichen.",
+  "submit": "{count, plural, =0 {Neu schneiden} one {# Video neu schneiden} other {# Videos neu schneiden}}",
+  "queued": "{count, plural, =0 {Nichts Neues in der Warteschlange} one {# Video in der Warteschlange} other {# Videos in der Warteschlange}}",
+  "progress": "In Arbeit und fertig",
+  "nothingYet": "Noch nichts neu gemacht.",
+  "open": "Öffnen",
+  "status": {
+    "pending": "Wartet",
+    "submitted": "In Arbeit",
+    "done": "Fertig",
+    "error": "Fehler"
+  },
+  "errors": {
+    "instagram": "Instagram noch nicht: Profil-Videos lassen sich ohne Anmeldung nicht auflisten.",
+    "unsupported": "Link nicht erkannt. Nutze einen YouTube-Kanal (youtube.com/@name), ein TikTok-Profil oder einen Twitch-Kanal.",
+    "read": "Dieser Kanal konnte gerade nicht gelesen werden. Versuch es erneut.",
+    "send": "Neu schneiden fehlgeschlagen."
+  },
+  "signIn": "Anmelden",
+  "unavailable": "Für dieses Konto nicht verfügbar."
+}

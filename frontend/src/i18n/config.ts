@@ -22,6 +22,7 @@ export const NAMESPACES = [
   "social",
   "analytics",
   "live",
+  "reform",
   "marketing",
   "seo",
   "blog",

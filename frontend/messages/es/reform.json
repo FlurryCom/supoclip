@@ -1,0 +1,39 @@
+{
+  "title": "Reformular",
+  "subtitle": "Pega el enlace de un canal, elige los clips listos y SupoClip rehace cada uno con nuestro kit.",
+  "placeholder": "Enlace del canal (YouTube, TikTok o Twitch)",
+  "search": "Buscar",
+  "sources": "YouTube Shorts · TikTok · clips de Twitch (Instagram aún no)",
+  "videosOf": "Videos de {channel}",
+  "chosen": "{count, plural, =0 {Ninguno marcado} one {# marcado} other {# marcados}}",
+  "empty": "No se encontraron videos en este canal.",
+  "more": "Cargar más",
+  "tags": {
+    "short": "menos de 1 min",
+    "tooLong": "demasiado largo",
+    "taken": "ya reformulado ✓"
+  },
+  "kit": "Kit",
+  "autoPublish": "Publicar automáticamente al terminar",
+  "noAccounts": "Ninguna cuenta autorizada y activa. Autoriza una en Live → Publicación.",
+  "manualHint": "Los videos listos quedan en la Biblioteca; publícalos con el botón Publicar.",
+  "submit": "{count, plural, =0 {Reformular} one {Reformular # video} other {Reformular # videos}}",
+  "queued": "{count, plural, =0 {Nada nuevo en cola} one {# video en cola} other {# videos en cola}}",
+  "progress": "En curso y listos",
+  "nothingYet": "Nada reformulado aún.",
+  "open": "Abrir",
+  "status": {
+    "pending": "En cola",
+    "submitted": "Procesando",
+    "done": "Listo",
+    "error": "Error"
+  },
+  "errors": {
+    "instagram": "Instagram aún no: no se pueden listar los videos de un perfil sin iniciar sesión.",
+    "unsupported": "Enlace no reconocido. Usa un canal de YouTube (youtube.com/@nombre), un perfil de TikTok o un canal de Twitch.",
+    "read": "No se pudo leer este canal ahora. Inténtalo de nuevo.",
+    "send": "No se pudo reformular."
+  },
+  "signIn": "Iniciar sesión",
+  "unavailable": "No disponible para esta cuenta."
+}

@@ -1,0 +1,39 @@
+{
+  "title": "Olah ulang",
+  "subtitle": "Tempel tautan kanal, pilih klip jadi, dan SupoClip mengolah ulang masing-masing dengan kit kami.",
+  "placeholder": "Tautan kanal (YouTube, TikTok, atau Twitch)",
+  "search": "Cari",
+  "sources": "YouTube Shorts · TikTok · klip Twitch (Instagram belum)",
+  "videosOf": "Video dari {channel}",
+  "chosen": "{count, plural, =0 {Belum ada yang dipilih} other {# dipilih}}",
+  "empty": "Tidak ada video di kanal ini.",
+  "more": "Muat lagi",
+  "tags": {
+    "short": "kurang dari 1 mnt",
+    "tooLong": "terlalu panjang",
+    "taken": "sudah diolah ✓"
+  },
+  "kit": "Kit",
+  "autoPublish": "Terbitkan otomatis setelah selesai",
+  "noAccounts": "Tidak ada akun yang diizinkan dan aktif. Izinkan satu di Live → Posting.",
+  "manualHint": "Video yang selesai masuk ke Pustaka; terbitkan dengan tombol Terbitkan.",
+  "submit": "{count, plural, =0 {Olah ulang} other {Olah ulang # video}}",
+  "queued": "{count, plural, =0 {Tidak ada yang baru di antrean} other {# video dalam antrean}}",
+  "progress": "Sedang berjalan dan selesai",
+  "nothingYet": "Belum ada yang diolah.",
+  "open": "Buka",
+  "status": {
+    "pending": "Antre",
+    "submitted": "Diproses",
+    "done": "Selesai",
+    "error": "Galat"
+  },
+  "errors": {
+    "instagram": "Instagram belum: video profil tidak bisa dicantumkan tanpa masuk.",
+    "unsupported": "Tautan tidak dikenali. Gunakan kanal YouTube (youtube.com/@nama), profil TikTok, atau kanal Twitch.",
+    "read": "Kanal ini tidak bisa dibaca sekarang. Coba lagi.",
+    "send": "Gagal mengolah ulang."
+  },
+  "signIn": "Masuk",
+  "unavailable": "Tidak tersedia untuk akun ini."
+}

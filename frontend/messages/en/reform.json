@@ -1,0 +1,39 @@
+{
+  "title": "Remake",
+  "subtitle": "Paste a channel link, pick ready-made clips and SupoClip remakes each one with our kit.",
+  "placeholder": "Channel link (YouTube, TikTok or Twitch)",
+  "search": "Search",
+  "sources": "YouTube Shorts · TikTok · Twitch clips (Instagram not yet)",
+  "videosOf": "Videos from {channel}",
+  "chosen": "{count, plural, =0 {None picked} one {# picked} other {# picked}}",
+  "empty": "No videos found on this channel.",
+  "more": "Load more",
+  "tags": {
+    "short": "under 1 min",
+    "tooLong": "too long",
+    "taken": "already remade ✓"
+  },
+  "kit": "Kit",
+  "autoPublish": "Publish automatically when done",
+  "noAccounts": "No authorized, active account. Authorize one in Live → Posting.",
+  "manualHint": "Finished videos go to the Library; publish them with the Publish button.",
+  "submit": "{count, plural, =0 {Remake} one {Remake # video} other {Remake # videos}}",
+  "queued": "{count, plural, =0 {Nothing new queued} one {# video queued} other {# videos queued}}",
+  "progress": "In progress and done",
+  "nothingYet": "Nothing remade yet.",
+  "open": "Open",
+  "status": {
+    "pending": "Queued",
+    "submitted": "Processing",
+    "done": "Done",
+    "error": "Error"
+  },
+  "errors": {
+    "instagram": "Instagram not yet: a profile's videos can't be listed without signing in.",
+    "unsupported": "Link not recognized. Use a YouTube channel (youtube.com/@name), a TikTok profile or a Twitch channel.",
+    "read": "Couldn't read this channel right now. Try again.",
+    "send": "Couldn't remake."
+  },
+  "signIn": "Sign in",
+  "unavailable": "Not available for this account."
+}

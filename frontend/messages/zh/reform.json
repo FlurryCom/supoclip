@@ -1,0 +1,39 @@
+{
+  "title": "二次创作",
+  "subtitle": "粘贴频道链接，选择现成的片段，SupoClip 用我们的套件逐个重做。",
+  "placeholder": "频道链接（YouTube、TikTok 或 Twitch）",
+  "search": "搜索",
+  "sources": "YouTube Shorts · TikTok · Twitch 片段（暂不支持 Instagram）",
+  "videosOf": "{channel} 的视频",
+  "chosen": "{count, plural, =0 {未选择} other {已选 # 个}}",
+  "empty": "此频道没有找到视频。",
+  "more": "加载更多",
+  "tags": {
+    "short": "不足 1 分钟",
+    "tooLong": "太长",
+    "taken": "已重做 ✓"
+  },
+  "kit": "套件",
+  "autoPublish": "完成后自动发布",
+  "noAccounts": "没有已授权且启用的账号。请在 直播 → 发布 中授权。",
+  "manualHint": "完成的视频会进入媒体库；用“发布”按钮发布。",
+  "submit": "{count, plural, =0 {重做} other {重做 # 个视频}}",
+  "queued": "{count, plural, =0 {没有新的排队} other {# 个视频已排队}}",
+  "progress": "进行中和已完成",
+  "nothingYet": "还没有重做的视频。",
+  "open": "打开",
+  "status": {
+    "pending": "排队中",
+    "submitted": "处理中",
+    "done": "完成",
+    "error": "错误"
+  },
+  "errors": {
+    "instagram": "暂不支持 Instagram：不登录无法列出个人主页的视频。",
+    "unsupported": "无法识别的链接。请使用 YouTube 频道（youtube.com/@名称）、TikTok 主页或 Twitch 频道。",
+    "read": "暂时无法读取此频道，请重试。",
+    "send": "重做失败。"
+  },
+  "signIn": "登录",
+  "unavailable": "此账号不可用。"
+}

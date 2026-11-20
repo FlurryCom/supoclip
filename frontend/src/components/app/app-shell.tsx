@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight, Bot, ChartColumn, Radio, CornerDownLeft, Film, ListChecks, ListOrdered, LogOut, Play, Plus, Search, Settings, Share2, Shield, Sparkles, Target,
+  ArrowRight, Bot, ChartColumn, Radio, CornerDownLeft, Film, ListChecks, ListOrdered, LogOut, Play, Plus, Repeat2, Search, Settings, Share2, Shield, Sparkles, Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -32,7 +32,7 @@ import type { Workflow } from "@/lib/workflows";
 // `mobile: false` keeps an item out of the five-slot mobile tab bar.
 // `social: true` items only show when social publishing is enabled for the user,
 // `live: true` ones when live clipping is.
-type NavItem = { href: string; labelKey: "create" | "library" | "social" | "analytics" | "live" | "agents" | "settings"; icon: typeof Film; match: (path: string) => boolean; mobile?: boolean; social?: boolean; live?: boolean };
+type NavItem = { href: string; labelKey: "create" | "library" | "social" | "analytics" | "live" | "reform" | "agents" | "settings"; icon: typeof Film; match: (path: string) => boolean; mobile?: boolean; social?: boolean; live?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/", labelKey: "create", icon: Sparkles, match: (p) => p === "/" },
@@ -40,6 +40,7 @@ const NAV: NavItem[] = [
   { href: "/settings/social", labelKey: "social", icon: Share2, match: (p) => p.startsWith("/settings/social"), social: true },
   { href: "/analytics", labelKey: "analytics", icon: ChartColumn, match: (p) => p.startsWith("/analytics"), social: true },
   { href: "/live", labelKey: "live", icon: Radio, match: (p) => p.startsWith("/live"), mobile: false, live: true },
+  { href: "/reformular", labelKey: "reform", icon: Repeat2, match: (p) => p.startsWith("/reformular"), mobile: false, live: true },
   { href: "/settings/api-keys", labelKey: "agents", icon: Bot, match: (p) => p.startsWith("/settings/api-keys"), mobile: false },
   { href: "/settings", labelKey: "settings", icon: Settings, match: (p) => p === "/settings" },
 ];
