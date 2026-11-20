@@ -81,15 +81,16 @@
     "visibilityHint": "Kanal sumber berstatus Tidak terdaftar atau Pribadi tetap menahan kliknya di akun ini.",
     "visibilityHintInstagram": "Kanal sumber berstatus Tidak terdaftar atau Pribadi mengirim kliknya ke sini sebagai draf di Postiz, karena Instagram tidak bisa menyembunyikan posting.",
     "safePosting": "Posting aman",
-    "safePostingHint": "Menunggu 15 menit di antara posting di akun ini agar klip tidak pernah keluar beruntun",
+    "safePostingHint": "Menunggu {minutes} menit di antara posting di akun ini agar klip tidak pernah keluar beruntun",
     "safePostingOffTitle": "Matikan posting aman?",
-    "safePostingOffBody": "Dengan posting aman aktif, akun ini menunggu 15 menit di antara posting. Ini mencegah banyak klip keluar sekaligus, yang dianggap spam oleh platform: video saling bersaing sehingga jangkauan tiap video turun, dan akun bisa dibatasi (di TikTok, posting bahkan bisa diblokir sementara). Jika dimatikan, klip langsung diposting begitu siap.",
+    "safePostingOffBody": "Dengan posting aman aktif, akun ini menunggu {minutes} menit di antara posting. Ini mencegah banyak klip keluar sekaligus, yang dianggap spam oleh platform: video saling bersaing sehingga jangkauan tiap video turun, dan akun bisa dibatasi (di TikTok, posting bahkan bisa diblokir sementara). Jika dimatikan, klip langsung diposting begitu siap.",
     "safePostingKeep": "Tetap aktifkan",
     "safePostingTurnOff": "Matikan saja",
     "limitPosts": "Batasi video per hari",
     "limitPostsCount": "Video per hari",
     "limitPostsPerDay": "video per hari",
-    "todayNoLimit": "{posted} posting dalam 24 jam terakhir, tanpa batas harian"
+    "todayNoLimit": "{posted} posting dalam 24 jam terakhir, tanpa batas harian",
+    "safeGapMinutes": "menit antar video"
   },
   "confirmYes": "Ya",
   "confirmNo": "Batal",
@@ -128,5 +129,9 @@
     "notConfigured": "Atur API Twitch: isi TWITCH_CLIENT_ID dan TWITCH_CLIENT_SECRET di .env lalu restart backend.",
     "limitReached": "Batas tercapai",
     "atLimitBanner": "Kamu sudah memantau {limit} kanal, batas maksimal. Untuk menambah dari sini, hapus kanal lain di daftar kanal di bawah (ikon tempat sampah)."
-  }
+  },
+  "channelSafePosting": "Posting aman",
+  "minutesBetween": "menit antar video",
+  "channelSafePostingOn": "Klip kanal ini menunggu {minutes} menit di antara satu sama lain di setiap akun, selain jeda akun itu sendiri.",
+  "channelSafePostingOff": "Mati: klip kanal ini hanya mengikuti jeda tiap akun."
 }

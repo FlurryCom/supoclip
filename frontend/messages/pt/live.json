@@ -81,15 +81,16 @@
     "visibilityHint": "Um canal de origem em Não listado ou Privado continua segurando os clipes nesta conta.",
     "visibilityHintInstagram": "Um canal de origem em Não listado ou Privado envia os clipes para cá como rascunho no Postiz, porque o Instagram não esconde posts.",
     "safePosting": "Postagem segura",
-    "safePostingHint": "Espera 15 minutos entre um vídeo e outro nesta conta, para nunca postar em rajada",
+    "safePostingHint": "Espera {minutes} minutos entre um vídeo e outro nesta conta, para nunca postar em rajada",
     "safePostingOffTitle": "Desligar a postagem segura?",
-    "safePostingOffBody": "Com a postagem segura ligada, esta conta espera 15 minutos entre um vídeo e outro. Isso evita que vários cortes saiam de uma vez, em rajada, que é o que as plataformas tratam como spam: os vídeos competem entre si e cada um alcança menos gente, e a conta pode ser limitada (no TikTok, a postagem chega a ser bloqueada por um tempo). Desligando, os clipes saem assim que ficam prontos.",
+    "safePostingOffBody": "Com a postagem segura ligada, esta conta espera {minutes} minutos entre um vídeo e outro. Isso evita que vários cortes saiam de uma vez, em rajada, que é o que as plataformas tratam como spam: os vídeos competem entre si e cada um alcança menos gente, e a conta pode ser limitada (no TikTok, a postagem chega a ser bloqueada por um tempo). Desligando, os clipes saem assim que ficam prontos.",
     "safePostingKeep": "Manter ligado",
     "safePostingTurnOff": "Desligar mesmo assim",
     "limitPosts": "Limitar vídeos por dia",
     "limitPostsCount": "Vídeos por dia",
     "limitPostsPerDay": "vídeos por dia",
-    "todayNoLimit": "{posted} posts nas últimas 24 h, sem limite diário"
+    "todayNoLimit": "{posted} posts nas últimas 24 h, sem limite diário",
+    "safeGapMinutes": "minutos entre vídeos"
   },
   "confirmYes": "Sim",
   "confirmNo": "Cancelar",
@@ -128,5 +129,9 @@
     "notConfigured": "Configure a API da Twitch: coloque TWITCH_CLIENT_ID e TWITCH_CLIENT_SECRET no .env e reinicie o backend.",
     "limitReached": "Limite atingido",
     "atLimitBanner": "Você já monitora {limit} canais, o máximo. Para adicionar um canal daqui, remova outro na lista de canais abaixo (ícone de lixeira)."
-  }
+  },
+  "channelSafePosting": "Postagem segura",
+  "minutesBetween": "minutos entre vídeos",
+  "channelSafePostingOn": "Os clipes deste canal esperam {minutes} minutos entre um e outro em cada conta, além do intervalo da própria conta.",
+  "channelSafePostingOff": "Desligado: os clipes deste canal seguem só o intervalo de cada conta."
 }

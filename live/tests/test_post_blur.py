@@ -97,14 +97,14 @@ def test_blur_is_required_only_when_both_switches_are_on(monkeypatch, tmp_path):
     assert seen == [([REGION], True), ([], False)]
 
 
-def test_safe_posting_waits_15_minutes_between_posts(monkeypatch, tmp_path):
-    from supoclip_live.service import SAFE_GAP, safe_to_post
+def test_safe_posting_waits_the_chosen_minutes_between_posts(monkeypatch, tmp_path):
+    from supoclip_live.service import safe_to_post
     now = datetime(2026, 11, 19, 18, 0, tzinfo=timezone.utc)
-    assert SAFE_GAP == timedelta(minutes=15)
-    assert safe_to_post(True, None, now)  # nothing posted yet
-    assert not safe_to_post(True, now - timedelta(minutes=14), now)
-    assert safe_to_post(True, now - timedelta(minutes=15), now)
-    assert safe_to_post(False, now - timedelta(minutes=1), now)  # switch off: no wait
+    assert safe_to_post(True, None, now, 15)  # nothing posted yet
+    assert not safe_to_post(True, now - timedelta(minutes=14), now, 15)
+    assert safe_to_post(True, now - timedelta(minutes=15), now, 15)
+    assert not safe_to_post(True, now - timedelta(minutes=25), now, 30)  # owner picked 30
+    assert safe_to_post(False, now - timedelta(minutes=1), now, 15)  # switch off: no wait
 
 
 def test_post_clips_skips_an_account_inside_the_gap(monkeypatch, tmp_path):
@@ -156,3 +156,34 @@ def test_daily_post_limit_applies_only_when_switched_on(monkeypatch, tmp_path):
     full = dict(target_blur=False, daily_cap=10)
     assert run_with_count(monkeypatch, tmp_path, candidate(limit_posts=True, **full), 10) == []
     assert run_with_count(monkeypatch, tmp_path, candidate(limit_posts=False, **full), 10) != []
+
+
+def test_a_channel_with_safe_posting_waits_its_own_minutes(monkeypatch, tmp_path):
+    monkeypatch.setattr(service, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(service, "POSTIZ_ALLOWED_USER_IDS", ["u1"])
+    monkeypatch.setattr(cta, "_probe", lambda path: (60.0, True, (720, 1280)))
+    monkeypatch.setattr(cta, "finish_clip", lambda clip, *args: clip)
+
+    def run(channel_last_minutes_ago):
+        postiz = FakePostiz()
+        live = service.LiveService("", FakeBackend(), postiz)
+        row = candidate(target_blur=False, safe_posting=True, safe_gap_minutes=15,
+                        channel_safe=True, channel_gap_minutes=30)
+
+        async def fetch(sql, params=()):
+            if "FROM live_clips lc" in sql:
+                return [row]
+            if "live_feature_marks" in sql:
+                return [{"at": SINCE}]
+            if "count(*) AS n" in sql:
+                return [{"n": 0, "last_posted": datetime.now(timezone.utc) - timedelta(minutes=60)}]
+            if "channel_last" in sql:
+                return [{"channel_last": datetime.now(timezone.utc) - timedelta(minutes=channel_last_minutes_ago)}]
+            return []
+
+        live.fetch = fetch
+        asyncio.run(live.post_clips())
+        return postiz.uploads
+
+    assert run(20) == []  # account gap (15) met, channel gap (30) not yet
+    assert run(31) != []

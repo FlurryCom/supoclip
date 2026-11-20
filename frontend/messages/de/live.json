@@ -81,15 +81,16 @@
     "visibilityHint": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ hält seine Clips auch auf diesem Konto zurück.",
     "visibilityHintInstagram": "Ein Quellkanal mit „Nicht gelistet“ oder „Privat“ schickt seine Clips als Entwurf in Postiz hierher, da Instagram Posts nicht verbergen kann.",
     "safePosting": "Sicheres Posten",
-    "safePostingHint": "Wartet auf diesem Konto 15 Minuten zwischen zwei Posts, damit Clips nie gebündelt erscheinen",
+    "safePostingHint": "Wartet auf diesem Konto {minutes} Minuten zwischen zwei Posts, damit Clips nie gebündelt erscheinen",
     "safePostingOffTitle": "Sicheres Posten ausschalten?",
-    "safePostingOffBody": "Mit sicherem Posten wartet dieses Konto 15 Minuten zwischen zwei Posts. So gehen nie mehrere Clips auf einmal raus, was Plattformen als Spam werten: Die Videos konkurrieren miteinander, jedes erreicht weniger Leute, und das Konto kann eingeschränkt werden (bei TikTok wird das Posten sogar zeitweise gesperrt). Ausgeschaltet gehen Clips raus, sobald sie fertig sind.",
+    "safePostingOffBody": "Mit sicherem Posten wartet dieses Konto {minutes} Minuten zwischen zwei Posts. So gehen nie mehrere Clips auf einmal raus, was Plattformen als Spam werten: Die Videos konkurrieren miteinander, jedes erreicht weniger Leute, und das Konto kann eingeschränkt werden (bei TikTok wird das Posten sogar zeitweise gesperrt). Ausgeschaltet gehen Clips raus, sobald sie fertig sind.",
     "safePostingKeep": "Eingeschaltet lassen",
     "safePostingTurnOff": "Trotzdem ausschalten",
     "limitPosts": "Videos pro Tag begrenzen",
     "limitPostsCount": "Videos pro Tag",
     "limitPostsPerDay": "Videos pro Tag",
-    "todayNoLimit": "{posted} Posts in den letzten 24 h, kein Tageslimit"
+    "todayNoLimit": "{posted} Posts in den letzten 24 h, kein Tageslimit",
+    "safeGapMinutes": "Minuten zwischen Videos"
   },
   "confirmYes": "Ja",
   "confirmNo": "Abbrechen",
@@ -128,5 +129,9 @@
     "notConfigured": "Twitch-API einrichten: TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET in .env eintragen und das Backend neu starten.",
     "limitReached": "Limit erreicht",
     "atLimitBanner": "Du überwachst bereits {limit} Kanäle, das Maximum. Um hier einen hinzuzufügen, entferne einen anderen aus der Kanalliste unten (Papierkorb-Symbol)."
-  }
+  },
+  "channelSafePosting": "Sicheres Posten",
+  "minutesBetween": "Minuten zwischen Videos",
+  "channelSafePostingOn": "Clips dieses Kanals warten auf jedem Konto {minutes} Minuten zwischeneinander, zusätzlich zum Abstand des Kontos.",
+  "channelSafePostingOff": "Aus: Clips dieses Kanals folgen nur dem Abstand jedes Kontos."
 }

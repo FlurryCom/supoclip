@@ -126,12 +126,9 @@ def window_cap(channel: dict) -> int:
     return channel["daily_window_cap"] if channel.get("limit_windows", True) else NO_WINDOW_LIMIT
 
 
-SAFE_GAP = timedelta(minutes=15)  # owner: "um padrão de 15 minutos de intervalo a cada plataforma"
-
-
-def safe_to_post(safe_posting: bool, last_posted: datetime | None, now: datetime) -> bool:
-    """Safe posting spaces an account's posts by SAFE_GAP so they never go out in a burst."""
-    return not safe_posting or last_posted is None or now - last_posted >= SAFE_GAP
+def safe_to_post(safe_posting: bool, last_posted: datetime | None, now: datetime, minutes: int) -> bool:
+    """Safe posting spaces posts by the owner's chosen minutes so they never go out in a burst."""
+    return not safe_posting or last_posted is None or now - last_posted >= timedelta(minutes=minutes)
 
 
 class LiveService:
@@ -396,7 +393,8 @@ class LiveService:
         candidates = await self.fetch("""
             SELECT lc.clip_id, lc.final_score, g.task_id, g.hook_title, c.platform, c.channel, c.edit_kit, c.post_visibility, r.title AS live_title,
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap,
-                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting, t.limit_posts,
+                t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting, t.limit_posts, t.safe_gap_minutes,
+                c.id AS channel_id, c.safe_posting AS channel_safe, c.safe_gap_minutes AS channel_gap_minutes,
                 s.duration AS checked_duration, s.regions, s.error AS check_error
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
@@ -433,8 +431,18 @@ class LiveService:
             ))[0]
             if row.get("limit_posts") and recent["n"] >= row["daily_cap"]:
                 continue  # owner's daily limit for this account; stays a candidate until the 24 h window frees up
-            if not safe_to_post(row.get("safe_posting", True), recent.get("last_posted"), datetime.now(timezone.utc)):
-                continue  # safe posting: this account waits 15 minutes between posts; the clip stays queued
+            now_ = datetime.now(timezone.utc)
+            if not safe_to_post(row.get("safe_posting", True), recent.get("last_posted"), now_, row.get("safe_gap_minutes") or 15):
+                continue  # safe posting: this account waits its minutes between posts; the clip stays queued
+            if row.get("channel_safe"):
+                channel_last = (await self.fetch(
+                    "SELECT max(p.created_at) AS channel_last FROM live_posts p "
+                    "JOIN live_clips lc ON lc.clip_id = p.clip_id JOIN live_recordings r ON r.id = lc.recording_id "
+                    "WHERE p.target_id = %s AND p.status = 'posted' AND r.channel_id = %s",
+                    (row["target_id"], row.get("channel_id")),
+                ))[0]["channel_last"]
+                if not safe_to_post(True, channel_last, now_, row.get("channel_gap_minutes") or 15):
+                    continue  # this live channel's own gap on this account
             clip_file = DATA_DIR / f"post-{row['clip_id']}.mp4"
             upload_file = clip_file
             try:

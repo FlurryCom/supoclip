@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ConfirmButton } from "./confirm-button";
+import { NumberField } from "./number-field";
 import { SocialProviderIcon } from "@/components/social-provider-icon";
 import type { SocialProviderId } from "@/lib/social";
 
@@ -48,6 +49,7 @@ interface PostTarget {
   blur_sensitive: boolean;
   safe_posting: boolean;
   limit_posts: boolean;
+  safe_gap_minutes: number;
   posted_today: number;
   problem: "missing" | "changed" | "disabled" | null;
 }
@@ -59,7 +61,7 @@ interface PostizState {
   targets: PostTarget[];
 }
 
-type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting" | "limit_posts" | "daily_cap">>;
+type TargetSettings = Partial<Pick<PostTarget, "enabled" | "min_score" | "mode" | "blur_sensitive" | "visibility" | "safe_posting" | "limit_posts" | "daily_cap" | "safe_gap_minutes">>;
 
 const ICON_PROVIDERS = new Set(["youtube", "tiktok", "instagram"]);
 
@@ -146,20 +148,32 @@ function SafePostingSwitch({ target, onChange }: { target: PostTarget; onChange:
   const [asking, setAsking] = useState(false);
   return (
     <>
-      <div className="mt-3 flex items-center gap-2">
-        <Switch
-          id={`post-safe-${target.id}`}
-          checked={target.safe_posting}
-          onCheckedChange={(safe_posting) => (safe_posting ? onChange({ safe_posting }) : setAsking(true))}
-        />
-        <Label htmlFor={`post-safe-${target.id}`}>{t("safePosting")}</Label>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Switch
+            id={`post-safe-${target.id}`}
+            checked={target.safe_posting}
+            onCheckedChange={(safe_posting) => (safe_posting ? onChange({ safe_posting }) : setAsking(true))}
+          />
+          <Label htmlFor={`post-safe-${target.id}`}>{t("safePosting")}</Label>
+        </div>
+        {target.safe_posting ? (
+          <NumberField
+            value={target.safe_gap_minutes}
+            min={1}
+            max={240}
+            label={t("safeGapMinutes")}
+            suffix={t("safeGapMinutes")}
+            onCommit={(safe_gap_minutes) => onChange({ safe_gap_minutes })}
+          />
+        ) : null}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{t("safePostingHint")}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t("safePostingHint", { minutes: target.safe_gap_minutes })}</p>
       <AlertDialog open={asking} onOpenChange={setAsking}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("safePostingOffTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("safePostingOffBody")}</AlertDialogDescription>
+            <AlertDialogDescription>{t("safePostingOffBody", { minutes: target.safe_gap_minutes })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("safePostingKeep")}</AlertDialogCancel>

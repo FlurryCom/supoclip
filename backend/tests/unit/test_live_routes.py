@@ -108,8 +108,21 @@ def test_new_channel_can_copy_the_last_channels_settings():
     from types import SimpleNamespace
     from src.api.routes.live import _settings_like
     last = SimpleNamespace(enabled=True, chat_filter=True, min_score=80, chat_weight=60, daily_window_cap=48,
-                           edit_kit="catclips", post_visibility="default", blur_sensitive=True, limit_windows=False)
+                           edit_kit="catclips", post_visibility="default", blur_sensitive=True, limit_windows=False,
+                           safe_posting=True, safe_gap_minutes=30)
     assert _settings_like(last) == {"enabled": True, "chat_filter": True, "min_score": 80, "chat_weight": 60,
                                     "daily_window_cap": 48, "edit_kit": "catclips", "post_visibility": "default",
-                                    "blur_sensitive": True, "limit_windows": False}
+                                    "blur_sensitive": True, "limit_windows": False,
+                                    "safe_posting": True, "safe_gap_minutes": 30}
     assert _settings_like(None) == {}
+
+
+def test_safe_posting_minutes_on_channels_and_accounts():
+    from src.api.routes.live import _target_settings
+    assert _settings({"safe_posting": True, "safe_gap_minutes": 30}) == {"safe_posting": True, "safe_gap_minutes": 30}
+    assert _target_settings({"safe_gap_minutes": 20}) == {"safe_gap_minutes": 20}
+    for bad in (0, 241, "15", 1.5):
+        with pytest.raises(HTTPException):
+            _settings({"safe_gap_minutes": bad})
+        with pytest.raises(HTTPException):
+            _target_settings({"safe_gap_minutes": bad})

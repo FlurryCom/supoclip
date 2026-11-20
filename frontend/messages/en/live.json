@@ -81,15 +81,16 @@
     "visibilityHint": "A source channel set to Unlisted or Private still holds its clips back on this account.",
     "visibilityHintInstagram": "A source channel set to Unlisted or Private sends its clips here as drafts in Postiz, since Instagram can't hide a post.",
     "safePosting": "Safe posting",
-    "safePostingHint": "Waits 15 minutes between posts on this account so clips never go out in a burst",
+    "safePostingHint": "Waits {minutes} minutes between posts on this account so clips never go out in a burst",
     "safePostingOffTitle": "Turn off safe posting?",
-    "safePostingOffBody": "With safe posting on, this account waits 15 minutes between posts. That keeps several clips from going out at once, in a burst, which platforms treat as spam: the videos compete with each other so each reaches fewer people, and the account can get limited (on TikTok, posting can even be blocked for a while). With it off, clips go out as soon as they're ready.",
+    "safePostingOffBody": "With safe posting on, this account waits {minutes} minutes between posts. That keeps several clips from going out at once, in a burst, which platforms treat as spam: the videos compete with each other so each reaches fewer people, and the account can get limited (on TikTok, posting can even be blocked for a while). With it off, clips go out as soon as they're ready.",
     "safePostingKeep": "Keep it on",
     "safePostingTurnOff": "Turn off anyway",
     "limitPosts": "Limit videos per day",
     "limitPostsCount": "Videos per day",
     "limitPostsPerDay": "videos per day",
-    "todayNoLimit": "{posted} posts in the last 24 h, no daily limit"
+    "todayNoLimit": "{posted} posts in the last 24 h, no daily limit",
+    "safeGapMinutes": "minutes between videos"
   },
   "confirmYes": "Yes",
   "confirmNo": "Cancel",
@@ -128,5 +129,9 @@
     "notConfigured": "Set up the Twitch API: put TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env and restart the backend.",
     "limitReached": "Limit reached",
     "atLimitBanner": "You already monitor {limit} channels, the maximum. To add one from here, remove another from the channel list below (trash icon)."
-  }
+  },
+  "channelSafePosting": "Safe posting",
+  "minutesBetween": "minutes between videos",
+  "channelSafePostingOn": "This channel's clips wait {minutes} minutes between each other on every account, on top of the account's own gap.",
+  "channelSafePostingOff": "Off: this channel's clips only follow each account's gap."
 }

@@ -20,6 +20,7 @@ import { useSession } from "@/lib/auth-client";
 
 import { ConfirmButton } from "./confirm-button";
 import { TrendingSection } from "./trending-section";
+import { NumberField } from "./number-field";
 import { PostingSection } from "./posting-section";
 
 const PAGE = "mx-auto w-full max-w-3xl px-4 py-8 sm:px-8 md:py-10";
@@ -55,6 +56,8 @@ interface LiveChannel {
   chat_weight: number;
   daily_window_cap: number;
   limit_windows: boolean;
+  safe_posting: boolean;
+  safe_gap_minutes: number;
   edit_kit: string;
   blur_sensitive: boolean;
   post_visibility: "default" | "unlisted" | "private";
@@ -63,7 +66,7 @@ interface LiveChannel {
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility" | "daily_window_cap" | "limit_windows">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility" | "daily_window_cap" | "limit_windows" | "safe_posting" | "safe_gap_minutes">>;
 
 interface EditKit {
   id: string;
@@ -310,6 +313,26 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t("blurSensitiveHint")}</p>
       <WindowLimit channel={channel} onChange={onChange} />
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Switch id={`safe-${channel.id}`} checked={channel.safe_posting} onCheckedChange={(safe_posting) => onChange({ safe_posting })} />
+          <Label htmlFor={`safe-${channel.id}`}>{t("channelSafePosting")}</Label>
+        </div>
+        {channel.safe_posting ? (
+          <NumberField
+            value={channel.safe_gap_minutes}
+            min={1}
+            max={240}
+            label={t("minutesBetween")}
+            suffix={t("minutesBetween")}
+            onCommit={(safe_gap_minutes) => onChange({ safe_gap_minutes })}
+          />
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {channel.safe_posting ? t("channelSafePostingOn", { minutes: channel.safe_gap_minutes }) : t("channelSafePostingOff")}
+      </p>
 
       {channel.windows.length > 0 ? (
         <div className="mt-4 border-t pt-2">

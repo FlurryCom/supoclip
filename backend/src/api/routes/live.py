@@ -93,12 +93,12 @@ async def _channel(raw: Any) -> tuple[str, str]:
 def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
     """Validated optional settings from a request body."""
     settings: Dict[str, Any] = {}
-    for key in ("enabled", "chat_filter", "blur_sensitive", "limit_windows"):
+    for key in ("enabled", "chat_filter", "blur_sensitive", "limit_windows", "safe_posting"):
         if key in data:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")
             settings[key] = data[key]
-    for key, low, high in (("min_score", 0, 100), ("chat_weight", 0, 100), ("daily_window_cap", 1, 200)):
+    for key, low, high in (("min_score", 0, 100), ("chat_weight", 0, 100), ("daily_window_cap", 1, 200), ("safe_gap_minutes", 1, 240)):
         if key in data:
             value = data[key]
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
@@ -135,7 +135,7 @@ async def list_edit_kits(request: Request, db: AsyncSession = Depends(get_db)):
 async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
-        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows,
+        SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, c.safe_posting, c.safe_gap_minutes,
             c.edit_kit, c.blur_sensitive, c.post_visibility, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
@@ -190,7 +190,7 @@ def _settings_like(channel: Any) -> Dict[str, Any]:
     if channel is None:
         return {}
     keys = ("enabled", "chat_filter", "min_score", "chat_weight", "daily_window_cap", "edit_kit",
-            "post_visibility", "blur_sensitive", "limit_windows")
+            "post_visibility", "blur_sensitive", "limit_windows", "safe_posting", "safe_gap_minutes")
     return {key: getattr(channel, key) for key in keys}
 
 
@@ -229,8 +229,8 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
-        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit, post_visibility, blur_sensitive, limit_windows)
-        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap, :edit_kit, :post_visibility, :blur_sensitive, :limit_windows)
+        INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit, post_visibility, blur_sensitive, limit_windows, safe_posting, safe_gap_minutes)
+        VALUES (:id, :user_id, :platform, :channel, :enabled, :chat_filter, :min_score, :chat_weight, :daily_window_cap, :edit_kit, :post_visibility, :blur_sensitive, :limit_windows, :safe_posting, :safe_gap_minutes)
         ON CONFLICT (user_id, platform, channel) DO NOTHING
         RETURNING id
     """), {
@@ -240,6 +240,7 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         "daily_window_cap": settings.get("daily_window_cap", 48), "edit_kit": settings.get("edit_kit", "none"),
         "post_visibility": settings.get("post_visibility", "default"),
         "blur_sensitive": settings.get("blur_sensitive", True), "limit_windows": settings.get("limit_windows", True),
+        "safe_posting": settings.get("safe_posting", False), "safe_gap_minutes": settings.get("safe_gap_minutes", 15),
     })).first()
     if row is None:
         raise HTTPException(status_code=409, detail="You already follow this channel")
@@ -293,7 +294,7 @@ async def list_postiz_accounts(request: Request, db: AsyncSession = Depends(get_
         return {"configured": True, "allowed": False, "accounts": [], "targets": []}
     accounts = await _postiz_accounts()
     targets = (await db.execute(text("""
-        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive, t.safe_posting, t.limit_posts,
+        SELECT t.id, t.integration_id, t.provider, t.name, t.enabled, t.min_score, t.mode, t.visibility, t.daily_cap, t.blur_sensitive, t.safe_posting, t.limit_posts, t.safe_gap_minutes,
             (SELECT count(*) FROM live_posts p WHERE p.target_id = t.id AND p.status = 'posted'
                 AND p.created_at > now() - interval '1 day') AS posted_today
         FROM live_post_targets t WHERE t.user_id = :user_id ORDER BY t.created_at
@@ -368,7 +369,7 @@ def _target_settings(data: Dict[str, Any]) -> Dict[str, Any]:
         if data["visibility"] not in ("public", "private"):
             raise HTTPException(status_code=422, detail="visibility must be public or private")
         settings["visibility"] = data["visibility"]
-    for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100)):
+    for key, low, high in (("min_score", 0, 100), ("daily_cap", 1, 100), ("safe_gap_minutes", 1, 240)):
         if key in data:
             value = data[key]
             if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:

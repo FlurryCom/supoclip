@@ -81,15 +81,16 @@
     "visibilityHint": "来源频道设为“不公开列出”或“私密”时，其片段在此账号上同样受限。",
     "visibilityHintInstagram": "来源频道设为“不公开列出”或“私密”时，其片段会作为草稿发到 Postiz，因为 Instagram 无法隐藏帖子。",
     "safePosting": "安全发布",
-    "safePostingHint": "此账号每次发布之间等待 15 分钟，避免片段集中连发",
+    "safePostingHint": "此账号每次发布之间等待 {minutes} 分钟，避免片段集中连发",
     "safePostingOffTitle": "关闭安全发布？",
-    "safePostingOffBody": "开启安全发布后，此账号每次发布之间会等待 15 分钟，避免多个片段一次性连发——平台会把这种行为视为垃圾内容：视频之间互相抢流量，每条的触达都会下降，账号也可能被限流（在 TikTok 上甚至会被暂时禁止发布）。关闭后，片段一旦准备好就会立即发布。",
+    "safePostingOffBody": "开启安全发布后，此账号每次发布之间会等待 {minutes} 分钟，避免多个片段一次性连发——平台会把这种行为视为垃圾内容：视频之间互相抢流量，每条的触达都会下降，账号也可能被限流（在 TikTok 上甚至会被暂时禁止发布）。关闭后，片段一旦准备好就会立即发布。",
     "safePostingKeep": "保持开启",
     "safePostingTurnOff": "仍然关闭",
     "limitPosts": "限制每天的视频数",
     "limitPostsCount": "每天视频数",
     "limitPostsPerDay": "个视频/天",
-    "todayNoLimit": "过去 24 小时发布 {posted} 条，无每日上限"
+    "todayNoLimit": "过去 24 小时发布 {posted} 条，无每日上限",
+    "safeGapMinutes": "分钟间隔"
   },
   "confirmYes": "是",
   "confirmNo": "取消",
@@ -128,5 +129,9 @@
     "notConfigured": "配置 Twitch API：在 .env 中填写 TWITCH_CLIENT_ID 和 TWITCH_CLIENT_SECRET，然后重启后端。",
     "limitReached": "已达上限",
     "atLimitBanner": "你已监控 {limit} 个频道，已达上限。要从这里添加，请先在下方频道列表中删除一个（垃圾桶图标）。"
-  }
+  },
+  "channelSafePosting": "安全发布",
+  "minutesBetween": "分钟间隔",
+  "channelSafePostingOn": "该频道的片段在每个账号上彼此间隔 {minutes} 分钟，叠加在账号自身的间隔之上。",
+  "channelSafePostingOff": "关闭：该频道的片段只遵循各账号自身的间隔。"
 }
