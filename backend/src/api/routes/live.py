@@ -461,7 +461,8 @@ async def publish_clips(request: Request, db: AsyncSession = Depends(get_db)):
     return {"queued": len(plan), "already": len(clips) * len(targets) - len(plan), "not_live": len(rows) - len(clips)}
 
 
-_durations: dict[str, float | None] = {}  # yt-dlp lookups are slow; a video's length doesn't change
+_durations: dict[str, float] = {}  # yt-dlp lookups are slow; a video's length doesn't change
+_DURATION_GATE = asyncio.Semaphore(8)  # shared by all requests: at most 8 yt-dlp lookups at once
 
 
 def _flat_list(listing_url: str, page: int) -> dict[str, Any]:
@@ -495,13 +496,16 @@ async def reform_list(request: Request, url: str = "", page: int = 1, db: AsyncS
         items = reform.listing_items(await run_in_threadpool(_flat_list, listing_url, page), platform)
     except Exception:
         raise HTTPException(status_code=502, detail="Couldn't read this channel") from None
-    gate = asyncio.Semaphore(8)
-
     async def fill(item: dict[str, Any]) -> None:
         key = f"{platform}:{item['id']}"
         if key not in _durations:
-            async with gate:
-                _durations[key] = await run_in_threadpool(_video_duration, reform.video_url(platform, item["id"], channel))
+            async with _DURATION_GATE:
+                duration = await run_in_threadpool(_video_duration, reform.video_url(platform, item["id"], channel))
+            if duration is None:
+                return  # failed lookups aren't cached, so a later listing retries
+            if len(_durations) > 20000:
+                _durations.clear()  # shortcut: crude bound; swap for an LRU if listings get heavy
+            _durations[key] = duration
         item["duration"] = _durations[key]
 
     await asyncio.gather(*(fill(i) for i in items if i["duration"] is None))
