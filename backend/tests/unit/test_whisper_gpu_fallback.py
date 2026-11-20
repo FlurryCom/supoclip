@@ -48,3 +48,30 @@ def test_other_errors_are_not_swallowed(monkeypatch, models):
     monkeypatch.setattr(transcription, "_get_whisper_model", lambda name, device=None: type("M", (), {"transcribe": staticmethod(broken)})())
     with pytest.raises(RuntimeError, match="bad audio"):
         transcription.transcribe_with_whisper(Path("/tmp/a.mp4"), "small")
+
+
+def test_two_tasks_never_use_whisper_at_the_same_time(monkeypatch):
+    """Two renders transcribing at once on the shared model corrupted each other's cache (2026-11-20)."""
+    import threading
+    import time
+
+    inside, overlaps = [0], []
+
+    class SlowModel:
+        def transcribe(self, path, **kwargs):
+            inside[0] += 1
+            overlaps.append(inside[0])
+            time.sleep(0.05)
+            inside[0] -= 1
+            return {"segments": [], "text": "ok"}
+
+    monkeypatch.setattr(transcription, "_WHISPER_AVAILABLE", True)
+    monkeypatch.setattr(transcription, "_WHISPER_MODEL_CACHE", {"small": SlowModel()})
+    monkeypatch.setattr(transcription, "_prepare_audio_for_transcription", lambda path: path)
+    threads = [threading.Thread(target=transcription.transcribe_with_whisper, args=(Path(f"/tmp/{i}.mp4"), "small"))
+               for i in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert max(overlaps) == 1

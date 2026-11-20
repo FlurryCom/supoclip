@@ -10,6 +10,7 @@ from ..config import get_config
 import httpx
 import json
 import re
+import threading
 import time
 from .common import (
     ANALYSIS_LONG_UTTERANCE_MAX_DURATION_MS,
@@ -174,6 +175,11 @@ def _assemblyai_speech_models_value(speech_model: str) -> List[str]:
     return ["universal-3-5-pro", "universal-2"]
 
 
+# One transcription at a time: the cached models aren't thread-safe (two renders
+# sharing one corrupted each other's attention cache), and there is one GPU anyway.
+_WHISPER_LOCK = threading.Lock()
+
+
 def _get_whisper_model(model_name: str = "base", device: Optional[str] = None):
     """Load and cache a Whisper model by name (and device, when one is forced)."""
     if not _WHISPER_AVAILABLE:
@@ -206,6 +212,11 @@ def transcribe_with_whisper(
         model_name,
         whisper_language or "auto",
     )
+    with _WHISPER_LOCK:
+        return _transcribe_locked(audio_path, model_name, whisper_language)
+
+
+def _transcribe_locked(audio_path, model_name: str, whisper_language: Optional[str]) -> Dict[str, Any]:
     try:
         model = _get_whisper_model(model_name)
         return model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language)
