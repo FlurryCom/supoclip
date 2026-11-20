@@ -53,3 +53,8 @@ def test_sfx_files_are_short_and_loud_enough():
             samples = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16) / 32768
             assert w.getnframes() / 48000 <= longest, name
         assert 0.3 <= np.abs(samples).max() <= 1.0, name
+
+
+def test_v2_kit_has_voice_roles_off_until_approved():
+    assert get_kit("catclips_v2")["voice_roles"] is False
+    assert get_kit("catclips")["voice_roles"] is False and get_kit("none")["voice_roles"] is False

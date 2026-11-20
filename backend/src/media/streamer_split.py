@@ -252,12 +252,12 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
     return ";".join(graph)
 
 
-def plan_streamer_split(input_path: Path, width: int, height: int, title: str) -> Tuple[str, str, float]:
-    """(filter, "complex", caption_y) for a horizontal clip, like ``build_vertical_filter_plan``."""
+def plan_streamer_split(input_path: Path, width: int, height: int, title: str) -> Tuple[str, str, float, Optional[Box]]:
+    """(filter, "complex", caption_y, webcam face) for a horizontal clip, like ``build_vertical_filter_plan``."""
     from .reframing import analyze_vertical_clip
 
     # 960 px: a corner webcam face is too small to find reliably in the usual 480 px pass.
     samples = analyze_vertical_clip(input_path, proc_width=960, analyze_context=False)[2]
     face = find_streamer_cam(width, height, samples)
     cam_rect = find_cam_rect(input_path, width, height, face) if face is not None else None
-    return build_split_filter(width, height, face, title, cam_rect), "complex", CAPTION_Y
+    return build_split_filter(width, height, face, title, cam_rect), "complex", CAPTION_Y, face

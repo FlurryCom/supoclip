@@ -4,7 +4,7 @@ from src.media import voice_roles as vr
 
 
 def word(start, end, text="hi"):
-    return {"start": int(start * 1000), "end": int(end * 1000), "text": text}
+    return {"start": float(start), "end": float(end), "text": text}  # caption words: seconds on the clip
 
 
 def test_speech_segments_split_on_pauses():
@@ -86,3 +86,45 @@ def test_game_subtitles_on_sees_burned_lines(tmp_path):
     path = _video(tmp_path, "s.mp4", f"drawtext=fontfile={font}:text='Go to the hangar now':fontsize=22:fontcolor=white:"
                   f"borderw=2:bordercolor=black:x=(w-text_w)/2:y=310:enable='between(t,1,2.5)'")
     assert vr.game_subtitles_on(path, [0.5, 1.5, 3.2]) == [False, True, False]
+
+
+def _words_two_voices():
+    # streamer 0-3 s, other 4-6 s, streamer 7-10 s, other 11-13 s
+    return [word(0, 3, "a"), word(4, 6, "b"), word(7, 10, "c"), word(11, 13, "d")]
+
+
+def _fake_pipeline(monkeypatch, subs):
+    a, b = _unit([1, 0, 0]), _unit([0, 1, 0])
+    vectors = iter([a, b, a, b])
+    monkeypatch.setattr(vr, "_audio", lambda clip: np.zeros(16000 * 14, dtype=np.float32))
+    monkeypatch.setattr(vr, "embed", lambda samples: next(vectors))
+    monkeypatch.setattr(vr, "game_subtitles_on", lambda clip, times: [subs(t) for t in times])
+
+
+def test_label_words_without_speech_keeps_everything():
+    assert vr.label_words("clip.mp4", [], 1920, 1080) == []
+    assert vr.label_words("clip.mp4", [word(0, 1)], 1920, 1080) == [{**word(0, 1), "role": "streamer"}]
+
+
+def test_model_failure_falls_back_to_streamer(monkeypatch):
+    monkeypatch.setattr(vr, "_audio", lambda clip: np.zeros(16000 * 14, dtype=np.float32))
+
+    def broken(samples):
+        raise RuntimeError("onnx down")
+
+    monkeypatch.setattr(vr, "embed", broken)
+    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None)
+    assert [w["role"] for w in out] == ["streamer"] * 4
+
+
+def test_hidden_game_words_are_dropped(monkeypatch):
+    _fake_pipeline(monkeypatch, subs=lambda t: 4 <= t <= 6 or 11 <= t <= 13)  # game subtitles while voice b talks
+    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None)
+    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer")]
+
+
+def test_game_words_without_subtitles_on_screen_stay(monkeypatch):
+    # b only gets game subtitles in its first stretch: still game (share 0.5), second stretch is shown
+    _fake_pipeline(monkeypatch, subs=lambda t: 4 <= t <= 6)
+    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None)
+    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("d", "game")]

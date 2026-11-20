@@ -281,6 +281,7 @@ def create_optimized_clip(
     point_labels: Optional[List[Dict[str, Any]]] = None,
     kit_layout: Optional[str] = None,
     layout_title: Optional[str] = None,
+    kit_voice_roles: bool = False,
 ) -> bool:
     """Create clip with optional subtitles. output_format: 'vertical' (9:16) or 'original' (keep source size).
 
@@ -421,10 +422,11 @@ def create_optimized_clip(
                 # Fork: Cat Clips v2 — streamer on top, title bar, gameplay below.
                 try:
                     from .media.streamer_split import plan_streamer_split
-                    video_filter, mode, caption_y = plan_streamer_split(
+                    video_filter, mode, caption_y, cam_face = plan_streamer_split(
                         source_clip_path, src_w, src_h, layout_title or "")
                     vertical_plan = (video_filter, mode)
                     plan_report["kind"] = "streamer_split"
+                    plan_report["cam_face"] = cam_face
                 except Exception as exc:
                     logger.warning("Streamer split layout failed (%s); using the normal layout", exc)
             if reframe_format == "vertical" and vertical_plan is None:
@@ -478,6 +480,18 @@ def create_optimized_clip(
             if layout_report is not None and source_caption_band is not None:
                 layout_report["source_caption_band"] = source_caption_band
 
+            # Fork (Cat Clips v2): streamer / friend / game captions, each in its own style.
+            role_kwargs: Dict[str, Any] = {}
+            if kit_voice_roles and add_subtitles:
+                from .media.voice_roles import label_words
+                clip_words = get_words_for_keep_ranges(
+                    load_cached_transcript_data(video_path), effective_keep_ranges,
+                    offsets_kwargs.get("output_offsets"))
+                if clip_words:
+                    labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"))
+                    # Every line left out (doubtful voices, subtitled game lines): no captions, not a reload.
+                    role_kwargs = {"caption_words": labelled} if labelled else {"include_captions": False}
+
             burn_ass_path: Optional[Path] = None
             fonts_dir: Optional[Path] = None
             if (add_subtitles or hook_title or point_labels) and build_assemblyai_ass_subtitles(
@@ -493,8 +507,9 @@ def create_optimized_clip(
                 caption_template,
                 effective_keep_ranges,
                 hook_title=hook_title,
-                include_captions=add_subtitles,
+                include_captions=role_kwargs.pop("include_captions", add_subtitles),
                 position_y_override=caption_y,
+                **role_kwargs,
                 avoid_band=source_caption_band,
                 caption_layout_report=layout_report,
                 **offsets_kwargs,

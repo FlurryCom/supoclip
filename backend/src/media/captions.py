@@ -530,6 +530,10 @@ def _passage_breaks(
     return breaks
 
 
+# Fork (Cat Clips v2): caption roles other than the streamer -> (ASS colour &HBBGGRR&, size %).
+ROLE_STYLES = {"game": ("&HFFFFFF&", 75), "friend": ("&HFFCB7C&", 100)}
+
+
 def _chunk_bounds(word_count: int, chunk_size: int, breaks: List[int]):
     """Caption lines of ``chunk_size`` words that never straddle a passage break.
 
@@ -620,6 +624,12 @@ def build_assemblyai_ass_subtitles(
     if not relevant_words and not hook_title and not point_labels:
         logger.warning("No words or hook title available for ASS subtitles")
         return False
+    if any(word.get("role") for word in relevant_words):
+        # Fork (Cat Clips v2): a caption block never mixes the streamer, a friend and the game.
+        passage_breaks = sorted(set(passage_breaks) | {
+            i for i in range(1, len(relevant_words))
+            if relevant_words[i].get("role") != relevant_words[i - 1].get("role")
+        })
 
     effective_font_family, template = ensure_glyph_coverage(
         effective_font_family,
@@ -867,6 +877,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             box_bord = max(outline_px + 2, px // 5)
             border = max(outline_px, px // 6) if border_style == 3 else outline_px
             prefix = f"{{\\pos({placement['x']},{placement['y']})\\fs{px}\\bord{border}\\shad{shadow_px}" + ("\\blur4" if glow else "") + "}"
+
+        role_style = ROLE_STYLES.get(chunk[0].get("role"))
+        if role_style is not None:
+            # A friend or the game: one still line in its own colour, no yellow word box or pop.
+            colour, size = role_style
+            start, end = float(chunk[0]["start"]), max(chunk_end, float(chunk[0]["start"]) + 0.05)
+            text = " ".join(render_text(gj, word) for gj, word in zip(indices, chunk))
+            fit = f"\\fscx{scaled(size, chunk_scale)}\\fscy{scaled(size, chunk_scale)}" if size != 100 or chunk_scale < 1 else ""
+            events.append(
+                f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Default,,0,0,0,,"
+                f"{prefix}{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}{text}"
+            )
+            continue
 
         if animation == "karaoke":
             for local_i, word in enumerate(chunk):

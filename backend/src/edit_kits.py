@@ -20,6 +20,7 @@ KITS: dict[str, dict[str, Any]] = {
         "chat_overlay": False,
         "burn_hook_title": True,
         "layout": None,
+        "voice_roles": False,
         "sfx": [],
         "end_card": None,
         "cta_seconds": 0.0,
@@ -32,6 +33,7 @@ KITS: dict[str, dict[str, Any]] = {
         "chat_overlay": True,
         "burn_hook_title": True,
         "layout": None,
+        "voice_roles": False,
         "sfx": [
             {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},
@@ -52,6 +54,8 @@ KITS["catclips_v2"] = {
     "chat_overlay": False,
     "burn_hook_title": False,
     "layout": "streamer_split",
+    # Streamer / friend / game captions: on once the owner approves the real preview.
+    "voice_roles": False,
 }
 
 

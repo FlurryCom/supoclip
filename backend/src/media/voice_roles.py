@@ -29,10 +29,13 @@ _session = None
 
 
 def speech_segments(words: list[dict[str, Any]], gap: float = 0.6) -> list[tuple[float, float, list[int]]]:
-    """Stretches of speech (start s, end s, word indexes) split at pauses longer than ``gap``."""
+    """Stretches of speech (start s, end s, word indexes) split at pauses longer than ``gap``.
+
+    Words are caption words: ``start``/``end`` in seconds on the clip's own timeline.
+    """
     segments: list[tuple[float, float, list[int]]] = []
     for index, word in enumerate(words):
-        start, end = word["start"] / 1000.0, word["end"] / 1000.0
+        start, end = float(word["start"]), float(word["end"])
         if segments and start - segments[-1][1] <= gap:
             s, _, idx = segments[-1]
             segments[-1] = (s, max(end, segments[-1][1]), idx + [index])
@@ -214,3 +217,74 @@ def game_subtitles_on(path: Path, times: list[float]) -> list[bool]:
                 for t in times]
     finally:
         cap.release()
+
+
+def _audio(clip: Path) -> np.ndarray:
+    import subprocess
+
+    raw = subprocess.run(
+        ["ffmpeg", "-loglevel", "error", "-i", str(clip), "-vn", "-ac", "1", "-ar", str(RATE), "-f", "f32le", "-"],
+        capture_output=True, check=True, timeout=300,
+    ).stdout
+    return np.frombuffer(raw, dtype=np.float32)
+
+
+def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int,
+                face: Optional[tuple[float, float, float, float]] = None) -> list[dict[str, Any]]:
+    """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
+
+    ``face`` is the webcam face (source pixels) when the layout already found it.
+    Any failure returns every word as the streamer.
+    """
+    plain = [{**w, "role": "streamer"} for w in words]
+    try:
+        segments = speech_segments(words)
+        if len(segments) < 2:
+            return plain
+        audio = _audio(clip)
+        group_of: dict[int, int] = {}
+        vectors, embedded = [], []
+        for i, (start, end, _) in enumerate(segments):
+            vector = embed(audio[int(start * RATE):int(end * RATE)])
+            if vector is not None:
+                vectors.append(vector)
+                embedded.append(i)
+        if not vectors:
+            return plain
+        for i, label in zip(embedded, cluster(vectors)):
+            group_of[i] = label
+        for i in range(len(segments)):  # stretches too short for a voice vector follow the nearest one
+            if i not in group_of:
+                group_of[i] = group_of[min(embedded, key=lambda j: abs(j - i))]
+        if len(set(group_of.values())) == 1:
+            return plain
+        sequence = [group_of[i] for i in range(len(segments))]
+        seconds: dict[int, float] = {}
+        for i, (start, end, _) in enumerate(segments):
+            seconds[group_of[i]] = seconds.get(group_of[i], 0.0) + end - start
+        middles = [(start + end) / 2 for start, end, _ in segments]
+        subs_on = game_subtitles_on(clip, middles)
+        subs_share: dict[int, float] = {}
+        for group in seconds:
+            mine = [subs_on[i] for i in range(len(segments)) if group_of[i] == group]
+            subs_share[group] = sum(mine) / len(mine)
+        mouth_lift = None
+        if face is not None:
+            motion = mouth_motion(clip, face, middles)
+            overall = float(motion.mean()) + 1e-6
+            mouth_lift = {
+                group: (float(np.mean([motion[i] for i in range(len(segments)) if group_of[i] == group])) - overall) / overall
+                for group in seconds
+            }
+        roles = assign_roles(sequence, seconds, mouth_lift, subs_share)
+        logger.info("Caption voices: %s", {g: (roles[g], round(seconds[g], 1)) for g in roles})
+        labelled = []
+        for i, (_, _, indexes) in enumerate(segments):
+            role = roles[group_of[i]]
+            if role == "unsure" or (role == "game" and subs_on[i]):
+                continue  # owner: leave doubtful voices out; the game already shows its own subtitle
+            labelled += [{**words[k], "role": role} for k in indexes]
+        return labelled
+    except Exception as exc:
+        logger.warning("Caption voice roles failed (%s); one caption style", exc)
+        return plain
