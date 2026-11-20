@@ -14,7 +14,7 @@
 
 - Papéis: `"streamer"`, `"friend"`, `"game"`. Falha em qualquer etapa → todas `"streamer"` (como hoje), nunca derruba o clipe.
 - Estilos: streamer = Cat Clips atual; friend = mesma fonte e tamanho, cor `#7CCBFF`, contorno `#111111`, sem caixa amarela; game = branco `#FFFFFF`, 75 % do tamanho, contorno `#111111`, sem caixa amarela. Amigo e jogo sem animação de palavra.
-- Esconder só palavras `game` cujo trecho tem legenda do jogo visível.
+- Esconder palavras `game` cujo trecho tem legenda do jogo visível, e toda palavra de voz `unsure` (dono: na dúvida, não coloca).
 - Modelo de voz: ONNX CAM++ (3D-Speaker, 16 kHz, fbank 80), baixado uma vez para `backend/models/voice/campplus.onnx` (fora do git); sem torchaudio/speechbrain.
 - Liga por kit: `"voice_roles": False` no v2 até o dono aprovar a prévia; depois `True`.
 - Alvo de tempo: < 10 s a mais por clipe de 1–2 min.
@@ -53,9 +53,9 @@
 **Interfaces — Produces:**
 - `mouth_motion(path: Path, face: Box, times: list[float]) -> np.ndarray` (diferença média entre quadros vizinhos na metade de baixo do rosto, em cada tempo).
 - `game_subtitles_on(path: Path, times: list[float]) -> list[bool]` (usa `source_captions.caption_lines_in_frame` no quadro inteiro).
-- `assign_roles(segments, labels: list[int], talk_motion: dict[int, float], idle_motion: float, subs_share: dict[int, float], turns: dict[int, int]) -> dict[int, str]` (grupo → papel). Regras: streamer = grupo com maior `talk_motion - idle_motion` se a diferença ≥ limiar, senão o grupo com mais tempo de fala; outro grupo com `subs_share ≥ 0.5` → game; com `turns ≥ 2` alternando com o streamer e `subs_share < 0.2` → friend; senão game.
+- `assign_roles(segments, labels: list[int], talk_motion: dict[int, float], idle_motion: float, subs_share: dict[int, float], turns: dict[int, int]) -> dict[int, str]` (grupo → papel). Regras: streamer = grupo com maior `talk_motion - idle_motion` se a diferença ≥ limiar, senão o grupo com mais tempo de fala; outro grupo com `subs_share ≥ 0.5` → game; com `turns ≥ 2` alternando com o streamer e `subs_share < 0.2` → friend; senão `unsure` (não aparece).
 
-- [ ] Testes: `test_single_voice_is_the_streamer`; `test_mouth_picks_the_streamer` (grupo 1 fala mais, mas a boca mexe no grupo 0 → grupo 0 streamer); `test_without_cam_the_longest_voice_is_the_streamer`; `test_voice_with_game_subtitles_is_game`; `test_voice_talking_back_is_friend`; `test_unsure_voice_is_game`.
+- [ ] Testes: `test_single_voice_is_the_streamer`; `test_mouth_picks_the_streamer` (grupo 1 fala mais, mas a boca mexe no grupo 0 → grupo 0 streamer); `test_without_cam_the_longest_voice_is_the_streamer`; `test_voice_with_game_subtitles_is_game`; `test_voice_talking_back_is_friend`; `test_unsure_voice_is_hidden`.
 - [ ] FAIL → implementar → PASS. Commit `feat(captions): pick streamer, friend and game voices`.
 
 ### Task 3: Rotular as palavras e desenhar os estilos
@@ -63,7 +63,7 @@
 **Files:** Modify `backend/src/media/voice_roles.py` (`label_words`), `backend/src/media/captions.py`, `backend/src/video_utils.py`, `backend/src/edit_kits.py`; Tests `test_voice_roles.py`, `backend/tests/unit/test_captions_roles.py` (novo), `test_edit_kits.py`
 
 **Interfaces:**
-- `label_words(clip: Path, words: list[dict], width: int, height: int) -> list[dict]` — cópias das palavras com `role`; palavras `game` em trecho com legenda do jogo saem da lista; qualquer exceção → palavras originais com `role="streamer"`.
+- `label_words(clip: Path, words: list[dict], width: int, height: int) -> list[dict]` — cópias das palavras com `role`; palavras `game` em trecho com legenda do jogo e palavras `unsure` saem da lista; qualquer exceção → palavras originais com `role="streamer"`.
 - `build_assemblyai_ass_subtitles`: quando `caption_words` têm `role`, quebra de bloco em toda troca de papel (somar aos `passage_breaks`); blocos `friend`/`game` viram um `Dialogue` por linha, estático, com `\c`, `\3c` e (game) `\fscx75\fscy75` e sem caixa/realce.
 - `create_optimized_clip`: se `kit_voice_roles` (novo parâmetro) e houver transcrição, calcula as palavras com `get_words_for_keep_ranges`, chama `label_words(source_clip_path, …)` e passa como `caption_words`.
 - `edit_kits`: chave `"voice_roles"` (False no none/catclips; False no v2 até a aprovação); `video_service.create_single_clip` repassa `kit["voice_roles"]`.

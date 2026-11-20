@@ -1,6 +1,6 @@
 # Legenda do streamer × legenda do jogo (Cat Clips v2)
 
-Data: 2026-11-20 · Status: aguardando aprovação do dono
+Data: 2026-11-20 · Status: aprovado pelo dono (2026-11-20)
 
 ## Intenção
 
@@ -51,7 +51,7 @@ próprio jogo já está mostrando a legenda dele naquele momento, a nossa legend
      - se em boa parte das falas dele o jogo está mostrando legenda na tela → **jogo** (NPC com legenda);
      - se ele conversa com o streamer ao longo do clipe (várias falas, alternando com o streamer, sem legenda
        do jogo junto) → **amigo**;
-     - na dúvida → **jogo** (o erro menos ruim: a fala aparece, só com a cor do jogo).
+     - na dúvida → **não aparece** (dono: "na dúvida, não coloca, pra não misturar com jogo").
    - Falha em qualquer etapa (modelo ausente, áudio estranho) → todas as palavras ficam "streamer"
      (exatamente como hoje). Nunca derruba o clipe.
 2. **Legenda do jogo já na tela:** para cada trecho do jogo, olhar 2–3 quadros da área do jogo (parte de
@@ -83,8 +83,8 @@ próprio jogo já está mostrando a legenda dele naquele momento, a nossa legend
 
 - Cutscene longa com o streamer calado e mexendo a boca (cantando, rindo) pode inverter os rótulos num
   trecho. A prévia com lives reais mostra se o limiar precisa de ajuste.
-- Amigo que fala pouco (uma frase solta) pode sair com a cor do jogo; NPC que conversa muito sem legenda na
-  tela pode sair com a cor do amigo.
+- Amigo que fala pouco (uma frase solta) pode ficar sem legenda (dúvida); NPC que conversa muito sem legenda
+  na tela pode sair com a cor do amigo.
 
 ## Deixado para quem constrói
 
