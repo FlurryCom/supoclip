@@ -237,7 +237,11 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
             f"[top_src]crop={gw}:{gh}:{gx}:{gy},scale=1080:{TOP_H}:force_original_aspect_ratio=increase,"
             f"crop=1080:{TOP_H},boxblur=20:2,setsar=1[top]"
         )
-    graph.append(f"[game_src]crop={gw}:{gh}:{gx}:{gy},scale=1080:{GAME_H}:flags=lanczos,setsar=1[game]")
+    # Owner: the whole game screen in 16:9, never cropped, centred on a blurred copy of itself.
+    graph.append("[game_src]split=2[game_bg][game_fg]")
+    graph.append(f"[game_bg]scale=1080:{GAME_H}:force_original_aspect_ratio=increase,crop=1080:{GAME_H},boxblur=20:2[game_fill]")
+    graph.append(f"[game_fg]scale=1080:{GAME_H}:force_original_aspect_ratio=decrease:flags=lanczos[game_fit]")
+    graph.append("[game_fill][game_fit]overlay=(W-w)/2:(H-h)/2,setsar=1[game]")
     lines, size = title_lines(title)
     line_h = int(size * 1.15)
     first_y = TOP_H + (BAR_H - line_h * len(lines)) // 2

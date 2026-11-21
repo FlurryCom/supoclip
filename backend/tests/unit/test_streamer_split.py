@@ -166,3 +166,17 @@ def test_picks_the_cam_edge_nearest_the_face_not_a_stronger_one_beyond(tmp_path)
     face = (240.0, 380.0, 150.0, 170.0)
     found = find_cam_rect(_stream_with_cam(tmp_path / "s.mp4", rect, extra=(40, 900, 560, 40)), W, H, face)
     assert found is not None and abs(found[1] + found[3] - 700) <= 14, found
+
+
+def test_gameplay_is_the_whole_16_9_frame_not_a_crop(tmp_path):
+    # Owner: the bottom shows the whole game screen in 16:9 (even if the webcam shows up again in it).
+    graph = build_split_filter(W, H, CAM, "Big moment", cam_rect=(40, 560, 560, 400))
+    game = [part for part in graph.split(";") if part.startswith("[game_src]") or "[game_fg]" in part]
+    assert any("scale=1080:1000:force_original_aspect_ratio=decrease" in part for part in game)
+    assert not any(f"crop={1166}:" in part for part in game)  # no side crop of the gameplay any more
+
+
+def test_captions_sit_between_the_bar_and_the_game():
+    from src.media.streamer_split import CAPTION_Y
+    game_top = TOP_H + BAR_H + (GAME_H - 608) // 2
+    assert TOP_H + BAR_H < CAPTION_Y * 1920 < game_top
