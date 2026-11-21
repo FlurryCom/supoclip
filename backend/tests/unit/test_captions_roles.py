@@ -42,3 +42,11 @@ def test_a_gap_left_by_hidden_lines_ends_the_caption(tmp_path):
         start, end = line.split(",")[1:3]
         to_s = lambda t: int(t.split(":")[0]) * 3600 + int(t.split(":")[1]) * 60 + float(t.split(":")[2])
         assert to_s(end) - to_s(start) < 3.0, line
+
+
+def test_a_cut_marked_on_a_word_starts_a_new_caption(tmp_path):
+    # Crossfaded cut between "two" and "three": no pause on the clip timeline, but a new passage.
+    words = [w("one", 0.0, 0.3, "streamer"), w("two", 0.3, 0.6, "streamer"),
+             {**w("three", 0.6, 0.9, "streamer"), "break_before": True}, w("four", 0.9, 1.2, "streamer")]
+    lines = _ass(tmp_path, words)
+    assert not any("TWO" in line and "THREE" in line for line in lines)

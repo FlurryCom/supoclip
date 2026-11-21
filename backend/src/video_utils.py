@@ -484,9 +484,15 @@ def create_optimized_clip(
             role_kwargs: Dict[str, Any] = {}
             if kit_voice_roles and add_subtitles:
                 from .media.voice_roles import label_words
+                transcript_data = load_cached_transcript_data(video_path)
                 clip_words = get_words_for_keep_ranges(
-                    load_cached_transcript_data(video_path), effective_keep_ranges,
-                    offsets_kwargs.get("output_offsets"))
+                    transcript_data, effective_keep_ranges, offsets_kwargs.get("output_offsets"))
+                if clip_words and offsets_kwargs.get("output_offsets") is not None:
+                    # Keep the edit's passage cuts: marked on the word, they survive dropped lines.
+                    from .media.captions import _passage_breaks
+                    for index in _passage_breaks(transcript_data, effective_keep_ranges):
+                        if index < len(clip_words):
+                            clip_words[index]["break_before"] = True
                 if clip_words:
                     labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"))
                     # Every line left out (doubtful voices, subtitled game lines): no captions, not a reload.

@@ -145,3 +145,74 @@ def test_plain_white_centered_game_subtitle_is_seen(tmp_path):
 def test_corner_hud_text_is_not_a_subtitle(tmp_path):
     path = _scene(tmp_path, "h.mp4", "12")  # an objective line in the bottom-left corner
     assert vr.game_subtitles_on(path, [1.5]) == [False]
+
+
+class _Body:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self, n=-1):
+        out, self.data = self.data[:n] if n > 0 else self.data, self.data[n:] if n > 0 else b""
+        return out
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_a_bad_download_leaves_no_model(monkeypatch, tmp_path):
+    monkeypatch.setattr(vr, "MODEL_PATH", tmp_path / "voice" / "campplus.onnx")
+    calls = []
+    monkeypatch.setattr(vr.urllib.request, "urlopen", lambda url, timeout: calls.append(timeout) or _Body(b"not a model"))
+    assert vr.ensure_model() is None
+    assert calls == [30] and not vr.MODEL_PATH.exists() and not list(vr.MODEL_PATH.parent.glob("*.part*"))
+
+
+def test_a_model_that_fails_to_load_is_removed(monkeypatch, tmp_path):
+    model = tmp_path / "campplus.onnx"
+    model.write_bytes(b"broken")
+    monkeypatch.setattr(vr, "MODEL_PATH", model)
+    monkeypatch.setattr(vr, "_session", None)
+    import pytest
+    with pytest.raises(Exception):
+        vr._model()
+    assert not model.exists()  # downloaded again next time instead of failing forever
+
+
+def test_a_hud_line_always_on_screen_is_not_a_subtitle(monkeypatch):
+    # A centred bright HUD bar reads as "subtitles on" everywhere, even while the streamer talks:
+    # it must not make the other voice game (and drop it).
+    _fake_pipeline(monkeypatch, subs=lambda t: True)
+    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None)
+    assert [(x["text"], x["role"]) for x in out] == [("a", "streamer"), ("b", "friend"), ("c", "streamer"), ("d", "friend")]
+
+
+def test_a_streamer_voice_split_in_two_stays_the_streamer():
+    # Shouting split the streamer's voice into groups 0 and 2; the mouth moves for both.
+    roles = vr.assign_roles([0, 1, 2, 0, 2], {0: 10.0, 1: 4.0, 2: 6.0}, {0: 0.7, 1: 0.0, 2: 0.4}, {0: 0, 1: 0.9, 2: 0})
+    assert roles == {0: "streamer", 1: "game", 2: "streamer"}
+
+
+def test_frames_are_read_in_one_pass_whatever_the_order(tmp_path, monkeypatch):
+    path = _scene(tmp_path, "o.mp4", "(w-text_w)/2")
+    import cv2
+    seeks = []
+    real = cv2.VideoCapture
+
+    class Counting:
+        def __init__(self, *a):
+            self.cap = real(*a)
+
+        def set(self, prop, value):
+            seeks.append(prop)
+            return self.cap.set(prop, value)
+
+        def __getattr__(self, name):
+            return getattr(self.cap, name)
+
+    monkeypatch.setattr(cv2, "VideoCapture", Counting)
+    assert vr.game_subtitles_on(path, [3.2, 1.5, 0.5]) == [False, True, False]
+    assert vr.mouth_motion(path, (100.0, 100.0, 60.0, 80.0), [2.4, 0.5]).shape == (2,)
+    assert seeks == []  # no seeking: one forward read

@@ -631,6 +631,7 @@ def build_assemblyai_ass_subtitles(
             i for i in range(1, len(relevant_words))
             if relevant_words[i].get("role") != relevant_words[i - 1].get("role")
             or float(relevant_words[i]["start"]) - float(relevant_words[i - 1]["end"]) > 1.0
+            or relevant_words[i].get("break_before")  # a cut in the edit, marked before words were dropped
         })
 
     effective_font_family, template = ensure_glyph_coverage(

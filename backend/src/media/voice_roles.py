@@ -79,17 +79,34 @@ def fbank(samples: np.ndarray, rate: int = RATE) -> np.ndarray:
     return feats - feats.mean(axis=0, keepdims=True)
 
 
+MODEL_SHA256 = "98daf9bcf1c8abf3db374fec4c27a5eda7c58705bb3f180d057b085a72a88bb5"
+
+
 def ensure_model() -> Optional[Path]:
-    if not MODEL_PATH.exists():
-        try:
-            MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-            partial = MODEL_PATH.with_suffix(".part")
-            urllib.request.urlretrieve(MODEL_URL, partial)
-            partial.rename(MODEL_PATH)
-        except Exception as exc:
-            logger.warning("Voice model unavailable (%s); captions keep one style", exc)
-            return None
-    return MODEL_PATH
+    """The voice model on disk, downloaded and checked once; None when it can't be had."""
+    if MODEL_PATH.exists():
+        return MODEL_PATH
+    import hashlib
+    import tempfile
+
+    try:
+        MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+        # A file per process: two workers downloading at once never write into each other's file.
+        with tempfile.NamedTemporaryFile(dir=MODEL_PATH.parent, suffix=".part", delete=False) as part:
+            digest = hashlib.sha256()
+            with urllib.request.urlopen(MODEL_URL, timeout=30) as response:
+                while chunk := response.read(1 << 20):
+                    part.write(chunk)
+                    digest.update(chunk)
+        if digest.hexdigest() != MODEL_SHA256:
+            raise ValueError("voice model checksum mismatch")
+        os.replace(part.name, MODEL_PATH)
+        return MODEL_PATH
+    except Exception as exc:
+        logger.warning("Voice model unavailable (%s); captions keep one style", exc)
+        if "part" in locals():
+            Path(part.name).unlink(missing_ok=True)
+        return None
 
 
 def _model():
@@ -100,7 +117,13 @@ def _model():
         path = ensure_model()
         if path is None:
             raise RuntimeError("voice model missing")
-        _session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 2  # share the CPU with ffmpeg and the other workers
+        try:
+            _session = ort.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
+        except Exception:
+            path.unlink(missing_ok=True)  # a broken file would fail every clip; fetch it again next time
+            raise
     return _session
 
 
@@ -154,17 +177,18 @@ def assign_roles(
     if not seconds:
         return {}
     if mouth_lift and max(mouth_lift.values()) >= MOUTH_LIFT_MIN:
-        streamer = max(mouth_lift, key=mouth_lift.get)
+        # Every group the mouth clearly moves for: shouting can split the streamer's voice in two.
+        streamers = {g for g, lift in mouth_lift.items() if lift >= MOUTH_LIFT_MIN}
     else:
-        streamer = max(seconds, key=seconds.get)
+        streamers = {max(seconds, key=seconds.get)}
     # Back-and-forth with the streamer: how often a group's stretch sits next to the streamer's.
     turns = {group: 0 for group in seconds}
     for a, b in zip(sequence, sequence[1:]):
-        if a != b and streamer in (a, b):
-            turns[b if a == streamer else a] += 1
+        if (a in streamers) != (b in streamers):
+            turns[a if b in streamers else b] += 1
     roles = {}
     for group in seconds:
-        if group == streamer:
+        if group in streamers:
             roles[group] = "streamer"
         elif subs_share.get(group, 0.0) >= 0.5:
             roles[group] = "game"
@@ -175,12 +199,36 @@ def assign_roles(
     return roles
 
 
-def _frame_at(cap, seconds: float):
+def _frames(path: Path, times: list[float]):
+    """Yield (frame index, frame) for the frames at ``times``, reading the video forward once.
+
+    Seeking re-decodes from the previous keyframe each time; one pass decodes each frame once.
+    """
     import cv2
 
-    cap.set(cv2.CAP_PROP_POS_MSEC, max(0.0, seconds) * 1000.0)
-    ok, frame = cap.read()
-    return frame if ok else None
+    cap = cv2.VideoCapture(str(path))
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        wanted = {max(0, int(round(t * fps))) for t in times}
+        last = max(wanted, default=-1)
+        index = 0
+        while index <= last and cap.grab():
+            if index in wanted:
+                ok, frame = cap.retrieve()
+                if ok:
+                    yield index, frame
+            index += 1
+    finally:
+        cap.release()
+
+
+def _index(path: Path, times: list[float]) -> list[int]:
+    import cv2
+
+    cap = cv2.VideoCapture(str(path))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    cap.release()
+    return [max(0, int(round(t * fps))) for t in times]
 
 
 def mouth_motion(path: Path, face: tuple[float, float, float, float], times: list[float]) -> np.ndarray:
@@ -189,19 +237,23 @@ def mouth_motion(path: Path, face: tuple[float, float, float, float], times: lis
 
     fx, fy, fw, fh = (int(v) for v in face)
     y0, y1, x0, x1 = fy + fh // 2, fy + fh, fx, fx + fw
-    cap = cv2.VideoCapture(str(path))
-    values = []
-    try:
-        for t in times:
-            a, b = _frame_at(cap, t), _frame_at(cap, t + 0.1)
-            if a is None or b is None:
-                values.append(0.0)
-                continue
-            ga = cv2.cvtColor(a[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
-            gb = cv2.cvtColor(b[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
-            values.append(float(np.abs(ga - gb).mean()) if ga.size else 0.0)
-    finally:
+    firsts, seconds_ = _index(path, times), _index(path, [t + 0.1 for t in times])
+    seconds_ = [b if b > a else a + 1 for a, b in zip(firsts, seconds_)]
+    crops: dict[int, np.ndarray] = {}
+    for index, frame in _frames(path, [*times, *(t + 0.1 for t in times)]):
+        crops[index] = cv2.cvtColor(frame[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
+    # Frames the time list can't name exactly (the +1 fallback) are read in a second short pass.
+    missing = [i for i in seconds_ if i not in crops]
+    if missing:
+        cap = cv2.VideoCapture(str(path))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         cap.release()
+        for index, frame in _frames(path, [i / fps for i in missing]):
+            crops[index] = cv2.cvtColor(frame[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY).astype(np.float32)
+    values = []
+    for a, b in zip(firsts, seconds_):
+        ga, gb = crops.get(a), crops.get(b)
+        values.append(float(np.abs(ga - gb).mean()) if ga is not None and gb is not None and ga.size else 0.0)
     return np.array(values, dtype=np.float32)
 
 
@@ -226,17 +278,11 @@ def plain_subtitle_on(frame: np.ndarray) -> bool:
 
 def game_subtitles_on(path: Path, times: list[float]) -> list[bool]:
     """Whether the frame at each time shows the game's own subtitles (outlined or plain)."""
-    import cv2
-
     from .source_captions import caption_lines_in_frame
 
-    cap = cv2.VideoCapture(str(path))
-    try:
-        return [(bool(caption_lines_in_frame(frame)) or plain_subtitle_on(frame))
-                if (frame := _frame_at(cap, t)) is not None else False
-                for t in times]
-    finally:
-        cap.release()
+    seen = {index: bool(caption_lines_in_frame(frame)) or plain_subtitle_on(frame)
+            for index, frame in _frames(path, times)}
+    return [seen.get(index, False) for index in _index(path, times)]
 
 
 def _audio(clip: Path) -> np.ndarray:
@@ -297,6 +343,12 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
                 for group in seconds
             }
         roles = assign_roles(sequence, seconds, mouth_lift, subs_share)
+        streamer_subs = [subs_on[i] for i in range(len(segments)) if roles[group_of[i]] == "streamer"]
+        if streamer_subs and sum(streamer_subs) >= 0.5 * len(streamer_subs):
+            # "Subtitles" even while the streamer talks: a HUD line that never leaves, not the game's lines.
+            subs_on = [False] * len(segments)
+            subs_share = {group: 0.0 for group in seconds}
+            roles = assign_roles(sequence, seconds, mouth_lift, subs_share)
         logger.info("Caption voices: %s", {g: (roles[g], round(seconds[g], 1)) for g in roles})
         labelled = []
         for i, (_, _, indexes) in enumerate(segments):
