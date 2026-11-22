@@ -253,3 +253,18 @@ def clean_clip(path: Path) -> dict[str, Any]:
     finally:
         if temp is not None:
             temp.unlink(missing_ok=True)
+
+
+async def save_result(file_path: str, result: dict[str, Any]) -> None:
+    from sqlalchemy import text
+
+    from ..database import get_session_maker
+
+    async with get_session_maker()() as db:
+        await db.execute(text("""
+            INSERT INTO live_clip_music (file_path, status, music_seconds, error, checked_at)
+            VALUES (:file_path, :status, :music_seconds, :error, now())
+            ON CONFLICT (file_path) DO UPDATE SET status = EXCLUDED.status, music_seconds = EXCLUDED.music_seconds,
+                error = EXCLUDED.error, checked_at = now()
+        """), {"file_path": file_path, **result})
+        await db.commit()

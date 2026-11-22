@@ -59,3 +59,9 @@ def test_v2_kit_splits_streamer_friend_and_game_captions():
     # Owner approved the real preview (2026-11-20): on for every v2 channel.
     assert get_kit("catclips_v2")["voice_roles"] is True
     assert get_kit("catclips")["voice_roles"] is False and get_kit("none")["voice_roles"] is False
+
+
+def test_kits_music_clean_off_until_approved():
+    # Owner sees a real before/after first; then catclips and catclips_v2 turn it on.
+    assert get_kit("none")["music_clean"] is False
+    assert get_kit("catclips")["music_clean"] is False and get_kit("catclips_v2")["music_clean"] is False

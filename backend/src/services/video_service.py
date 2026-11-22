@@ -1080,6 +1080,15 @@ class VideoService:
                 return None
             if not render_report.get("broll_applied"):
                 broll_placements = []
+            if segment.get("edit_kit") and kit.get("music_clean"):
+                # Fork: copyright music out before our own sounds go in; the recorder never posts "left" clips.
+                from ..media.music_check import clean_clip, save_result
+                music = await run_in_thread(clean_clip, clip_path)
+                try:
+                    await save_result(str(clip_path), music)
+                except Exception as exc:
+                    logger.warning(f"Could not save the music check for {clip_path.name}: {exc}")
+                logger.info(f"Music check {clip_path.name}: {music['status']}, {music['music_seconds']:.0f}s of music, error={music['error']}")
             if segment.get("edit_kit") and kit["id"] != "none":
                 # Fork: the live channel's edit kit (chat at the peak, sounds, end card).
                 edit_kit = dict(segment["edit_kit"])
