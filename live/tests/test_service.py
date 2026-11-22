@@ -1,4 +1,4 @@
-from supoclip_live.service import fair_share
+from supoclip_live.service import fair_share, slot_free
 
 
 def test_one_account_gets_every_slot():
@@ -88,3 +88,26 @@ def test_recorder_uses_the_same_processing_threshold():
     from supoclip_live.service import processing_threshold
     assert processing_threshold(60, 80) == 80
     assert processing_threshold(70, None) == 70
+
+
+def test_slot_free_uses_the_account_number(monkeypatch):
+    from supoclip_live import service
+    monkeypatch.setattr(service, "MAX_RECORDINGS", 24)
+    assert slot_free(total=14, mine=14, account_limit=15, owners=1)
+    assert not slot_free(total=15, mine=15, account_limit=15, owners=1)
+    assert not slot_free(total=24, mine=3, account_limit=30, owners=1)  # the machine's ceiling still wins
+
+
+def test_slot_free_defaults_to_ten(monkeypatch):
+    from supoclip_live import service
+    monkeypatch.setattr(service, "MAX_RECORDINGS", 24)
+    assert slot_free(total=9, mine=9, account_limit=None, owners=1)
+    assert not slot_free(total=10, mine=10, account_limit=None, owners=1)
+
+
+def test_slot_free_lower_limit_keeps_running(monkeypatch):
+    # Lowering the number never ends a recording: it only decides whether a new one starts.
+    from supoclip_live import service
+    monkeypatch.setattr(service, "MAX_RECORDINGS", 24)
+    assert not slot_free(total=12, mine=12, account_limit=5, owners=1)
+    assert not slot_free(total=12, mine=12, account_limit=12, owners=2)  # fair share: 12 of 24 each

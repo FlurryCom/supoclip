@@ -56,8 +56,9 @@ TITLE_ZONE = ZoneInfo(os.getenv("LIVE_TIMEZONE", "UTC"))
 
 # Channels whose owner has the live_clipping flag on (web, or admins via bypass).
 CHANNELS_SQL = """
-SELECT c.* FROM live_channels c
+SELECT c.*, a.max_recordings FROM live_channels c
 JOIN users u ON u.id = c.user_id
+LEFT JOIN live_accounts a ON a.user_id = c.user_id
 JOIN feature_flags f ON f.key = 'live_clipping'
 WHERE c.enabled AND (f.web_enabled OR (f.admins_bypass AND u.is_admin))
 """
@@ -70,6 +71,11 @@ def now() -> datetime:
 def fair_share(slots: int, owners: int) -> int:
     """Recordings one account may hold while ``owners`` accounts follow channels."""
     return max(1, -(-slots // max(owners, 1)))
+
+
+def slot_free(total: int, mine: int, account_limit: int | None, owners: int) -> bool:
+    """A new recording may start: under the machine's ceiling and under the account's own number (10 unless chosen)."""
+    return total < MAX_RECORDINGS and mine < min(account_limit or 10, fair_share(MAX_RECORDINGS, owners))
 
 
 class Session:
@@ -219,10 +225,10 @@ class LiveService:
         if session:  # still live but the pipeline died: resume into the same recording
             await session.recording.start()
             return
-        # Each recording is a process plus GBs of disk per hour: cap them all,
-        # and give every account following channels a fair share of the slots.
+        # Each recording is a process plus GBs of disk per hour: cap them all, give every
+        # account following channels a fair share, and keep each account under its own number.
         mine = sum(1 for s in self.sessions.values() if s.channel["user_id"] == channel["user_id"])
-        if len(self.sessions) >= MAX_RECORDINGS or mine >= fair_share(MAX_RECORDINGS, self.owners):
+        if not slot_free(len(self.sessions), mine, channel.get("max_recordings"), self.owners):
             logger.warning("%s is live but no recording slot is free; waiting", channel["channel"])
             await self.mark_waiting(channel["id"])
             return
