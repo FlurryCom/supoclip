@@ -31,6 +31,9 @@ MODELS = {
                          "ce74ef3b6a6024ce44211a07be9cf8bc6d87728cc852a68ab34eb8e58cde9c8b"),
 }
 MUSIC_CLASS = 137  # AudioSet "Music"
+# What still counts as music after the cleanup: real clips kept 1-2 s blips (a violin bleeding through,
+# a sung-sounding phrase); only a steady stretch is enough for a copyright match.
+LEFT_THRESHOLD, LEFT_MIN_SECONDS = 0.5, 4
 DETECT_RATE, SEPARATE_RATE = 32000, 44100
 N_FFT, HOP, DIM_F, DIM_T = 7680, 1024, 3072, 256  # Kim_Vocal_2's spectrogram
 CHUNK = HOP * (DIM_T - 1)
@@ -243,7 +246,7 @@ def clean_clip(path: Path) -> dict[str, Any]:
         inside = np.zeros_like(after)
         for start, end in spans:
             inside[int(start):int(end)] = after[int(start):int(end)]
-        status = "left" if music_spans(inside) else "removed"
+        status = "left" if music_spans(inside, LEFT_THRESHOLD, max_gap=1, min_len=LEFT_MIN_SECONDS) else "removed"
         os.replace(temp, path)
         temp = None
         return {"status": status, "music_seconds": seconds, "error": None}

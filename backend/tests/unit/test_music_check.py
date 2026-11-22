@@ -25,9 +25,9 @@ def test_mix_spans_swaps_only_music_stretches():
     assert 0 < out[0, 21] < 1  # a soft change, not a cut
 
 
-def _clip(tmp_path, audio="sine=frequency=440:duration=3"):
+def _clip(tmp_path, audio="sine=frequency=440:duration=6"):
     path = tmp_path / "clip.mp4"
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=160x120:r=10:d=3"]
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=160x120:r=10:d=6"]
     if audio:
         cmd += ["-f", "lavfi", "-i", audio, "-c:a", "aac", "-shortest"]
     subprocess.run(cmd + ["-pix_fmt", "yuv420p", str(path)], check=True)
@@ -54,22 +54,22 @@ def test_clip_without_audio_is_clean(tmp_path):
 def test_no_music_leaves_the_file_as_is(tmp_path, monkeypatch):
     path = _clip(tmp_path)
     before = path.read_bytes()
-    monkeypatch.setattr(mc, "music_per_second", lambda mono: np.zeros(3))
+    monkeypatch.setattr(mc, "music_per_second", lambda mono: np.zeros(6))
     assert mc.clean_clip(path)["status"] == "clean"
     assert path.read_bytes() == before
 
 
 def _music_then(after):
-    calls = iter([np.array([.9, .9, .9]), after])
+    calls = iter([np.full(6, .9), after])
     return lambda mono: next(calls)
 
 
 def test_music_is_swapped_for_vocals(tmp_path, monkeypatch):
     path = _clip(tmp_path)
     video, duration = _video_packets(path), _duration(path)
-    monkeypatch.setattr(mc, "music_per_second", _music_then(np.zeros(3)))
+    monkeypatch.setattr(mc, "music_per_second", _music_then(np.zeros(6)))
     monkeypatch.setattr(mc, "separate_vocals", lambda stereo: np.zeros_like(stereo))
-    assert mc.clean_clip(path) == {"status": "removed", "music_seconds": 3.0, "error": None}
+    assert mc.clean_clip(path) == {"status": "removed", "music_seconds": 6.0, "error": None}
     assert _video_packets(path) == video  # the picture is copied, never re-encoded
     assert abs(_duration(path) - duration) < 0.1
     loud = subprocess.run(["ffmpeg", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
@@ -79,15 +79,23 @@ def test_music_is_swapped_for_vocals(tmp_path, monkeypatch):
 
 def test_music_that_survives_is_left(tmp_path, monkeypatch):
     path = _clip(tmp_path)
-    monkeypatch.setattr(mc, "music_per_second", _music_then(np.array([.9, .9, .9])))
+    monkeypatch.setattr(mc, "music_per_second", _music_then(np.full(6, .9)))
     monkeypatch.setattr(mc, "separate_vocals", lambda stereo: stereo)
     assert mc.clean_clip(path)["status"] == "left"
+
+
+def test_short_leftovers_still_count_as_removed(tmp_path, monkeypatch):
+    # Real clips: a violin bleeding through for 2 s, a sung-sounding phrase; too short for Content ID.
+    path = _clip(tmp_path)
+    monkeypatch.setattr(mc, "music_per_second", _music_then(np.array([.9, .9, .1, .1, .6, .1])))
+    monkeypatch.setattr(mc, "separate_vocals", lambda stereo: stereo)
+    assert mc.clean_clip(path)["status"] == "removed"
 
 
 def test_a_failure_leaves_the_clip_untouched(tmp_path, monkeypatch):
     path = _clip(tmp_path)
     before = path.read_bytes()
-    monkeypatch.setattr(mc, "music_per_second", lambda mono: np.array([.9, .9, .9]))
+    monkeypatch.setattr(mc, "music_per_second", lambda mono: np.full(6, .9))
 
     def broken(stereo):
         raise RuntimeError("onnx down")
