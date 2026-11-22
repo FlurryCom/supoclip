@@ -35,8 +35,8 @@ KITS: dict[str, dict[str, Any]] = {
         "burn_hook_title": True,
         "layout": None,
         "voice_roles": False,
-        # Copyright music out, voices kept (media/music_check); on once the owner approves the preview.
-        "music_clean": False,
+        # Copyright music out, voices kept (media/music_check); owner approved the real preview (2026-11-22).
+        "music_clean": True,
         "sfx": [
             {"path": ASSETS_DIR / "sfx" / "bell.wav", "at": "start", "volume": 1.0},
             {"path": ASSETS_DIR / "sfx" / "cartoon-whoosh.wav", "at": "start", "volume": 0.5},

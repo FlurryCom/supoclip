@@ -61,7 +61,7 @@ def test_v2_kit_splits_streamer_friend_and_game_captions():
     assert get_kit("catclips")["voice_roles"] is False and get_kit("none")["voice_roles"] is False
 
 
-def test_kits_music_clean_off_until_approved():
-    # Owner sees a real before/after first; then catclips and catclips_v2 turn it on.
+def test_cat_clips_kits_clean_music():
+    # Owner approved the real before/after (2026-11-22).
     assert get_kit("none")["music_clean"] is False
-    assert get_kit("catclips")["music_clean"] is False and get_kit("catclips_v2")["music_clean"] is False
+    assert get_kit("catclips")["music_clean"] is True and get_kit("catclips_v2")["music_clean"] is True
