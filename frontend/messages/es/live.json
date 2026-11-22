@@ -148,6 +148,7 @@
     "hint": "Un canal sin conexión no ocupa hueco; cuando se llenan, el directo espera al siguiente. Máximo de la máquina: {ceiling}.",
     "cpu": "Procesador al límite: {percent}% en uso (media de 5 minutos). Considera bajar el número.",
     "disk": "Poco disco: {gb} GB libres.",
+    "shared": "Compartido con otra cuenta: hasta {share} por ahora.",
     "saveError": "No se pudo guardar el número."
   }
 }

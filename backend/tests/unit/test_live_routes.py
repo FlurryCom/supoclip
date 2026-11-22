@@ -181,3 +181,12 @@ def test_slots_limit_rejects_out_of_range():
         with pytest.raises(HTTPException) as error:
             _slots_limit({"limit": bad})
         assert error.value.status_code == 422
+
+
+def test_account_slots_shows_the_fair_share():
+    # The recorder splits the machine's ceiling between accounts with active channels; the panel must say so.
+    from src.api.routes.live import account_slots
+    assert account_slots(20, 24, 1) == 20
+    assert account_slots(20, 24, 2) == 12
+    assert account_slots(None, 24, 1) == 10
+    assert account_slots(30, 24, 0) == 24

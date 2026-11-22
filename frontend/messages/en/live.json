@@ -148,6 +148,7 @@
     "hint": "Offline channels take no slot; when slots are full, a live waits for the next one. Machine maximum: {ceiling}.",
     "cpu": "Processor running tight: {percent}% busy (5-minute average). Consider lowering the number.",
     "disk": "Low disk: {gb} GB free.",
+    "shared": "Shared with another account: up to {share} for now.",
     "saveError": "Couldn't save the number."
   }
 }

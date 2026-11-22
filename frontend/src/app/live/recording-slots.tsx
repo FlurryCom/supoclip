@@ -13,6 +13,7 @@ type Slots = {
   waiting: number;
   limit: number;
   ceiling: number;
+  share: number;
   warnings: ("cpu" | "disk")[];
   cpu_percent: number;
   disk_free_gb: number;
@@ -52,7 +53,10 @@ export function RecordingSlots() {
         <span>{t("recording", { count: slots.recording })}</span>
         <NumberField value={slots.limit} min={1} max={slots.ceiling} label={t("limitLabel")} suffix={t("atOnce")} onCommit={(limit) => void save(limit)} />
         {slots.waiting > 0 ? <span className="text-amber-600 dark:text-amber-400">· {t("waiting", { count: slots.waiting })}</span> : null}
-        <span className="basis-full text-xs text-muted-foreground">{t("hint", { ceiling: slots.ceiling })}</span>
+        <span className="basis-full text-xs text-muted-foreground">
+          {t("hint", { ceiling: slots.ceiling })}
+          {slots.share < slots.limit ? ` ${t("shared", { share: slots.share })}` : null}
+        </span>
       </div>
       {error ? <p className="text-sm text-destructive">{t("saveError")}</p> : null}
       {slots.warnings.map((warning) => (

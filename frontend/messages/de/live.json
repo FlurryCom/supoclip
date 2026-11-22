@@ -148,6 +148,7 @@
     "hint": "Offline-Kanäle belegen keinen Platz; sind alle belegt, wartet der Livestream auf den nächsten. Maximum der Maschine: {ceiling}.",
     "cpu": "Prozessor ausgelastet: {percent}% (5-Minuten-Mittel). Zahl eventuell senken.",
     "disk": "Wenig Speicher: {gb} GB frei.",
+    "shared": "Mit einem anderen Konto geteilt: derzeit bis zu {share}.",
     "saveError": "Die Zahl konnte nicht gespeichert werden."
   }
 }

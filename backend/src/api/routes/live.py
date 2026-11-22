@@ -183,9 +183,9 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
         by_channel.setdefault(window["channel_id"], []).append(entry)
     return {
         "channels": [
-            {**channel, "is_live": channel["recording_id"] is not None,
-             # live but not recorded yet: every recording slot is busy (or the disk is low)
-             "is_waiting": channel["recording_id"] is None and channel["waiting_since"] is not None,
+            # waiting: live but not recorded (every slot busy or the disk low), even with a recording left open by a restart
+            {**channel, "is_live": channel["recording_id"] is not None and channel["waiting_since"] is None,
+             "is_waiting": channel["enabled"] and channel["waiting_since"] is not None,
              "windows": by_channel.get(channel["id"], [])[:10]}
             for channel in channels
         ]
@@ -258,6 +258,11 @@ def slot_warnings(load5: float, cpus: int, free_gb: float) -> list[str]:
     return warnings
 
 
+def account_slots(limit: int | None, ceiling: int, owners: int) -> int:
+    """Lives the account really records at once: its number, the machine's ceiling, and its fair share (as the recorder)."""
+    return min(limit or DEFAULT_RECORDINGS, ceiling, max(1, -(-ceiling // max(owners, 1))))
+
+
 def _slots_limit(data: Dict[str, Any]) -> int:
     value = data.get("limit")
     if type(value) is not int or not 1 <= value <= RECORDING_CEILING:
@@ -271,17 +276,19 @@ async def recording_slots(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     row = (await db.execute(text("""
         SELECT
+            -- A recording left open by a restart while its channel waits for a slot is not recording.
             (SELECT count(*) FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id
-             WHERE c.user_id = :user_id AND r.ended_at IS NULL) AS recording,
-            (SELECT count(*) FROM live_channels c WHERE c.user_id = :user_id AND c.waiting_since IS NOT NULL
-             AND NOT EXISTS (SELECT 1 FROM live_recordings r WHERE r.channel_id = c.id AND r.ended_at IS NULL)) AS waiting,
-            (SELECT max_recordings FROM live_accounts WHERE user_id = :user_id) AS max_recordings
+             WHERE c.user_id = :user_id AND r.ended_at IS NULL AND c.waiting_since IS NULL) AS recording,
+            (SELECT count(*) FROM live_channels c WHERE c.user_id = :user_id AND c.enabled AND c.waiting_since IS NOT NULL) AS waiting,
+            (SELECT max_recordings FROM live_accounts WHERE user_id = :user_id) AS max_recordings,
+            (SELECT count(DISTINCT user_id) FROM live_channels WHERE enabled) AS owners
     """), {"user_id": user_id})).first()
     load5, cpus = os.getloadavg()[1], os.cpu_count() or 1
     free_gb = shutil.disk_usage("/app/uploads").free / 2**30  # clips and live recordings share this disk
     return {
         "recording": row.recording, "waiting": row.waiting,
         "limit": min(row.max_recordings or DEFAULT_RECORDINGS, RECORDING_CEILING), "ceiling": RECORDING_CEILING,
+        "share": account_slots(row.max_recordings, RECORDING_CEILING, row.owners),
         "warnings": slot_warnings(load5, cpus, free_gb),
         "cpu_percent": round(100 * load5 / cpus), "disk_free_gb": int(free_gb),
     }

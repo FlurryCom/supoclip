@@ -148,6 +148,7 @@
     "hint": "Kanal offline tidak memakai slot; saat slot penuh, live menunggu slot berikutnya. Maksimum mesin: {ceiling}.",
     "cpu": "Prosesor sibuk: {percent}% terpakai (rata-rata 5 menit). Pertimbangkan menurunkan angkanya.",
     "disk": "Disk hampir penuh: {gb} GB tersisa.",
+    "shared": "Dibagi dengan akun lain: saat ini hingga {share}.",
     "saveError": "Angka tidak dapat disimpan."
   }
 }

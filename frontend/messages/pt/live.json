@@ -148,6 +148,7 @@
     "hint": "Canal offline não ocupa vaga; quando as vagas enchem, a live espera a próxima. Máximo da máquina: {ceiling}.",
     "cpu": "Processador apertado: {percent}% em uso (média de 5 minutos). Considere baixar o número.",
     "disk": "Pouco disco: {gb} GB livres.",
+    "shared": "Dividido com outra conta: agora grava até {share}.",
     "saveError": "Não deu para salvar o número."
   }
 }
