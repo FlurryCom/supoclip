@@ -185,12 +185,13 @@ async def post_candidates(svc, allowed_user_ids: list[str]) -> list[dict]:
             t.blur_sensitive AS target_blur, TRUE AS channel_blur, g.created_at AS clip_created,
             t.safe_posting, t.limit_posts, t.safe_gap_minutes,
             NULL AS channel_id, FALSE AS channel_safe, NULL::int AS channel_gap_minutes,
-            s.duration AS checked_duration, s.regions, s.error AS check_error
+            s.duration AS checked_duration, s.regions, s.error AS check_error, m.status AS music_status
         FROM live_post_requests q
         JOIN generated_clips g ON g.id = q.clip_id
         JOIN reform_items ri ON ri.task_id = g.task_id
         JOIN live_post_targets t ON t.id = q.target_id AND t.enabled
         LEFT JOIN live_clip_sensitive s ON s.file_path = g.file_path
+        LEFT JOIN live_clip_music m ON m.file_path = g.file_path
         WHERE t.user_id = ANY(%s)
           AND NOT EXISTS (SELECT 1 FROM live_posts p WHERE p.clip_id = g.id AND p.target_id = t.id)
         ORDER BY q.created_at LIMIT 50

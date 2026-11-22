@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from supoclip_live import cta
-from supoclip_live.sensitive import blur_chain, blurred_share, decide
+from supoclip_live.sensitive import blur_chain, blurred_share, decide, music_refusal
 
 SINCE = datetime(2026, 11, 19, 15, 0, tzinfo=timezone.utc)
 REGION = {"kind": "nudity", "start": 1.0, "end": 2.0, "x": 0.25, "y": 0.25, "w": 0.5, "h": 0.25}
@@ -105,3 +105,11 @@ def test_finish_raises_when_blur_is_required_and_fails(tmp_path):
 def test_finish_without_regions_behaves_like_with_cta(tmp_path):
     clip = make_clip(tmp_path / "c.mp4")
     assert cta.finish_clip(clip, "none", "tiktok", [], must_blur=False) == clip
+
+
+def test_music_left_refuses_every_post():
+    # Music still heard after the cleanup: never posted, also when published by hand from the Library.
+    assert music_refusal({"music_status": "left"}) == "música com direitos autorais"
+    for status in ("removed", "clean", "error", None):
+        assert music_refusal({"music_status": status}) is None
+    assert music_refusal({}) is None  # clips made before the music check post as before

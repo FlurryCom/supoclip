@@ -413,10 +413,11 @@ class LiveService:
                 t.id AS target_id, t.user_id, t.integration_id, t.provider, t.name, t.mode, t.visibility, t.daily_cap,
                 t.blur_sensitive AS target_blur, c.blur_sensitive AS channel_blur, g.created_at AS clip_created, t.safe_posting, t.limit_posts, t.safe_gap_minutes,
                 c.id AS channel_id, c.safe_posting AS channel_safe, c.safe_gap_minutes AS channel_gap_minutes,
-                s.duration AS checked_duration, s.regions, s.error AS check_error
+                s.duration AS checked_duration, s.regions, s.error AS check_error, m.status AS music_status
             FROM live_clips lc
             JOIN generated_clips g ON g.id = lc.clip_id
             LEFT JOIN live_clip_sensitive s ON s.file_path = g.file_path
+            LEFT JOIN live_clip_music m ON m.file_path = g.file_path
             JOIN live_recordings r ON r.id = lc.recording_id
             JOIN live_channels c ON c.id = r.channel_id
             JOIN live_post_targets t ON t.user_id = c.user_id AND t.enabled
@@ -442,7 +443,7 @@ class LiveService:
         for row in candidates:
             target = {k: row[k] for k in ("integration_id", "provider", "name", "mode")}
             target["visibility"] = postiz.effective_visibility(row["visibility"], row["post_visibility"])
-            reason = postiz.refusal_reason(target, integrations)
+            reason = postiz.refusal_reason(target, integrations) or sensitive.music_refusal(row)
             if reason:
                 logger.warning("not posting clip %s to %s: %s", row["clip_id"], row["name"], reason)
                 await self.record_post(row, "refused", None, reason)

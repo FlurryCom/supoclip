@@ -32,6 +32,11 @@ def blurred_share(regions: list[dict[str, Any]], duration: float) -> float:
     return covered / duration if duration > 0 else 0.0
 
 
+def music_refusal(row: dict[str, Any]) -> str | None:
+    """Why a clip can't be posted for music: the worker's cleanup left copyright music in it."""
+    return "música com direitos autorais" if row.get("music_status") == "left" else None
+
+
 def decide(row: dict[str, Any], since: datetime, actual_duration: float) -> tuple[str, str | None, list]:
     """("post" | "blur" | "refuse", reason for a refusal, regions to blur) for one clip and account."""
     if not (row.get("target_blur") and row.get("channel_blur")):
