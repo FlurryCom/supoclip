@@ -159,3 +159,25 @@ def test_reform_request_rebuilds_urls_and_drops_bad_ids():
         reform_request({"items": []})
     with pytest.raises(HTTPException):
         reform_request({"items": items * 11})
+
+
+def test_add_channel_has_no_follow_cap():
+    # Offline channels cost nothing; only recordings at once are limited (/live/slots).
+    assert not hasattr(live, "MAX_CHANNELS_PER_USER")
+
+
+def test_slot_warnings():
+    from src.api.routes.live import slot_warnings
+    assert slot_warnings(12.1, 16, 49.9) == ["cpu", "disk"]
+    assert slot_warnings(12.0, 16, 50) == []
+    assert slot_warnings(1.0, 16, 10) == ["disk"]
+
+
+def test_slots_limit_rejects_out_of_range():
+    from src.api.routes.live import RECORDING_CEILING, _slots_limit
+    assert _slots_limit({"limit": 1}) == 1
+    assert _slots_limit({"limit": RECORDING_CEILING}) == RECORDING_CEILING
+    for bad in (0, RECORDING_CEILING + 1, True, "5", 2.5, None):
+        with pytest.raises(HTTPException) as error:
+            _slots_limit({"limit": bad})
+        assert error.value.status_code == 422

@@ -7,6 +7,7 @@ routes only manage channels and report what happened. docs/live-clipping.md.
 import asyncio
 import os
 import re
+import shutil
 import uuid
 from typing import Any, Dict
 
@@ -27,7 +28,9 @@ from ...workers.media_cleanup import _delete_finished_local_upload, _finished_lo
 router = APIRouter(prefix="/live", tags=["live"])
 
 LIVE_CLIPPING = "live_clipping"
-MAX_CHANNELS_PER_USER = max(1, int(os.getenv("LIVE_MAX_CHANNELS_PER_USER", "5")))
+# Following is free (offline channels cost nothing); recordings at once are what the machine pays for.
+RECORDING_CEILING = max(1, int(os.getenv("LIVE_MAX_RECORDINGS", "10")))  # the machine's hard ceiling
+DEFAULT_RECORDINGS = 10  # an account that never chose a number
 CHANNEL_RE = re.compile(r"^[a-z0-9_]{3,25}$")
 TWITCH_URL_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?twitch\.tv/([A-Za-z0-9_]{3,25})/?$")
 YOUTUBE_HANDLE_RE = re.compile(r"^(?:https?://)?(?:www\.|m\.)?youtube\.com/(@[A-Za-z0-9._-]{3,30})(?:/(?:live|streams|videos|featured))?/?(?:\?.*)?$")
@@ -204,15 +207,13 @@ async def trending(request: Request, game: str = "gta6", language: str = "en", d
     user_id = await _user(request, db)
     rows = (await db.execute(text(
         "SELECT channel FROM live_channels WHERE user_id = :user_id AND platform = 'twitch'"), {"user_id": user_id})).all()
-    count = (await db.execute(text("SELECT count(*) FROM live_channels WHERE user_id = :user_id"), {"user_id": user_id})).scalar()
     try:
         channels = await twitch_trending.top_streams(game, language, {r.channel.lower() for r in rows})
     except twitch_trending.TwitchNotConfigured:
-        return {"configured": False, "channels": [], "at_limit": count >= MAX_CHANNELS_PER_USER}
+        return {"configured": False, "channels": []}
     except Exception:
         raise HTTPException(status_code=502, detail="Couldn't reach Twitch") from None
-    return {"configured": True, "channels": channels, "at_limit": count >= MAX_CHANNELS_PER_USER,
-            "limit": MAX_CHANNELS_PER_USER}
+    return {"configured": True, "channels": channels}
 
 
 @router.post("/channels")
@@ -226,11 +227,6 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
             "SELECT * FROM live_channels WHERE user_id = :user_id ORDER BY created_at DESC LIMIT 1"
         ), {"user_id": user_id})).first()
         settings = {**_settings_like(last), **settings}
-    # Each live channel is a recording process plus disk, so cap how many one account follows.
-    await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:user_id, 2911))"), {"user_id": user_id})
-    count = (await db.execute(text("SELECT count(*) FROM live_channels WHERE user_id = :user_id"), {"user_id": user_id})).scalar()
-    if count >= MAX_CHANNELS_PER_USER:
-        raise HTTPException(status_code=409, detail=f"You can follow up to {MAX_CHANNELS_PER_USER} channels")
     channel_id = str(uuid.uuid4())
     row = (await db.execute(text("""
         INSERT INTO live_channels (id, user_id, platform, channel, enabled, chat_filter, min_score, chat_weight, daily_window_cap, edit_kit, post_visibility, blur_sensitive, limit_windows, safe_posting, safe_gap_minutes)
@@ -250,6 +246,57 @@ async def add_channel(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=409, detail="You already follow this channel")
     await db.commit()
     return {"id": channel_id, "platform": platform, "channel": name}
+
+
+def slot_warnings(load5: float, cpus: int, free_gb: float) -> list[str]:
+    """What the Live page warns about: the processor busy (5-min load over 75% of cores) or under 50 GB of disk."""
+    warnings = []
+    if load5 > 0.75 * max(cpus, 1):
+        warnings.append("cpu")
+    if free_gb < 50:
+        warnings.append("disk")
+    return warnings
+
+
+def _slots_limit(data: Dict[str, Any]) -> int:
+    value = data.get("limit")
+    if type(value) is not int or not 1 <= value <= RECORDING_CEILING:
+        raise HTTPException(status_code=422, detail=f"limit must be a whole number from 1 to {RECORDING_CEILING}")
+    return value
+
+
+@router.get("/slots")
+async def recording_slots(request: Request, db: AsyncSession = Depends(get_db)):
+    """Lives recording now against the account's number, channels waiting for a slot, and machine warnings."""
+    user_id = await _user(request, db)
+    row = (await db.execute(text("""
+        SELECT
+            (SELECT count(*) FROM live_recordings r JOIN live_channels c ON c.id = r.channel_id
+             WHERE c.user_id = :user_id AND r.ended_at IS NULL) AS recording,
+            (SELECT count(*) FROM live_channels c WHERE c.user_id = :user_id AND c.waiting_since IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM live_recordings r WHERE r.channel_id = c.id AND r.ended_at IS NULL)) AS waiting,
+            (SELECT max_recordings FROM live_accounts WHERE user_id = :user_id) AS max_recordings
+    """), {"user_id": user_id})).first()
+    load5, cpus = os.getloadavg()[1], os.cpu_count() or 1
+    free_gb = shutil.disk_usage("/app/uploads").free / 2**30  # clips and live recordings share this disk
+    return {
+        "recording": row.recording, "waiting": row.waiting,
+        "limit": min(row.max_recordings or DEFAULT_RECORDINGS, RECORDING_CEILING), "ceiling": RECORDING_CEILING,
+        "warnings": slot_warnings(load5, cpus, free_gb),
+        "cpu_percent": round(100 * load5 / cpus), "disk_free_gb": int(free_gb),
+    }
+
+
+@router.patch("/slots")
+async def update_recording_slots(request: Request, db: AsyncSession = Depends(get_db)):
+    user_id = await _user(request, db)
+    limit = _slots_limit(await _body(request))
+    await db.execute(text("""
+        INSERT INTO live_accounts (user_id, max_recordings) VALUES (:user_id, :limit)
+        ON CONFLICT (user_id) DO UPDATE SET max_recordings = EXCLUDED.max_recordings, updated_at = now()
+    """), {"user_id": user_id, "limit": limit})
+    await db.commit()
+    return {"limit": limit}
 
 
 @router.patch("/channels/{channel_id}")
