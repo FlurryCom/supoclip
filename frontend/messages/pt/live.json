@@ -139,5 +139,15 @@
   "save": "Salvar",
   "saving": "Salvando…",
   "waiting": "Ao vivo · aguardando vaga",
-  "waitingHint": "Está ao vivo, mas todas as vagas de gravação estão ocupadas. Começa a gravar quando uma live terminar."
+  "waitingHint": "Está ao vivo, mas todas as vagas de gravação estão ocupadas. Começa a gravar quando uma live terminar.",
+  "slots": {
+    "recording": "Gravando agora: {count} de",
+    "atOnce": "ao mesmo tempo",
+    "limitLabel": "Lives gravando ao mesmo tempo",
+    "waiting": "{count} aguardando vaga",
+    "hint": "Canal offline não ocupa vaga; quando as vagas enchem, a live espera a próxima. Máximo da máquina: {ceiling}.",
+    "cpu": "Processador apertado: {percent}% em uso (média de 5 minutos). Considere baixar o número.",
+    "disk": "Pouco disco: {gb} GB livres.",
+    "saveError": "Não deu para salvar o número."
+  }
 }

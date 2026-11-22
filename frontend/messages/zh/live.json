@@ -139,5 +139,15 @@
   "save": "保存",
   "saving": "保存中…",
   "waiting": "直播中 · 等待名额",
-  "waitingHint": "正在直播，但所有录制名额已占满。其他直播结束后开始录制。"
+  "waitingHint": "正在直播，但所有录制名额已占满。其他直播结束后开始录制。",
+  "slots": {
+    "recording": "正在录制：{count} /",
+    "atOnce": "同时",
+    "limitLabel": "同时录制的直播数",
+    "waiting": "{count} 个等待空位",
+    "hint": "离线频道不占空位；空位满时，直播会等待下一个空位。机器上限：{ceiling}。",
+    "cpu": "处理器紧张：使用率 {percent}%（5 分钟平均）。可考虑调低数量。",
+    "disk": "磁盘空间不足：剩余 {gb} GB。",
+    "saveError": "无法保存该数量。"
+  }
 }

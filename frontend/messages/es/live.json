@@ -139,5 +139,15 @@
   "save": "Guardar",
   "saving": "Guardando…",
   "waiting": "En vivo · esperando turno",
-  "waitingHint": "Está en vivo, pero todos los cupos de grabación están ocupados. Empieza a grabar cuando termine otro directo."
+  "waitingHint": "Está en vivo, pero todos los cupos de grabación están ocupados. Empieza a grabar cuando termine otro directo.",
+  "slots": {
+    "recording": "Grabando ahora: {count} de",
+    "atOnce": "a la vez",
+    "limitLabel": "Directos grabando a la vez",
+    "waiting": "{count} esperando un hueco",
+    "hint": "Un canal sin conexión no ocupa hueco; cuando se llenan, el directo espera al siguiente. Máximo de la máquina: {ceiling}.",
+    "cpu": "Procesador al límite: {percent}% en uso (media de 5 minutos). Considera bajar el número.",
+    "disk": "Poco disco: {gb} GB libres.",
+    "saveError": "No se pudo guardar el número."
+  }
 }

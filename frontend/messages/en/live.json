@@ -139,5 +139,15 @@
   "save": "Save",
   "saving": "Saving…",
   "waiting": "Live · waiting for a slot",
-  "waitingHint": "It's live, but every recording slot is busy. Recording starts when another live ends."
+  "waitingHint": "It's live, but every recording slot is busy. Recording starts when another live ends.",
+  "slots": {
+    "recording": "Recording now: {count} of",
+    "atOnce": "at once",
+    "limitLabel": "Lives recording at once",
+    "waiting": "{count} waiting for a slot",
+    "hint": "Offline channels take no slot; when slots are full, a live waits for the next one. Machine maximum: {ceiling}.",
+    "cpu": "Processor running tight: {percent}% busy (5-minute average). Consider lowering the number.",
+    "disk": "Low disk: {gb} GB free.",
+    "saveError": "Couldn't save the number."
+  }
 }

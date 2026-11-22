@@ -139,5 +139,15 @@
   "save": "Simpan",
   "saving": "Menyimpan…",
   "waiting": "Live · menunggu slot",
-  "waitingHint": "Sedang live, tapi semua slot rekaman terpakai. Rekaman dimulai saat live lain selesai."
+  "waitingHint": "Sedang live, tapi semua slot rekaman terpakai. Rekaman dimulai saat live lain selesai.",
+  "slots": {
+    "recording": "Merekam sekarang: {count} dari",
+    "atOnce": "sekaligus",
+    "limitLabel": "Live yang direkam sekaligus",
+    "waiting": "{count} menunggu slot",
+    "hint": "Kanal offline tidak memakai slot; saat slot penuh, live menunggu slot berikutnya. Maksimum mesin: {ceiling}.",
+    "cpu": "Prosesor sibuk: {percent}% terpakai (rata-rata 5 menit). Pertimbangkan menurunkan angkanya.",
+    "disk": "Disk hampir penuh: {gb} GB tersisa.",
+    "saveError": "Angka tidak dapat disimpan."
+  }
 }

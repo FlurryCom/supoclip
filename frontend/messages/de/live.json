@@ -139,5 +139,15 @@
   "save": "Speichern",
   "saving": "Wird gespeichert…",
   "waiting": "Live · wartet auf Platz",
-  "waitingHint": "Ist live, aber alle Aufnahmeplätze sind belegt. Die Aufnahme startet, wenn ein anderer Stream endet."
+  "waitingHint": "Ist live, aber alle Aufnahmeplätze sind belegt. Die Aufnahme startet, wenn ein anderer Stream endet.",
+  "slots": {
+    "recording": "Läuft gerade: {count} von",
+    "atOnce": "gleichzeitig",
+    "limitLabel": "Gleichzeitige Live-Aufnahmen",
+    "waiting": "{count} warten auf einen Platz",
+    "hint": "Offline-Kanäle belegen keinen Platz; sind alle belegt, wartet der Livestream auf den nächsten. Maximum der Maschine: {ceiling}.",
+    "cpu": "Prozessor ausgelastet: {percent}% (5-Minuten-Mittel). Zahl eventuell senken.",
+    "disk": "Wenig Speicher: {gb} GB frei.",
+    "saveError": "Die Zahl konnte nicht gespeichert werden."
+  }
 }

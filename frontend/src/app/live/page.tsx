@@ -22,6 +22,7 @@ import { ConfirmButton } from "./confirm-button";
 import { TrendingSection } from "./trending-section";
 import { NumberField } from "./number-field";
 import { PostingSection } from "./posting-section";
+import { RecordingSlots } from "./recording-slots";
 
 const PAGE = "mx-auto w-full max-w-3xl px-4 py-8 sm:px-8 md:py-10";
 const REFRESH_MS = 30_000;
@@ -464,6 +465,8 @@ export default function LivePage() {
         <h1 className="font-display text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="mt-2 text-muted-foreground">{t("description")}</p>
       </div>
+
+      <RecordingSlots />
 
       <PostingSection pending={pending} stage={stage} savedTick={savedTick} />
 
