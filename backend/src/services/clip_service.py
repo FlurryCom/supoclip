@@ -51,6 +51,7 @@ from ..youtube_source import (
 )
 from ..media.ffmpeg import cap_video_short_side, ffprobe_duration, rendered_clip_duration
 from ..media.render_ranges import burned_hook_title, point_labels_for
+from ..media.music_check import recheck as recheck_music
 from ..stream_source import download_stream_sections
 from .video_service import resolve_upload_for_edit
 
@@ -560,6 +561,7 @@ class ClipEditingMixin:
             if trimmed_meta is None:
                 trimmed_meta = _unplanned_meta(meta)
 
+        await recheck_music([clip["file_path"]], output_path)  # fork: an edit keeps the copyright music check
         await self.clip_repo.update_clip(
             self.db,
             clip_id,
@@ -639,6 +641,8 @@ class ClipEditingMixin:
                 "workflow_meta": half_meta(second_ranges, second_offsets, 2),
             }
 
+        for path in (first_path, second_path):
+            await recheck_music([clip["file_path"]], path)  # fork: an edit keeps the copyright music check
         await self.clip_repo.update_clip(
             self.db,
             clip_id,
@@ -731,6 +735,7 @@ class ClipEditingMixin:
                 logger.warning("Could not carry B-roll placements into merged clip", exc_info=True)
         text = " ".join((c.get("text") or "").strip() for c in ordered if c.get("text"))
 
+        await recheck_music([c["file_path"] for c in ordered], merged_path)  # fork: keeps the music check
         first = ordered[0]
         await self.clip_repo.update_clip(
             self.db,
@@ -902,6 +907,7 @@ class ClipEditingMixin:
             rendered_clip_duration, output_path, source_ranges, output_offsets
         )
 
+        await recheck_music([clip["file_path"]], output_path)  # fork: the re-render brings the source audio back
         await self.clip_repo.update_clip(
             self.db,
             clip_id,

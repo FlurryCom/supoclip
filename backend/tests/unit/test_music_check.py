@@ -127,3 +127,34 @@ def test_a_bad_download_leaves_no_model(tmp_path, monkeypatch):
     monkeypatch.setattr(mc.urllib.request, "urlopen", lambda url, timeout: _Body(b"not a model"))
     assert mc.ensure_model("cnn10.pth") is None
     assert not list((tmp_path / "music").glob("*"))
+
+
+def _recheck_fakes(monkeypatch, checked):
+    calls = []
+
+    async def was_checked(paths):
+        calls.append(("was_checked", list(paths)))
+        return checked
+
+    async def save(file_path, result):
+        calls.append(("save", file_path, result["status"]))
+
+    monkeypatch.setattr(mc, "_was_checked", was_checked)
+    monkeypatch.setattr(mc, "save_result", save)
+    monkeypatch.setattr(mc, "clean_clip", lambda path: {"status": "removed", "music_seconds": 5.0, "error": None})
+    return calls
+
+
+def test_an_edited_clip_is_checked_again(tmp_path, monkeypatch):
+    # Editing captions re-renders from the source: without this the radio would come back unchecked.
+    import asyncio
+    calls = _recheck_fakes(monkeypatch, checked=True)
+    asyncio.run(mc.recheck(["/app/uploads/clips/old.mp4"], tmp_path / "new.mp4"))
+    assert calls == [("was_checked", ["/app/uploads/clips/old.mp4"]), ("save", str(tmp_path / "new.mp4"), "removed")]
+
+
+def test_clips_never_checked_stay_unchecked_after_an_edit(tmp_path, monkeypatch):
+    import asyncio
+    calls = _recheck_fakes(monkeypatch, checked=False)
+    asyncio.run(mc.recheck(["a.mp4", "b.mp4"], tmp_path / "new.mp4"))
+    assert calls == [("was_checked", ["a.mp4", "b.mp4"])]

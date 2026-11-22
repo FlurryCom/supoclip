@@ -271,3 +271,25 @@ async def save_result(file_path: str, result: dict[str, Any]) -> None:
                 error = EXCLUDED.error, checked_at = now()
         """), {"file_path": file_path, **result})
         await db.commit()
+
+
+async def _was_checked(file_paths: list[str]) -> bool:
+    from sqlalchemy import text
+
+    from ..database import get_session_maker
+
+    async with get_session_maker()() as db:
+        row = (await db.execute(text("SELECT 1 FROM live_clip_music WHERE file_path = ANY(:paths) LIMIT 1"),
+                                {"paths": list(file_paths)})).first()
+    return row is not None
+
+
+async def recheck(old_paths: list[str], new_path: Path) -> None:
+    """An edited clip (trim, split, merge, captions) gets the music check its source had; never raises."""
+    import asyncio
+
+    try:
+        if await _was_checked(old_paths):
+            await save_result(str(new_path), await asyncio.to_thread(clean_clip, Path(new_path)))
+    except Exception as exc:
+        logger.warning("Music recheck failed for %s: %s", Path(new_path).name, exc)
