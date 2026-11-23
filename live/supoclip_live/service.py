@@ -159,7 +159,10 @@ class LiveService:
         while True:
             try:
                 if self.db is None or self.db.closed:  # first run, or Postgres restarted under us
-                    self.db = await psycopg.AsyncConnection.connect(self.dsn, autocommit=True, row_factory=dict_row)
+                    # no server-side prepared statements: a migration adding a column to live_channels made the
+                    # cached "SELECT c.*" fail every cycle ("cached plan must not change result type")
+                    self.db = await psycopg.AsyncConnection.connect(
+                        self.dsn, autocommit=True, row_factory=dict_row, prepare_threshold=None)
                 await self.cycle()
             except Exception:
                 logger.exception("live cycle failed")
