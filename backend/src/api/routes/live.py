@@ -100,7 +100,7 @@ async def _channel(raw: Any) -> tuple[str, str]:
 def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
     """Validated optional settings from a request body."""
     settings: Dict[str, Any] = {}
-    for key in ("enabled", "chat_filter", "blur_sensitive", "limit_windows", "safe_posting"):
+    for key in ("enabled", "chat_filter", "blur_sensitive", "limit_windows", "safe_posting", "framing_auto"):
         if key in data:
             if not isinstance(data[key], bool):
                 raise HTTPException(status_code=422, detail=f"{key} must be true or false")
@@ -140,7 +140,8 @@ def _box(value: Any, name: str) -> Dict[str, float] | None:
         x, y, w, h = (float(value[k]) for k in ("x", "y", "w", "h"))
     except OverflowError:
         raise HTTPException(status_code=422, detail=f"{name} has a number out of range") from None
-    if not all(map(math.isfinite, (x, y, w, h))) or x < 0 or y < 0 or w < 0.04 or h < 0.04 or x + w > 1.0001 or y + h > 1.0001:
+    # 0.039: a 4% box the render rounded to even pixels must still save
+    if not all(map(math.isfinite, (x, y, w, h))) or x < 0 or y < 0 or w < 0.039 or h < 0.039 or x + w > 1.0001 or y + h > 1.0001:
         raise HTTPException(status_code=422, detail=f"{name} must fit inside the frame, at least 4% a side")
     return {"x": x, "y": y, "w": w, "h": h}
 
@@ -166,7 +167,7 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
         SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, c.safe_posting, c.safe_gap_minutes, c.waiting_since,
-            c.edit_kit, c.blur_sensitive, c.post_visibility, c.cam_box, c.game_box, c.framing_frame_at,
+            c.edit_kit, c.blur_sensitive, c.post_visibility, c.cam_box, c.game_box, c.framing_frame_at, c.framing_changed_at, c.framing_notice, c.framing_reason, c.framing_previous, c.framing_auto,
             r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
@@ -349,6 +350,12 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
     )
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Channel not found")
+    if boxes & settings.keys():
+        # set by hand (or "Undo" / "It's right"): the notice goes
+        await db.execute(text(
+            "UPDATE live_channels SET framing_changed_at = NULL, framing_notice = NULL, framing_reason = NULL, "
+            "framing_previous = NULL WHERE id = :id"
+        ), {"id": channel_id})
     await db.commit()
     return {"id": channel_id, **settings}
 

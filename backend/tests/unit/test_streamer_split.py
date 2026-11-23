@@ -201,7 +201,7 @@ def _plan(monkeypatch, marked, face=CAM):
     monkeypatch.setattr(reframing, "analyze_vertical_clip", lambda *a, **k: (None, None, samples_with()))
     monkeypatch.setattr(streamer_split, "find_cam_rect", lambda *a: pytest.fail("the detector ran"))
     monkeypatch.setattr(framing, "save_reference_frame", lambda *a: (_ for _ in ()).throw(OSError("disk")))
-    monkeypatch.setattr(framing, "channel_framing", lambda *a: marked)
+    monkeypatch.setattr(framing, "resolve", lambda *a: framing.Decision("channel", *marked))
     return streamer_split.plan_streamer_split("clip.mp4", W, H, "t", channel_id="chan-1")
 
 
@@ -223,6 +223,17 @@ def test_plan_without_marked_boxes_uses_the_detector(monkeypatch):
     from src.media import framing, reframing
     monkeypatch.setattr(reframing, "analyze_vertical_clip", lambda *a, **k: (None, None, samples_with()))
     monkeypatch.setattr(framing, "save_reference_frame", lambda *a: None)
-    monkeypatch.setattr(framing, "channel_framing", lambda *a: None)
+    monkeypatch.setattr(framing, "resolve", lambda *a: framing.Decision("detector", None, None))
     streamer_split.plan_streamer_split("clip.mp4", W, H, "t", channel_id="chan-1")
+    assert called
+
+
+def test_plan_falls_back_to_the_detector_when_reading_the_framing_breaks(monkeypatch):
+    from src.media import framing, reframing, streamer_split
+    called = []
+    monkeypatch.setattr(reframing, "analyze_vertical_clip", lambda *a, **k: (None, None, samples_with()))
+    monkeypatch.setattr(streamer_split, "find_cam_rect", lambda *a: called.append(1))
+    monkeypatch.setattr(framing, "save_reference_frame", lambda *a: None)
+    monkeypatch.setattr(framing, "resolve", lambda *a: (_ for _ in ()).throw(ConnectionError("db")))
+    streamer_split.plan_streamer_split("clip.mp4", W, H, "t", channel_id="chan-1", recording_id="rec-1")
     assert called

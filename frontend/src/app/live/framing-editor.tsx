@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Crop } from "lucide-react";
+import { AlertTriangle, Crop } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -14,8 +15,19 @@ import {
 } from "./framing-math";
 
 // What the editor needs from a live channel; it saves through the page's own settings flow.
-export type FramingChannel = { id: string; channel: string; cam_box: Box | null; game_box: Box | null };
-type Framing = { cam_box: Box | null; game_box: Box | null };
+export type FramingChannel = {
+  id: string;
+  channel: string;
+  cam_box: Box | null;
+  game_box: Box | null;
+  // set when the automatic check (Claude) changed the boxes, or found them wrong without a fix
+  framing_changed_at?: string | null;
+  framing_notice?: "changed" | "attention" | null;
+  framing_reason?: string | null;
+  framing_auto?: boolean;
+  framing_previous?: { cam_box: Box | null; game_box: Box | null } | null;
+};
+type Framing = { cam_box?: Box | null; game_box?: Box | null; framing_auto?: boolean };
 
 type Target = "cam" | "game";
 type Drag = { kind: "move" | "resize" | "draw"; target: Target; corner?: Corner; x: number; y: number; start: Box };
@@ -226,6 +238,35 @@ export function FramingSetting({ channel, onChange }: { channel: FramingChannel;
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{status}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <Switch id={`framing-auto-${channel.id}`} checked={channel.framing_auto ?? true} onCheckedChange={(framing_auto) => onChange({ framing_auto })} />
+        <Label htmlFor={`framing-auto-${channel.id}`}>{t("autoSwitch")}</Label>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">{t(channel.framing_auto ?? true ? "autoOn" : "autoOff")}</p>
+      {channel.framing_changed_at ? (
+        <Alert className="mt-2 border-amber-500/50 text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="size-4" aria-hidden />
+          <AlertDescription className="space-y-2">
+            <p>
+              {t(channel.framing_notice === "changed" ? "notice.changed" : "notice.attention", {
+                time: new Date(channel.framing_changed_at).toLocaleString(),
+              })}{" "}
+              {channel.framing_reason}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {channel.game_box ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => onChange({ cam_box: channel.cam_box, game_box: channel.game_box })}>
+                  {t("notice.keep")}
+                </Button>
+              ) : null}
+              <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>{t("notice.review")}</Button>
+              {channel.framing_previous ? (
+                <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...channel.framing_previous!, framing_auto: false })}>{t("notice.undo")}</Button>
+              ) : null}
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>

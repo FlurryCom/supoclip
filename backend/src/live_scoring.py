@@ -124,11 +124,12 @@ def peak_overlay(
     return {"peak_s": max(0.5, peak_s), "chat": chat[:MAX_CHAT_SHOWN]}
 
 
-def segment_kit(kit_id: str, overlay: dict[str, Any] | None, channel_id: str | None = None) -> dict[str, Any]:
-    """What a kept segment carries to the render for its channel's edit kit (the channel: for its framing)."""
+def segment_kit(kit_id: str, overlay: dict[str, Any] | None, channel_id: str | None = None,
+                recording_id: str | None = None) -> dict[str, Any]:
+    """What a kept segment carries to the render for its channel's edit kit (channel and live: for its framing)."""
     overlay = overlay or {}
     kit = {"id": kit_id, "peak_s": overlay.get("peak_s"), "chat": overlay.get("chat", [])}
-    return {**kit, "channel_id": channel_id} if channel_id else kit
+    return {**kit, "channel_id": channel_id, "recording_id": recording_id} if channel_id else kit
 
 
 async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -167,5 +168,5 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
         with_text = [(b.at, b.chatters, b.messages or []) for b in rows]
         for segment in kept:
             segment["edit_kit"] = segment_kit(kit["id"], peak_overlay(segment, chunks, with_text),
-                                              row.channel_id if kit.get("layout") else None)
+                                              *((row.channel_id, row.recording_id) if kit.get("layout") else ()))
     return kept

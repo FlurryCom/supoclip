@@ -153,7 +153,7 @@
   },
   "framing": {
     "title": "Encuadre",
-    "auto": "Automático: la webcam se busca en cada clip.",
+    "auto": "Automático: la webcam se busca en cada clip y Claude la revisa al empezar cada directo.",
     "marked": "Marcado a mano: webcam y juego.",
     "noCam": "Marcado a mano: sin webcam (arriba se ve el juego desenfocado).",
     "open": "Marcar webcam y juego",
@@ -179,6 +179,16 @@
     "preview": "Vista previa",
     "apply": "Usar este encuadre",
     "automatic": "Volver a automático",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "notice": {
+      "changed": "El encuadre se ajustó solo el {time}.",
+      "attention": "El encuadre necesita atención ({time}).",
+      "keep": "Está bien",
+      "review": "Revisar",
+      "undo": "Deshacer"
+    },
+    "autoSwitch": "Ajustar solo cuando cambie el diseño",
+    "autoOn": "Al empezar cada directo Claude revisa la webcam y el juego, y corrige las cajas si el diseño cambió.",
+    "autoOff": "El sistema solo avisa cuando el encuadre parece mal; no cambia las cajas."
   }
 }

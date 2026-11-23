@@ -281,6 +281,7 @@ def create_optimized_clip(
     point_labels: Optional[List[Dict[str, Any]]] = None,
     kit_layout: Optional[str] = None,
     kit_channel_id: Optional[str] = None,
+    kit_recording_id: Optional[str] = None,
     layout_title: Optional[str] = None,
     kit_voice_roles: bool = False,
 ) -> bool:
@@ -424,7 +425,8 @@ def create_optimized_clip(
                 try:
                     from .media.streamer_split import plan_streamer_split
                     video_filter, mode, caption_y, cam_face = plan_streamer_split(
-                        source_clip_path, src_w, src_h, layout_title or "", channel_id=kit_channel_id)
+                        source_clip_path, src_w, src_h, layout_title or "", channel_id=kit_channel_id,
+                        recording_id=kit_recording_id)
                     vertical_plan = (video_filter, mode)
                     plan_report["kind"] = "streamer_split"
                     plan_report["cam_face"] = cam_face

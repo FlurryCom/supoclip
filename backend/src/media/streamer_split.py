@@ -265,23 +265,31 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
     return ";".join(graph)
 
 
-def _framing(input_path: Path, width: int, height: int, channel_id: str):
-    """The live channel's marked boxes, or None. Never breaks the render."""
+def _framing(input_path: Path, width: int, height: int, channel_id: str, recording_id: Optional[str],
+             samples, face: Optional[Box]):
+    """The live channel's framing (checked by Claude when due), or None. Never breaks the render."""
     from . import framing
 
     try:
         framing.save_reference_frame(input_path, channel_id)
     except Exception as exc:
         logger.warning("Saving the framing frame failed (%s)", exc)
+
+    def propose():  # the detector's webcam, only when Claude is asked
+        if face is None:
+            return None
+        return find_cam_rect(input_path, width, height, face) or cam_crop(width, height, face)
+
     try:
-        return framing.channel_framing(channel_id, width, height)
+        return framing.resolve(input_path, width, height, channel_id, recording_id, samples, face, propose)
     except Exception as exc:
         logger.warning("Reading the channel's framing failed (%s); using the detector", exc)
         return None
 
 
 def plan_streamer_split(input_path: Path, width: int, height: int, title: str,
-                        channel_id: Optional[str] = None) -> Tuple[str, str, float, Optional[Box]]:
+                        channel_id: Optional[str] = None,
+                        recording_id: Optional[str] = None) -> Tuple[str, str, float, Optional[Box]]:
     """(filter, "complex", caption_y, webcam face) for a horizontal clip, like ``build_vertical_filter_plan``.
 
     With ``channel_id`` (a live clip), the boxes the owner marked for that channel win over the detector.
@@ -291,16 +299,17 @@ def plan_streamer_split(input_path: Path, width: int, height: int, title: str,
     # 960 px: a corner webcam face is too small to find reliably in the usual 480 px pass.
     samples = analyze_vertical_clip(input_path, proc_width=960, analyze_context=False)[2]
     face = find_streamer_cam(width, height, samples)
-    marked = _framing(input_path, width, height, channel_id) if channel_id else None
-    if marked is not None:
-        cam_rect, game_rect = marked
-        # the face only counts (for the per-voice captions) inside the marked webcam
+    decision = _framing(input_path, width, height, channel_id, recording_id, samples, face) if channel_id else None
+    if decision is not None and decision.kind != "detector":
+        cam_rect, game_rect = decision.cam, decision.game
+        # the face only counts (for the per-voice captions) inside the webcam used
         if face is not None and (cam_rect is None or not _inside(face, cam_rect)):
             face = None
-        logger.info("Streamer split: channel framing (webcam %s, game %s)", cam_rect, game_rect)
+        logger.info("Streamer split: %s framing (webcam %s, game %s)", decision.kind, cam_rect, game_rect)
         return build_split_filter(width, height, face, title, cam_rect, game_rect), "complex", CAPTION_Y, face
+    game_rect = decision.game if decision is not None else None
     cam_rect = find_cam_rect(input_path, width, height, face) if face is not None else None
-    return build_split_filter(width, height, face, title, cam_rect), "complex", CAPTION_Y, face
+    return build_split_filter(width, height, face, title, cam_rect, game_rect), "complex", CAPTION_Y, face
 
 
 def _inside(face: Box, rect: Tuple[int, int, int, int]) -> bool:

@@ -5,9 +5,23 @@ Data: 2026-11-21 · Status: parte manual implementada em 2026-11-22 (o dono pedi
 **O que entrou (2026-11-22):** caixas por canal (`cam_box`, `game_box`) salvas na tela do canal e usadas no
 render; "Sem webcam" = só a caixa do jogo (o topo mostra o jogo desfocado); frame de referência numa coluna
 `bytea` (`framing_frame`), atualizado pelo render a cada 30 min; migração `20261122_0021`.
-**Ainda não:** checagem rápida, verificação pelo Claude, troca automática, aviso e "Desfazer" (as colunas
-`framing_previous`, `framing_changed_at`, `framing_checked_at` e `framing_auto_off` não foram criadas). Sem
-isso, se o streamer mudar a webcam de lugar, os clipes saem tortos até o dono remarcar.
+**Checagem automática (2026-11-22, migração `20261122_0022`):** `media/framing.py` (`decide` + `resolve`). Diferenças
+em relação ao desenho abaixo, decididas na construção:
+- checagem local só pelo rosto dentro da caixa da webcam (sem a razão de movimento); canal "sem webcam" falha
+  quando aparece um rosto parado;
+- o Claude roda pelo Claude Code CLI da assinatura (`run_cli_images`, como o filtro de gore), modelo `opus`
+  (`FRAMING_CHECK_MODEL`), e responde também `normal_scene` ("começando já"/intervalo: não decide e, no
+  início da live, tenta de novo no próximo clipe) e `webcam_box` (onde ele viu a webcam);
+- quando a proposta do detector é ruim, a caixa que o Claude viu é desenhada e conferida numa segunda olhada
+  antes de trocar;
+- canais sem caixas também são conferidos no início de cada live e ficam marcados sozinhos (webcam + jogo
+  inteiro, ou "sem webcam");
+- custo limitado: depois de um erro ou de uma tela "começando já", a checagem fica pendente e volta em 10 min
+  (não a cada clipe), com no máximo 12 consultas por live; cada consulta espera no máximo 60 s;
+- no lugar de `framing_auto_off` por live, uma chave por canal, `framing_auto` ("Ajustar sozinho quando o layout
+  mudar"): desligada, o sistema só avisa. "Desfazer" volta as caixas de antes da primeira troca automática e
+  desliga a chave; "Desfazer" e "Está certo" reusam o `PATCH` (sem rota `/framing/undo`); salvar caixas limpa o
+  aviso (`framing_notice`: `changed` ou `attention`).
 
 ## Intenção
 

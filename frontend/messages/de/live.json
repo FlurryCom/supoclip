@@ -153,7 +153,7 @@
   },
   "framing": {
     "title": "Bildausschnitt",
-    "auto": "Automatisch: Die Webcam wird in jedem Clip gesucht.",
+    "auto": "Automatisch: Die Webcam wird in jedem Clip gesucht, und Claude prüft sie zu Beginn jedes Streams.",
     "marked": "Von Hand markiert: Webcam und Spiel.",
     "noCam": "Von Hand markiert: keine Webcam (oben ist das Spiel unscharf).",
     "open": "Webcam und Spiel markieren",
@@ -179,6 +179,16 @@
     "preview": "Vorschau",
     "apply": "Diesen Ausschnitt verwenden",
     "automatic": "Zurück zu automatisch",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "notice": {
+      "changed": "Der Bildausschnitt wurde am {time} automatisch angepasst.",
+      "attention": "Der Bildausschnitt braucht Aufmerksamkeit ({time}).",
+      "keep": "Passt so",
+      "review": "Prüfen",
+      "undo": "Rückgängig"
+    },
+    "autoSwitch": "Automatisch anpassen, wenn sich das Layout ändert",
+    "autoOn": "Zu Beginn jedes Streams prüft Claude Webcam und Spiel und korrigiert die Rahmen, wenn sich das Layout geändert hat.",
+    "autoOff": "Das System warnt nur, wenn der Ausschnitt falsch aussieht; es ändert die Rahmen nicht."
   }
 }

@@ -153,7 +153,7 @@
   },
   "framing": {
     "title": "Framing",
-    "auto": "Automatic: the webcam is found in each clip.",
+    "auto": "Automatic: the webcam is found in each clip, and Claude checks it at the start of each live.",
     "marked": "Marked by hand: webcam and game.",
     "noCam": "Marked by hand: no webcam (the top shows the game blurred).",
     "open": "Mark webcam and game",
@@ -179,6 +179,16 @@
     "preview": "Preview",
     "apply": "Use this framing",
     "automatic": "Back to automatic",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "notice": {
+      "changed": "The framing was adjusted automatically on {time}.",
+      "attention": "The framing needs attention ({time}).",
+      "keep": "It's right",
+      "review": "Review",
+      "undo": "Undo"
+    },
+    "autoSwitch": "Adjust by itself when the layout changes",
+    "autoOn": "At the start of each live Claude checks the webcam and the game, and fixes the boxes if the layout changed.",
+    "autoOff": "The system only warns when the framing looks wrong; it doesn't change the boxes."
   }
 }

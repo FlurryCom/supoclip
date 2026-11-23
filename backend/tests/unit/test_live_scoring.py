@@ -134,5 +134,6 @@ def test_processing_threshold_follows_the_posting_accounts():
 
 def test_segment_kit_carries_the_channel_for_its_framing():
     from src.live_scoring import segment_kit
-    assert segment_kit("catclips_v2", None, "chan-1") == {"id": "catclips_v2", "peak_s": None, "chat": [], "channel_id": "chan-1"}
+    assert segment_kit("catclips_v2", None, "chan-1", "rec-1") == {
+        "id": "catclips_v2", "peak_s": None, "chat": [], "channel_id": "chan-1", "recording_id": "rec-1"}
     assert "channel_id" not in segment_kit("catclips", None)

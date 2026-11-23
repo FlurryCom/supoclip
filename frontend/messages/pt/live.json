@@ -153,7 +153,7 @@
   },
   "framing": {
     "title": "Enquadramento",
-    "auto": "Automático: o sistema procura a webcam em cada clipe.",
+    "auto": "Automático: o sistema procura a webcam em cada clipe, e o Claude confere no começo de cada live.",
     "marked": "Marcado à mão: webcam e jogo.",
     "noCam": "Marcado à mão: sem webcam (o topo mostra o jogo desfocado).",
     "open": "Marcar webcam e jogo",
@@ -179,6 +179,16 @@
     "preview": "Prévia",
     "apply": "Usar este enquadramento",
     "automatic": "Voltar ao automático",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "notice": {
+      "changed": "O enquadramento foi ajustado sozinho em {time}.",
+      "attention": "O enquadramento precisa de atenção ({time}).",
+      "keep": "Está certo",
+      "review": "Revisar",
+      "undo": "Desfazer"
+    },
+    "autoSwitch": "Ajustar sozinho quando o layout mudar",
+    "autoOn": "No começo de cada live o Claude confere a webcam e o jogo, e corrige as caixas se o layout mudou.",
+    "autoOff": "O sistema só avisa quando achar o enquadramento errado; não muda as caixas."
   }
 }

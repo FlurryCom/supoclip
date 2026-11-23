@@ -66,3 +66,34 @@ it("resizes the focused box with shift and the arrow keys", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Use this framing" }));
   expect(onChange).toHaveBeenCalledWith({ cam_box: { x: 0.1, y: 0.1, w: 0.21, h: 0.21 }, game_box: { x: 0, y: 0, w: 1, h: 1 } });
 });
+
+it("shows the automatic change with undo and keep", () => {
+  const onChange = vi.fn();
+  const now = { x: 0.7, y: 0.02, w: 0.28, h: 0.36 };
+  const before = { cam_box: null, game_box: null };
+  render(<FramingSetting
+    channel={{ ...channel, cam_box: now, game_box: { x: 0, y: 0, w: 1, h: 1 }, framing_changed_at: "2026-11-22T22:00:00Z", framing_notice: "changed", framing_reason: "A webcam mudou de canto.", framing_previous: before }}
+    onChange={onChange}
+  />);
+  expect(screen.getByText(/adjusted automatically/)).toBeInTheDocument();
+  expect(screen.getByText(/A webcam mudou de canto/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  expect(onChange).toHaveBeenLastCalledWith({ ...before, framing_auto: false }); // undo also stops automatic changes
+  fireEvent.click(screen.getByRole("button", { name: "It's right" }));
+  expect(onChange).toHaveBeenLastCalledWith({ cam_box: now, game_box: { x: 0, y: 0, w: 1, h: 1 } });
+});
+
+it("a warning without a fix has no undo", () => {
+  render(<FramingSetting channel={{ ...channel, framing_changed_at: "2026-11-22T22:00:00Z", framing_notice: "attention", framing_reason: "Não achei a webcam.", framing_previous: null }} onChange={vi.fn()} />);
+  expect(screen.getByText(/needs attention/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
+});
+
+it("turns automatic changes off and on", () => {
+  const onChange = vi.fn();
+  render(<FramingSetting channel={{ ...channel, framing_auto: false }} onChange={onChange} />);
+  expect(screen.getByText(/only warns/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("switch", { name: "Adjust by itself when the layout changes" }));
+  expect(onChange).toHaveBeenCalledWith({ framing_auto: true });
+});

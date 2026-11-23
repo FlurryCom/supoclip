@@ -224,3 +224,11 @@ def test_settings_reject_non_finite_boxes(bad):
     with pytest.raises(HTTPException) as err:
         _settings({"cam_box": {"x": bad, "y": 0, "w": 0.2, "h": 0.3}, "game_box": GAME})
     assert err.value.status_code == 422
+
+
+def test_settings_accept_the_automatic_framing_switch_and_rounded_boxes():
+    assert _settings({"framing_auto": False}) == {"framing_auto": False}
+    with pytest.raises(HTTPException):
+        _settings({"framing_auto": "no"})
+    tiny = {"x": 0, "y": 0, "w": 0.0396, "h": 0.0396}  # a 4% box after even-pixel rounding
+    assert _settings({"cam_box": tiny, "game_box": GAME})["cam_box"] == tiny
