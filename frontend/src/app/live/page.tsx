@@ -306,7 +306,7 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
           <p className="text-xs text-muted-foreground">{t("editKitHint")}</p>
         </div>
       ) : null}
-      {channel.edit_kit === "catclips_v2" ? <div className="mt-5"><FramingSetting channel={channel} onChange={onChange} /></div> : null}
+      {["catclips_v2", "catclips_v3"].includes(channel.edit_kit) ? <div className="mt-5"><FramingSetting channel={channel} onChange={onChange} /></div> : null}
 
       <div className="mt-5 space-y-1.5">
         <Label htmlFor={`vis-${channel.id}`}>{t("postVisibility")}</Label>
