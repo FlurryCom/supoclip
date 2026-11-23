@@ -56,14 +56,16 @@ def test_v3_filter_heights(tmp_path):
     assert graph.endswith("[vout]") and "vstack=inputs=2" in graph
 
 
-def test_title_badge_flies_up_after_three_seconds(tmp_path):
+def test_title_badge_balloons_in_and_is_sucked_away_after_three_seconds(tmp_path):
     font, background = tmp_path / "pricedown.otf", tmp_path / "palms.webp"
     font.write_bytes(b"x")
     background.write_bytes(b"x")
     badge = title_badge("GTA 6", font, background)
-    assert "if(gte(t\\,3)\\,(t-3)*" in badge and "enable='lt(t\\,3.6)'" in badge
+    assert "eval=frame" in badge and "0.1+8.5*t" in badge  # grows in, like a balloon
+    assert "max(0.02\\,1-3.9*(t-3))" in badge and "400*(t-3)" in badge  # shrinks while rising
+    assert "enable='lt(t\\,3.25)'" in badge
     assert "rotate=" in badge and "between(X" in badge  # slanted and tilted
-    assert "cat.png" in badge and "dots.png" in badge
+    assert "cat.png" in badge and "dots.png" in badge and badge.endswith("[vout]")
 
 
 def test_v3_kit_hidden_until_approved():

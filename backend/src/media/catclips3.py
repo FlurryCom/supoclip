@@ -3,7 +3,7 @@
 1080x1920 output, measured from the owner's reference: the webcam fills the top 700 px and the game the
 bottom 1220 px, cut from the middle of the source without the bottom band where GTA draws its own
 subtitles. The title sits on a slanted badge (Pricedown over a palm sunset, a doodled cat at its corner)
-across the seam, and flies up out of the frame after 3 s. The captions (streamer words, NPC lines) are
+across the seam: it balloons in at the start and is sucked away after 3 s. The captions (streamer words, NPC lines) are
 drawn later. Spec: docs/superpowers/specs/2026-11-23-cat-clips-3-design.md.
 """
 from __future__ import annotations
@@ -31,7 +31,14 @@ BADGE_TILT = -0.04  # radians: the right end a little higher
 BADGE_PAD = 36
 BADGE_Y = GAME_Y - BADGE_H // 2
 TITLE_BOTTOM = BADGE_Y + BADGE_H
-TITLE_SECONDS, TITLE_RISE = 3.0, 2600  # on screen for 3 s, then up and out at this many px/s
+TITLE_SECONDS = 3.0  # then it's sucked away: shrinks to nothing while rising a little
+TITLE_OUT = TITLE_SECONDS + 0.25
+TITLE_FPS = 30
+TITLE_FRAMES = int(TITLE_OUT * TITLE_FPS) + 2  # the still, repeated as long as it shows
+# Scale over time, like a balloon: in from 10% past full size in 0.12 s, settles by 0.22 s, out in 0.25 s
+POP = ("if(lt(t\\,0.12)\\,0.1+8.5*t\\,if(lt(t\\,0.22)\\,1.12-1.2*(t-0.12)\\,"
+       f"if(lt(t\\,{TITLE_SECONDS:g})\\,1\\,max(0.02\\,1-3.9*(t-{TITLE_SECONDS:g})))))")
+SUCK_RISE = f"if(gte(t\\,{TITLE_SECONDS:g})\\,400*(t-{TITLE_SECONDS:g})\\,0)"
 TITLE_W = BADGE_MAX_W - BADGE_SKEW - 2 * BADGE_PAD
 CAPTION_Y = (TITLE_BOTTOM + 210) / 1920  # the 2-line block (centred here) clears the title badge
 BAR_BG_AT = 0.55  # owner picked the middle of the palm picture
@@ -132,7 +139,8 @@ def _title_draws(lines: list[str], size: int, font: Path, join: bool) -> str:
 
 def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE_BG_V3,
                 doodles: Path = DOODLES) -> str:
-    """From ``[stack]`` (1080x1920) to ``[vout]``: the slanted title badge across the seam, gone after 3 s.
+    """From ``[stack]`` (1080x1920) to ``[vout]``: the slanted title badge across the seam. It balloons in at
+    the start and is sucked away after 3 s.
 
     Without the Pricedown file or the palm picture, the v2 look (Archivo Black on yellow).
     """
@@ -151,26 +159,30 @@ def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE
         width = BADGE_MAX_W
         fill = f"color=c={YELLOW}:s={width}x{BADGE_H}:d=1,format=rgba{_title_draws(lines, size, TITLE_FONT, False)}"
     lean = f"{BADGE_SKEW}*(1-Y/{BADGE_H})"
-    rise = f"if(gte(t\\,{TITLE_SECONDS:g})\\,(t-{TITLE_SECONDS:g})*{TITLE_RISE}\\,0)"
-    shown = f"enable='lt(t\\,{TITLE_SECONDS + 0.6:g})'"
     graph = [
         f"{fill},geq=r='r(X\\,Y)':g='g(X\\,Y)':b='b(X\\,Y)'"
         f":a='255*between(X\\,{lean}\\,{width - BADGE_SKEW}+{lean})',"
-        f"rotate={BADGE_TILT}:c=none:ow=rotw({BADGE_TILT}):oh=roth({BADGE_TILT}),split=2[badge_shadow][badge]",
-        "[badge_shadow]lutrgb=r=0:g=0:b=0[shadow]",
-        f"[stack][shadow]overlay=x=(W-w)/2+10:y={GAME_Y}-h/2+12-{rise}:eof_action=repeat:{shown}[with_shadow]",
-        f"[with_shadow][badge]overlay=x=(W-w)/2:y={GAME_Y}-h/2-{rise}:eof_action=repeat:{shown}[with_badge]",
+        f"rotate={BADGE_TILT}:c=none:ow=rotw({BADGE_TILT}):oh=roth({BADGE_TILT}),split=2[badge_shadow][badge_still]",
+        "[badge_shadow]lutrgb=r=0:g=0:b=0[shadow_still]",
     ]
+    # every layer pops with the same scale around the badge's centre, keeping its offset from it
+    layers = [("shadow_still", 10, 12), ("badge_still", 0, 0)]
     cat, dots = doodles / "cat.png", doodles / "dots.png"
     if readable and cat.is_file() and dots.is_file():
-        left, right = (1080 - width) // 2, (1080 + width) // 2
-        graph += [
-            f"movie={cat}[cat]", f"movie={dots}[dots]",
-            f"[with_badge][cat]overlay=x={max(4, left - 70)}:y={BADGE_Y - 70}-{rise}:eof_action=repeat:{shown}[with_cat]",
-            f"[with_cat][dots]overlay=x={min(1080 - 64, right + 4)}:y={BADGE_Y - 56}-{rise}:eof_action=repeat:{shown}[vout]",
-        ]
-    else:
-        graph[-1] = graph[-1].replace("[with_badge]", "[vout]")
+        graph += [f"movie={cat}[cat_still]", f"movie={dots}[dots_still]"]
+        layers += [("cat_still", -width // 2 - 5, -90), ("dots_still", width // 2 + 34, -111)]
+    base = "stack"
+    for i, (name, dx, dy) in enumerate(layers):
+        out = "vout" if i == len(layers) - 1 else f"title_{i}"
+        graph.append(
+            f"[{name}]loop=loop={TITLE_FRAMES}:size=1,setpts=N/{TITLE_FPS}/TB,"
+            f"scale=w='max(2\\,trunc(iw*{POP}/2)*2)':h='max(2\\,trunc(ih*{POP}/2)*2)':eval=frame[{name}_pop]"
+        )
+        graph.append(
+            f"[{base}][{name}_pop]overlay=x='540+{dx}*{POP}-w/2':y='{GAME_Y}+{dy}*{POP}-h/2-{SUCK_RISE}'"
+            f":eof_action=pass:enable='lt(t\\,{TITLE_OUT:g})'[{out}]"
+        )
+        base = out
     return ";".join(graph)
 
 
