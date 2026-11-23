@@ -94,7 +94,7 @@ def test_v3_npc_words_balloon_in_over_the_npc(tmp_path):
 
 
 def test_v3_two_line_block_stays_below_the_title_bar(tmp_path):
-    from src.media.catclips3 import CAPTION_Y, GAME_Y
+    from src.media.catclips3 import CAPTION_Y, TITLE_BOTTOM
     out = tmp_path / "bar.ass"
     words = [w(t, i * 0.3, i * 0.3 + 0.3, "streamer") for i, t in enumerate(["oh", "my", "god", "bro"])]
     assert build_assemblyai_ass_subtitles(tmp_path / "missing.mp4", 0.0, 10.0, 1080, 1920, out,
@@ -102,4 +102,4 @@ def test_v3_two_line_block_stays_below_the_title_bar(tmp_path):
     text = out.read_text()
     font_px = int(text.split("Style: Default,")[1].split(",")[1])
     top = min(_at(line)[1] for line in text.splitlines() if line.startswith("Dialogue: 1,"))
-    assert top - font_px * 0.6 >= GAME_Y + 20  # the top line's letters clear the bar
+    assert top - font_px * 0.6 >= TITLE_BOTTOM + 20  # the top line's letters clear the title badge

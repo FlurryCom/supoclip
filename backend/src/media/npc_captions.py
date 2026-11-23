@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, Sequence
 
-from .catclips3 import GAME_H, GAME_Y
+from .catclips3 import GAME_H, GAME_Y, TITLE_BOTTOM
 
 Face = tuple[float, float, float, float]
 Point = tuple[int, int, Face]
@@ -17,7 +17,7 @@ Track = list[tuple[float, list[Point]]]
 Segment = tuple[float, float, int, int, int, int]  # t0, t1, x0, y0, x1, y1 (bottom-centre of the text)
 
 EDGE_X = 70
-Y_MIN = GAME_Y + 100  # the text sits above this anchor: it never covers the title bar
+Y_MIN = TITLE_BOTTOM + 100  # the text sits above this anchor: it never covers the title badge
 Y_MAX = 1920 - 40
 EDGE_Y = GAME_Y + round(0.45 * GAME_H)
 FIXED = (540, GAME_Y + round(0.62 * GAME_H))
@@ -31,8 +31,8 @@ def _clamp(value: float, low: float, high: float) -> int:
 def head_track(samples: Sequence[tuple[float, Sequence[Face]]], cam_face: Optional[Face],
                crop: tuple[int, int, int, int]) -> Track:
     """Per sample, the output point just above each game face inside the crop (the webcam face left out)."""
-    cx, cy, side, _ = crop
-    scale = 1080 / side
+    cx, cy, cw, ch = crop
+    scale = 1080 / cw
     track: Track = []
     for t, faces in samples:
         points = []
@@ -41,7 +41,7 @@ def head_track(samples: Sequence[tuple[float, Sequence[Face]]], cam_face: Option
             if cam_face is not None and abs(mx - (cam_face[0] + cam_face[2] / 2)) < max(cam_face[2], face[2]) \
                     and abs(my - (cam_face[1] + cam_face[3] / 2)) < max(cam_face[3], face[3]):
                 continue
-            if not (cx <= mx <= cx + side and cy <= my <= cy + side):
+            if not (cx <= mx <= cx + cw and cy <= my <= cy + ch):
                 continue
             x = _clamp((mx - cx) * scale, EDGE_X, 1080 - EDGE_X)
             y = _clamp(GAME_Y + (face[1] - cy) * scale - HEAD_GAP, Y_MIN, Y_MAX)

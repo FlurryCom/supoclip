@@ -1,6 +1,7 @@
+from src.media.catclips3 import GAME_Y, TITLE_BOTTOM
 from src.media.npc_captions import EDGE_X, FIXED, annotate_npc_words, head_track, line_path, segments_between
 
-CROP = (500, 0, 918, 918)  # square game cut of a 1920x1080 source -> 1080x1080 at y=840
+CROP = (554, 0, 812, 918)  # game cut of a 1920x1080 source -> 1080x1220 at y=700
 CAM_FACE = (150.0, 500.0, 80.0, 110.0)  # webcam face, outside the crop
 
 
@@ -17,7 +18,7 @@ def test_npc_line_sits_above_the_visible_face():
     path = line_path(0.0, 1.0, track)
     x, y = path[0][2], path[0][3]
     assert abs(x - 540) <= 2  # face centre 959 -> middle of the 1080 output
-    assert 840 + 100 <= y < 840 + (300 - 0) * 1080 / 918  # above the head, inside the game area
+    assert TITLE_BOTTOM + 100 <= y < GAME_Y + (300 - 0) * 1080 / 812  # above the head, inside the game area
 
 
 def test_npc_before_appearing_waits_on_its_side():
@@ -47,7 +48,7 @@ def test_npc_ignores_the_webcam_face():
 
 def test_npc_stays_inside_the_game_area():
     track = head_track(samples((0.0, [npc(959, y=0.0)])), None, CROP)  # head at the very top of the crop
-    assert line_path(0.0, 1.0, track)[0][3] >= 840 + 100
+    assert line_path(0.0, 1.0, track)[0][3] >= TITLE_BOTTOM + 100
 
 
 def test_segments_between_cuts_a_path_at_chunk_bounds():
@@ -100,4 +101,4 @@ def test_a_broken_speaker_check_falls_back_to_the_nearest_face():
     def broken(*args):
         raise RuntimeError("no video")
     path = line_path(0.0, 0.5, track, broken)
-    assert abs(path[0][2] - round((1000 - 500) * 1080 / 918)) <= 2  # 1000 is nearer the centre (959)
+    assert abs(path[0][2] - round((1000 - 554) * 1080 / 812)) <= 2  # 1000 is nearer the centre (959)
