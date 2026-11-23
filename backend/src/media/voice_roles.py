@@ -342,18 +342,25 @@ def subtitle_lines(times: list[float], reads: list[list[str]]) -> list[tuple[flo
     return out
 
 
-def label_by_subtitles(clip: Path, words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _subtitle_times(words: list[dict[str, Any]]) -> list[float]:
+    first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
+    return [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
+
+
+def label_by_subtitles(clip: Path, words: list[dict[str, Any]],
+                       lines: Optional[list[tuple[float, float, list[str]]]] = None) -> list[dict[str, Any]]:
     """Cat Clips 3.0: the words said while GTA shows a subtitle they match are the game's, the whole line
     of them (the transcript often mishears the game); every other word is the streamer's."""
     from difflib import SequenceMatcher
 
     if not words:
         return []
-    first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
-    times = [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
+    if lines is None:
+        times = _subtitle_times(words)
+        lines = subtitle_lines(times, subtitle_tokens(clip, times))
     texts = [(_token_list(str(w.get("text", ""))) or [""])[0] for w in words]
     roles = ["streamer"] * len(words)
-    for start, end, line in subtitle_lines(times, subtitle_tokens(clip, times)):
+    for start, end, line in lines:
         # frames are 1/3 s apart and the transcript's timing is loose by over half a second
         window = [i for i, w in enumerate(words) if start - 1.0 <= float(w["start"]) <= end + 1.0]
         if not window:
@@ -397,18 +404,31 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
                 keep_game_lines: bool = False) -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
 
-    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; see ``label_by_subtitles``. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
+    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; Claude judges each line (``voice_judge``),
+    with ``label_by_subtitles`` as the fallback. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
 
     ``face`` is the webcam face (source pixels) when the layout already found it.
     Any failure returns every word as the streamer.
     """
     plain = [{**w, "role": "streamer"} for w in words]
     if keep_game_lines:
+        if not words:
+            return []
         try:
-            return label_by_subtitles(clip, words)
+            times = _subtitle_times(words)
+            lines = subtitle_lines(times, subtitle_tokens(clip, times))
+            fallback = label_by_subtitles(clip, words, lines)
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
-            return plain
+            lines, fallback = [], plain
+        try:
+            from .voice_judge import judge
+
+            motion_at = (lambda ts: mouth_motion(clip, face, ts)) if face is not None else None
+            return judge(words, _audio(clip), RATE, motion_at, lines, fallback)
+        except Exception as exc:
+            logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
+            return fallback
     try:
         segments = speech_segments(words)
         if len(segments) < 2:
