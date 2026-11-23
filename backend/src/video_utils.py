@@ -275,8 +275,12 @@ def _npc_placed(words: List[Dict[str, Any]], clip: Path, plan_report: Dict[str, 
         track = head_track(plan_report["face_samples"], plan_report.get("cam_face"), plan_report["game_crop"])
         return annotate_npc_words(words, track, speaker)
     except Exception as exc:
-        logger.warning("Cat Clips 3.0 NPC placement failed (%s); NPC lines in the plain game style", exc)
-        return words
+        logger.warning("Cat Clips 3.0 NPC placement failed (%s); NPC lines at the fixed spot", exc)
+        try:
+            from .media.npc_captions import annotate_npc_words
+            return annotate_npc_words(words, [])  # no faces: every line at the fixed spot
+        except Exception:
+            return words
 
 
 def create_optimized_clip(

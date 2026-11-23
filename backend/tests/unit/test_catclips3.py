@@ -59,3 +59,10 @@ def test_v3_filter_heights(tmp_path):
 def test_v3_kit_hidden_until_approved():
     assert KITS["catclips_v3"]["layout"] == "catclips3"
     assert "catclips_v3" not in {kit["id"] for kit in kit_choices()}
+
+
+def test_title_bar_falls_back_on_a_path_ffmpeg_would_misread(tmp_path):
+    font, background = tmp_path / "pricedown.otf", tmp_path / "palms'1.webp"
+    font.write_bytes(b"x")
+    background.write_bytes(b"x")
+    assert "movie=" not in title_bar("x", font, background)

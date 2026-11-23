@@ -67,8 +67,12 @@ def line_path(start: float, end: float, track: Track,
         edge = _edge(x)
         return [(start, end, *edge, *edge)]
     first = seen[0][1]
-    pick = speaker(start, end, [p[2] for p in first]) if speaker and len(first) > 1 else \
-        min(range(len(first)), key=lambda i: abs(first[i][0] - 540))
+    pick = min(range(len(first)), key=lambda i: abs(first[i][0] - 540))
+    if speaker and len(first) > 1:
+        try:
+            pick = speaker(start, end, [p[2] for p in first])
+        except Exception:  # can't tell whose mouth moves: the face nearest the centre
+            pass
     current = first[pick][:2]
     keys = []
     for t, pts in seen:  # follow the same face: the nearest to where the line was
@@ -113,8 +117,12 @@ def segments_between(path: Sequence[Segment], start: float, end: float) -> list[
 
 def annotate_npc_words(words: list[dict[str, Any]], track: Track,
                        speaker: Optional[Callable[[float, float, list[Face]], int]] = None,
-                       gap: float = 0.6) -> list[dict[str, Any]]:
-    """Copies of ``words`` where every "game" word carries its line's ``npc_path``."""
+                       gap: float = 1.0) -> list[dict[str, Any]]:
+    """Copies of ``words`` where every "game" word carries its line's ``npc_path``.
+
+    Lines split like caption lines (a pause over ``gap`` or a cut in the edit), so a caption line never
+    outlives its path.
+    """
     out = [dict(word) for word in words]
     i = 0
     while i < len(out):
@@ -122,7 +130,7 @@ def annotate_npc_words(words: list[dict[str, Any]], track: Track,
             i += 1
             continue
         j = i
-        while j + 1 < len(out) and out[j + 1].get("role") == "game" \
+        while j + 1 < len(out) and out[j + 1].get("role") == "game" and not out[j + 1].get("break_before") \
                 and float(out[j + 1]["start"]) - float(out[j]["end"]) <= gap:
             j += 1
         path = line_path(float(out[i]["start"]), float(out[j]["end"]), track, speaker)

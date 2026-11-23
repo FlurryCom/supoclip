@@ -70,3 +70,34 @@ def test_captions_draw_npc_moves(tmp_path):
     word = {"text": "larga", "start": 1.0, "end": 2.0, "role": "game", "npc_path": [(1.0, 2.0, 100, 1000, 300, 1000)]}
     events = npc_events([word], 1.0, 2.0, "LARGA", "{\\c&HFFFFFF&}")
     assert len(events) == 1 and "\\an2" in events[0] and "\\move(100,1000,300,1000)" in events[0]
+
+
+def test_a_short_pause_keeps_one_npc_line():
+    # the caption builder only splits a line on pauses over 1 s: the NPC path must cover the whole line
+    track = head_track(samples((0.0, [npc(959)]), (3.0, [npc(959)])), None, CROP)
+    words = [{"text": "larga", "start": 1.0, "end": 1.3, "role": "game"},
+             {"text": "isso", "start": 2.1, "end": 2.5, "role": "game"}]
+    out = annotate_npc_words(words, track)
+    assert out[0]["npc_path"] is out[1]["npc_path"] and out[1]["npc_path"][-1][1] == 2.5
+
+
+def test_npc_events_keep_the_whole_text_on_screen():
+    from src.media.captions import npc_events
+    word = {"text": "larga", "start": 1.0, "end": 2.0, "role": "game", "npc_path": [(1.0, 2.0, EDGE_X, 1300, EDGE_X, 1300)]}
+    events = npc_events([word], 1.0, 2.0, "LARGA ISSO AGORA", "", half_width=300)
+    assert "\\pos(330,1300)" in events[0]  # 300 px half text + 30 px margin
+
+
+def test_npc_events_hold_until_the_chunk_ends():
+    from src.media.captions import npc_events
+    word = {"text": "x", "start": 1.0, "end": 1.3, "role": "game", "npc_path": [(1.0, 1.3, 500, 1300, 500, 1300)]}
+    events = npc_events([word], 1.0, 2.5, "X Y", "")
+    assert events[-1].startswith("Dialogue: 0,0:00:01.30,0:00:02.50") or "0:00:02.50" in events[-1]
+
+
+def test_a_broken_speaker_check_falls_back_to_the_nearest_face():
+    track = head_track(samples((0.0, [npc(700), npc(1000)])), None, CROP)
+    def broken(*args):
+        raise RuntimeError("no video")
+    path = line_path(0.0, 0.5, track, broken)
+    assert abs(path[0][2] - round((1000 - 500) * 1080 / 918)) <= 2  # 1000 is nearer the centre (959)

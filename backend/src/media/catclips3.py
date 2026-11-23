@@ -72,12 +72,14 @@ def title_bar(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE_B
     """
     # shortcut: wraps with Archivo Black's widths, wider than Pricedown, so lines never overflow
     lines, size = title_lines(title)
-    if not (font.is_file() and background.is_file()):
+    # a path ffmpeg's filter parser would misread can't be passed safely: same as a missing file
+    readable = not any(c in f"{font}{background}" for c in "'\\:,;[]=")
+    if not (readable and font.is_file() and background.is_file()):
         logger.warning("Cat Clips 3.0 title assets missing (%s, %s); using the v2 bar", font, background)
         return f"[top]pad=1080:{GAME_Y}:0:0:color={YELLOW}{_title_draws(lines, size, TITLE_FONT, False)}[head]"
     return (
         f"[top]pad=1080:{GAME_Y}:0:0:color={YELLOW}[headbg];"
-        f"movie={_drawtext_value(str(background))},scale=1080:-2,"
+        f"movie={background},scale=1080:-2,"
         f"crop=1080:{BAR_H}:0:(ih-{BAR_H})*{BAR_BG_AT},setsar=1[palms];"
         # a single still frame, repeated for the whole clip
         f"[headbg][palms]overlay=0:{TOP_H}:eof_action=repeat{_title_draws(lines, size, font, True)}[head]"

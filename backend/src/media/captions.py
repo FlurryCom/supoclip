@@ -534,12 +534,28 @@ def _passage_breaks(
 ROLE_STYLES = {"game": ("&HFFFFFF&", 75), "friend": ("&HFFCB7C&", 100)}
 
 
-def npc_events(chunk: List[Dict[str, Any]], start: float, end: float, text: str, tags: str) -> List[str]:
-    """Cat Clips 3.0: one event per stretch of the line's path, anchored bottom-centre above the NPC."""
+def npc_events(chunk: List[Dict[str, Any]], start: float, end: float, text: str, tags: str,
+               half_width: float = 0.0, video_width: int = 1080) -> List[str]:
+    """Cat Clips 3.0: one event per stretch of the line's path, anchored bottom-centre above the NPC.
+
+    The centre is kept ``half_width`` (half the rendered text) plus a margin inside the frame: libass
+    doesn't pull a \\pos line back on screen. The last stretch holds until the caption line ends.
+    """
     from .npc_captions import segments_between
 
+    low = min(half_width + 30, video_width / 2)
+    high = max(video_width - half_width - 30, video_width / 2)
+
+    def inside(x: int) -> int:
+        return round(min(max(x, low), high))
+
+    segments = segments_between(chunk[0]["npc_path"], start, end)
+    if segments and segments[-1][1] < end:
+        _, last_end, _, _, x, y = segments[-1]
+        segments.append((last_end, end, x, y, x, y))
     events = []
-    for a, b, x0, y0, x1, y1 in segments_between(chunk[0]["npc_path"], start, end):
+    for a, b, x0, y0, x1, y1 in segments:
+        x0, x1 = inside(x0), inside(x1)
         if b - a < 0.02:
             continue
         place = f"\\pos({x0},{y0})" if (x0, y0) == (x1, y1) else f"\\move({x0},{y0},{x1},{y1})"
@@ -902,8 +918,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text = " ".join(render_text(gj, word) for gj, word in zip(indices, chunk))
             fit = f"\\fscx{scaled(size, chunk_scale)}\\fscy{scaled(size, chunk_scale)}" if size != 100 or chunk_scale < 1 else ""
             if chunk[0].get("npc_path"):  # Cat Clips 3.0: the NPC's line above the NPC, moving with it
+                rendered = sum(word_widths[gj] for gj in indices) + space_width * (len(indices) - 1)
                 events += npc_events(chunk, start, end, text,
-                                     f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}")
+                                     f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}",
+                                     half_width=rendered * size / 100 * min(chunk_scale, 1.0) / 2,
+                                     video_width=video_width)
                 continue
             events.append(
                 f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Default,,0,0,0,,"
