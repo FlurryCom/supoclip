@@ -31,6 +31,16 @@ MODELS = {
                          "ce74ef3b6a6024ce44211a07be9cf8bc6d87728cc852a68ab34eb8e58cde9c8b"),
 }
 MUSIC_CLASS = 137  # AudioSet "Music"
+SINGING_CLASS = 27  # AudioSet "Singing"
+# Owner (2026-11-23): only music Shazam recognizes as a commercial song goes; game score stays.
+IDENTIFY_MIN_SECONDS, IDENTIFY_SECONDS, IDENTIFY_TIMEOUT = 3.0, 12.0, 20.0
+SINGING_THRESHOLD, SINGING_MIN_SECONDS = 0.3, 2
+MUSIC_ALLOWLIST = Path(os.getenv("MUSIC_ALLOWLIST", "/app/uploads/kit-assets/music-allowlist.txt"))
+DEFAULT_ALLOWED = ["NoCopyrightSounds", "NCS", "StreamBeats"]
+# Free music laid under the voices where a song was removed (owner's own files, outside git).
+MUSIC_BED_DIR = Path(os.getenv("MUSIC_BED_DIR", "/app/uploads/kit-assets/music-bed"))
+BED_GAIN = 0.12
+BED_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg"}
 # What still counts as music after the cleanup: real clips kept 1-2 s blips (a violin bleeding through,
 # a sung-sounding phrase); only a steady stretch is enough for a copyright match.
 LEFT_THRESHOLD, LEFT_MIN_SECONDS = 0.5, 4
@@ -120,6 +130,15 @@ def _cnn10(wav):
 
 def music_per_second(mono32: np.ndarray) -> np.ndarray:
     """Chance of music for each whole second, from a 2 s window centred on it."""
+    return _class_per_second(mono32, MUSIC_CLASS)
+
+
+def singing_per_second(mono32: np.ndarray) -> np.ndarray:
+    """Chance of singing for each whole second (a sung song, not a game's instrumental score)."""
+    return _class_per_second(mono32, SINGING_CLASS)
+
+
+def _class_per_second(mono32: np.ndarray, audio_class: int) -> np.ndarray:
     import torch
 
     seconds = len(mono32) // DETECT_RATE
@@ -131,7 +150,7 @@ def music_per_second(mono32: np.ndarray) -> np.ndarray:
     out = []
     with torch.no_grad():
         for i in range(0, len(windows), 16):
-            out.append(_cnn10(torch.from_numpy(np.stack(windows[i:i + 16])))[:, MUSIC_CLASS].numpy())
+            out.append(_cnn10(torch.from_numpy(np.stack(windows[i:i + 16])))[:, audio_class].numpy())
     return np.concatenate(out) if out else np.zeros(0)
 
 
@@ -186,6 +205,116 @@ def separate_vocals(stereo44: np.ndarray) -> np.ndarray:
     return np.concatenate(out, 1)[:, :n]
 
 
+def allowed_names(path: Optional[Path] = None) -> list[str]:
+    """Artists, labels or titles whose music may stay (one per line, # comments), or the defaults."""
+    path = path or MUSIC_ALLOWLIST
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return list(DEFAULT_ALLOWED)
+    return [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
+
+
+def is_allowed(track: dict, names: list[str]) -> bool:
+    fields = " | ".join(str(track.get(key) or "") for key in ("title", "artist", "label")).lower()
+    return any(name.lower() in fields for name in names)
+
+
+def identify_span(path: Path, start: float, end: float) -> Optional[dict]:
+    """Shazam (unofficial API, via shazamio) on up to 12 s from the middle of a stretch.
+
+    {"title", "artist", "label"}, or None when Shazam doesn't know it. Raises when Shazam can't be asked.
+    """
+    import asyncio
+
+    from shazamio import Shazam
+
+    length = min(IDENTIFY_SECONDS, end - start)
+    begin = max(start, (start + end) / 2 - length / 2)
+    fd, name = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    try:
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-ss", f"{begin:.2f}", "-t", f"{length:.2f}", "-i", str(path),
+                        "-vn", "-ac", "1", "-ar", "16000", name], check=True, timeout=60)
+
+        async def ask() -> dict:
+            return await asyncio.wait_for(Shazam().recognize(name), IDENTIFY_TIMEOUT)
+
+        track = (asyncio.run(ask()) or {}).get("track")
+    finally:
+        Path(name).unlink(missing_ok=True)
+    if not track:
+        return None
+    label = next((m.get("text") for section in track.get("sections", []) for m in section.get("metadata", [])
+                  if m.get("title") == "Label"), None)
+    return {"title": track.get("title"), "artist": track.get("subtitle"), "label": label}
+
+
+def decide_spans(spans, identify, singing: np.ndarray, names: list[str]):
+    """(stretches to remove, report): recognized songs go unless allowed; unknown music (game score) stays.
+
+    When Shazam can't be asked, a stretch goes only if someone sings in it. Stretches too short to
+    identify go, as before.
+    """
+    remove, report = [], []
+    for start, end in spans:
+        if end - start < IDENTIFY_MIN_SECONDS:
+            remove.append((start, end))
+            report.append({"span": (start, end), "decision": "removed", "by": "short"})
+            continue
+        try:
+            track = identify(start, end)
+        except Exception as exc:
+            sung = int(np.sum(np.asarray(singing[int(start):int(end)]) >= SINGING_THRESHOLD))
+            gone = sung >= SINGING_MIN_SECONDS
+            if gone:
+                remove.append((start, end))
+            report.append({"span": (start, end), "decision": "removed" if gone else "kept",
+                           "by": f"singing ({type(exc).__name__})"})
+            continue
+        if track is None:
+            report.append({"span": (start, end), "decision": "kept", "by": "unknown"})
+        elif is_allowed(track, names):
+            report.append({"span": (start, end), "decision": "kept", "by": "allowed", "track": track})
+        else:
+            remove.append((start, end))
+            report.append({"span": (start, end), "decision": "removed", "by": "recognized", "track": track})
+    return remove, report
+
+
+def bed_track(clip: Path, folder: Path) -> Optional[Path]:
+    """The free track for this clip: always the same one for the same clip name; None without tracks."""
+    try:
+        tracks = sorted(p for p in Path(folder).iterdir() if p.suffix.lower() in BED_EXTENSIONS and p.is_file())
+    except OSError:
+        return None
+    if not tracks:
+        return None
+    return tracks[int(hashlib.sha1(Path(clip).name.encode()).hexdigest(), 16) % len(tracks)]
+
+
+def add_bed(audio: np.ndarray, bed: np.ndarray, spans, rate: int, gain: float = BED_GAIN, fade: float = 0.3) -> np.ndarray:
+    """``bed`` (looped) under ``audio`` inside the stretches, fading in and out within each one."""
+    out = audio.copy()
+    n, length = audio.shape[1], bed.shape[1]
+    if length == 0:
+        return out
+    f = max(1, int(fade * rate))
+    offset = 0
+    for start, end in spans:
+        s, e = int(start * rate), min(n, int(end * rate))
+        if e <= s:
+            continue
+        piece = np.take(bed, np.arange(offset, offset + e - s) % length, axis=1)
+        offset += e - s
+        weight = np.ones(e - s, np.float32)
+        ramp = np.linspace(0, 1, min(f, (e - s) // 2) + 2, dtype=np.float32)[1:-1]
+        weight[:len(ramp)] = ramp
+        weight[len(weight) - len(ramp):] = np.minimum(weight[len(weight) - len(ramp):], ramp[::-1])
+        out[:, s:e] += piece * weight * gain
+    return out
+
+
 def mix_spans(original: np.ndarray, vocals: np.ndarray, spans, rate: int, fade: float = 0.3) -> np.ndarray:
     """Voices inside the music stretches, the original elsewhere, with a short crossfade outside each edge."""
     n = original.shape[1]
@@ -233,6 +362,12 @@ def clean_clip(path: Path) -> dict[str, Any]:
         if not spans:
             return {"status": "clean", "music_seconds": 0.0, "error": None}
         seconds = float(sum(end - start for start, end in spans))
+        mono = _audio(path, DETECT_RATE, 1)[0]
+        spans, report = decide_spans(spans, lambda start, end: identify_span(path, start, end),
+                                     singing_per_second(mono), allowed_names())
+        logger.info("Music identified in %s: %s", path.name, report)
+        if not spans:  # game score or allowed music only: the clip stays as it is
+            return {"status": "kept", "music_seconds": seconds, "error": None}
         stereo = _audio(path, SEPARATE_RATE, 2)
         with _lock:
             vocals = separate_vocals(stereo)
@@ -247,6 +382,14 @@ def clean_clip(path: Path) -> dict[str, Any]:
         for start, end in spans:
             inside[int(start):int(end)] = after[int(start):int(end)]
         status = "left" if music_spans(inside, LEFT_THRESHOLD, max_gap=1, min_len=LEFT_MIN_SECONDS) else "removed"
+        bed = bed_track(path, MUSIC_BED_DIR)
+        if bed is not None and status == "removed":
+            try:
+                _swap_audio(path, add_bed(mixed, _audio(bed, SEPARATE_RATE, 2), spans, SEPARATE_RATE), temp)
+                logger.info("Music bed under %s: %s", path.name, bed.name)
+            except Exception as exc:  # the music is out either way; the free track is a bonus
+                logger.warning("Music bed failed for %s (%s); voices only", path.name, exc)
+                _swap_audio(path, mixed, temp)
         os.replace(temp, path)
         temp = None
         return {"status": status, "music_seconds": seconds, "error": None}

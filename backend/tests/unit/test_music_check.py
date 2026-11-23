@@ -1,8 +1,20 @@
 import subprocess
+from pathlib import Path
 
 import numpy as np
+import pytest
 
 from src.media import music_check as mc
+
+COMMERCIAL = {"title": "Raining Blood", "artist": "Slayer", "label": "American Recordings"}
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch, tmp_path_factory):
+    # Every test: any music found is a recognized commercial song (today's behaviour), no free tracks.
+    monkeypatch.setattr(mc, "identify_span", lambda path, start, end: COMMERCIAL)
+    monkeypatch.setattr(mc, "singing_per_second", lambda mono: np.zeros(64))
+    monkeypatch.setattr(mc, "MUSIC_BED_DIR", tmp_path_factory.mktemp("no-bed"))
 
 
 def test_music_spans_joins_short_gaps_and_drops_blips():
@@ -158,3 +170,94 @@ def test_clips_never_checked_stay_unchecked_after_an_edit(tmp_path, monkeypatch)
     calls = _recheck_fakes(monkeypatch, checked=False)
     asyncio.run(mc.recheck(["a.mp4", "b.mp4"], tmp_path / "new.mp4"))
     assert calls == [("was_checked", ["a.mp4", "b.mp4"])]
+
+
+
+SPAN = [(0.0, 6.0)]
+NAMES = ["NoCopyrightSounds", "NCS", "StreamBeats"]
+
+
+def _decide(identify, singing=np.zeros(6), spans=SPAN):
+    return mc.decide_spans(spans, identify, singing, NAMES)[0]
+
+
+def test_recognized_commercial_is_removed():
+    assert _decide(lambda s, e: COMMERCIAL) == SPAN
+
+
+def test_allowed_artist_is_kept():
+    assert _decide(lambda s, e: {"title": "Sky High", "artist": "Elektronomia", "label": "NCS"}) == []
+
+
+def test_unrecognized_is_kept():
+    assert _decide(lambda s, e: None) == []
+
+
+def test_shazam_down_falls_back_to_singing():
+    def down(s, e):
+        raise TimeoutError("shazam")
+    assert _decide(down, singing=np.array([.9, .9, .9, 0, 0, 0])) == SPAN  # sung: out
+    assert _decide(down, singing=np.zeros(6)) == []  # instrumental: stays
+
+
+def test_short_spans_follow_todays_rule():
+    assert _decide(lambda s, e: None, spans=[(1.0, 3.0)]) == [(1.0, 3.0)]
+
+
+def test_allowlist_ignores_blanks_and_comments(tmp_path):
+    path = tmp_path / "allow.txt"
+    path.write_text("# liberados\n\n  NCS  \nStreamBeats\n")
+    assert mc.allowed_names(path) == ["NCS", "StreamBeats"]
+    assert mc.allowed_names(tmp_path / "missing.txt") == NAMES
+
+
+def test_all_spans_kept_leaves_the_clip_alone(tmp_path, monkeypatch):
+    path = _clip(tmp_path)
+    before = path.read_bytes()
+    monkeypatch.setattr(mc, "music_per_second", lambda mono: np.full(6, .9))
+    monkeypatch.setattr(mc, "identify_span", lambda p, s, e: None)
+    assert mc.clean_clip(path) == {"status": "kept", "music_seconds": 6.0, "error": None}
+    assert path.read_bytes() == before
+
+
+def test_no_bed_tracks_just_removes(tmp_path, monkeypatch):
+    path = _clip(tmp_path)
+    monkeypatch.setattr(mc, "music_per_second", _music_then(np.zeros(6)))
+    monkeypatch.setattr(mc, "separate_vocals", lambda stereo: np.zeros_like(stereo))
+    assert mc.clean_clip(path)["status"] == "removed"
+    loud = subprocess.run(["ffmpeg", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
+                          capture_output=True, text=True).stderr
+    assert "max_volume: -91" in loud
+
+
+def test_bed_track_is_stable_per_clip(tmp_path):
+    for name in ("b.mp3", "a.wav", "notes.txt"):
+        (tmp_path / name).write_bytes(b"x")
+    first = mc.bed_track(Path("clip_1.mp4"), tmp_path)
+    assert first in (tmp_path / "a.wav", tmp_path / "b.mp3")
+    assert mc.bed_track(Path("clip_1.mp4"), tmp_path) == first
+    assert mc.bed_track(Path("clip_1.mp4"), tmp_path / "nothing") is None
+
+
+def test_bed_loops_to_cover_the_span():
+    rate = 10
+    audio = np.zeros((2, 80), dtype=np.float32)
+    bed = np.ones((2, 15), dtype=np.float32)  # 1.5 s of free music for a 5 s stretch
+    out = mc.add_bed(audio, bed, [(1.0, 6.0)], rate, gain=0.5, fade=0.3)
+    assert np.all(out[:, :10] == 0) and np.all(out[:, 63:] == 0)  # nothing outside the stretch
+    assert np.allclose(out[:, 14:56], 0.5)  # looped all the way, at the bed's gain
+
+
+def test_bed_is_mixed_under_removed_music(tmp_path, monkeypatch):
+    path = _clip(tmp_path)
+    beds = tmp_path / "beds"
+    beds.mkdir()
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=2",
+                    str(beds / "free.wav")], check=True)
+    monkeypatch.setattr(mc, "MUSIC_BED_DIR", beds)
+    monkeypatch.setattr(mc, "music_per_second", _music_then(np.zeros(6)))
+    monkeypatch.setattr(mc, "separate_vocals", lambda stereo: np.zeros_like(stereo))
+    assert mc.clean_clip(path)["status"] == "removed"
+    loud = subprocess.run(["ffmpeg", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
+                          capture_output=True, text=True).stderr
+    assert "max_volume: -91" not in loud  # the free track is heard where the music was
