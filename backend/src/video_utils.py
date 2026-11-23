@@ -432,6 +432,18 @@ def create_optimized_clip(
                     plan_report["cam_face"] = cam_face
                 except Exception as exc:
                     logger.warning("Streamer split layout failed (%s); using the normal layout", exc)
+            if reframe_format == "vertical" and kit_layout == "catclips3" and src_w > src_h:
+                # Fork: Cat Clips 3.0 — webcam on top, Vice City title bar, the game cut to the phone's width.
+                try:
+                    from .media.catclips3 import plan_catclips3
+                    video_filter, mode, caption_y, cam_face, game_crop, face_samples = plan_catclips3(
+                        source_clip_path, src_w, src_h, layout_title or "", channel_id=kit_channel_id,
+                        recording_id=kit_recording_id)
+                    vertical_plan = (video_filter, mode)
+                    plan_report.update(kind="catclips3", cam_face=cam_face, game_crop=game_crop,
+                                       face_samples=face_samples)
+                except Exception as exc:
+                    logger.warning("Cat Clips 3.0 layout failed (%s); using the normal layout", exc)
             if reframe_format == "vertical" and vertical_plan is None:
                 if get_config().speaker_framing:
                     try:

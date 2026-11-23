@@ -62,10 +62,23 @@ KITS["catclips_v2"] = {
 }
 
 
+KITS["catclips_v3"] = {
+    **KITS["catclips_v2"],
+    "id": "catclips_v3",
+    "name": "Cat Clips 3.0",
+    # Owner (2026-11-23): webcam on top, Pricedown title over Vice City palms, the game cut to the
+    # phone's width, streamer words popping one by one, NPC lines above the NPC.
+    "caption_template": "catclips3",
+    "layout": "catclips3",
+    "npc_captions": True,
+    "hidden": True,  # out of the channel picker until the owner approves the test clips
+}
+
+
 def get_kit(name: str | None) -> dict[str, Any]:
     """The kit called ``name``; unknown or missing names get the normal look."""
     return KITS.get(name or "none", KITS["none"])
 
 
 def kit_choices() -> list[dict[str, str]]:
-    return [{"id": kit["id"], "name": kit["name"]} for kit in KITS.values()]
+    return [{"id": kit["id"], "name": kit["name"]} for kit in KITS.values() if not kit.get("hidden")]
