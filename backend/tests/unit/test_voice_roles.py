@@ -218,23 +218,6 @@ def test_frames_are_read_in_one_pass_whatever_the_order(tmp_path, monkeypatch):
     assert seeks == []  # no seeking: one forward read
 
 
-def test_v3_keeps_subtitled_game_lines(monkeypatch):
-    _fake_pipeline(monkeypatch, subs=lambda t: 4 <= t <= 6 or 11 <= t <= 13)
-    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None, keep_game_lines=True)
-    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("b", "game"), ("c", "streamer"), ("d", "game")]
-
-
-def test_v3_gives_unsure_voices_to_the_streamer(monkeypatch):
-    # b talks once, at the end, with no subtitles: v2 calls it "unsure" and drops it; owner: in 3.0 it's the streamer
-    _fake_pipeline(monkeypatch, subs=lambda t: False)
-    words = [word(0, 3, "a"), word(4, 7, "c"), word(8, 10, "b")]
-    a, b = _unit([1, 0, 0]), _unit([0, 1, 0])
-    monkeypatch.setattr(vr, "embed", lambda samples, it=iter([a, a, b, a, a, b]): next(it))
-    assert [w["text"] for w in vr.label_words("clip.mp4", words, 1920, 1080, face=None)] == ["a", "c"]
-    out = vr.label_words("clip.mp4", words, 1920, 1080, face=None, keep_game_lines=True)
-    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("b", "streamer")]
-
-
 def _bottom_text(size, thickness):
     import cv2
     frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
@@ -247,8 +230,48 @@ def test_plain_subtitle_is_the_games_thin_line_not_a_big_burned_caption():
     assert not vr.plain_subtitle_on(_bottom_text(2.0, 6))  # an editor's caption already burned in: ~5%
 
 
-def test_v3_npc_only_where_the_game_shows_its_subtitle(monkeypatch):
-    # b and d share a voice, but only d has the game's subtitle on screen: b is the streamer, never blue
-    _fake_pipeline(monkeypatch, subs=lambda t: 11 <= t <= 13)
-    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None, keep_game_lines=True)
-    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("b", "streamer"), ("c", "streamer"), ("d", "game")]
+def _fake_subtitles(monkeypatch, shown):
+    """``shown``: (from, to, text) of the game's subtitle on screen."""
+    monkeypatch.setattr(vr, "subtitle_tokens", lambda clip, times: [
+        set().union(*[vr._tokens(text) for a, b, text in shown if a <= t <= b]) for t in times])
+
+
+def test_v3_npc_words_are_the_ones_written_in_the_games_subtitle(monkeypatch):
+    _fake_subtitles(monkeypatch, [(4.0, 6.5, "So, you're saying you ran?")])
+    words = [word(0, 1, "Whoa,"), word(1, 2, "dude"), word(4.2, 4.5, "So,"), word(4.5, 4.8, "you're"),
+             word(4.8, 5.3, "saying"), word(5.3, 5.5, "you"), word(5.5, 6.0, "ran?"), word(8, 9, "crazy")]
+    out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["streamer", "streamer", "game", "game", "game", "game", "game", "streamer"]
+
+
+def test_v3_streamer_talking_over_a_subtitle_stays_the_streamer(monkeypatch):
+    # GTA shows the NPC's line while the streamer yells something else; a lone common word isn't enough
+    _fake_subtitles(monkeypatch, [(0.0, 3.0, "Get in the car and go get her.")])
+    words = [word(0.2, 0.6, "Oh"), word(0.6, 1.0, "my"), word(1.0, 1.5, "god"), word(1.5, 1.8, "the"),
+             word(1.8, 2.2, "button")]
+    out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["streamer"] * 5
+
+
+def test_v3_ocr_trouble_leaves_everything_to_the_streamer(monkeypatch):
+    def broken(clip, times):
+        raise RuntimeError("no tesseract")
+    monkeypatch.setattr(vr, "subtitle_tokens", broken)
+    out = vr.label_words("clip.mp4", [word(0, 1, "hey")], 1920, 1080, keep_game_lines=True)
+    assert out == [{**word(0, 1, "hey"), "role": "streamer"}]
+
+
+def test_subtitle_text_reads_the_games_line():
+    import cv2
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    cv2.putText(frame, "Get in the car", (760, 990), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+    assert "car" in vr._tokens(vr.subtitle_text(frame))
+    assert vr.subtitle_text(np.zeros((1080, 1920, 3), dtype=np.uint8)) == ""
+
+
+def test_v3_a_word_the_ocr_missed_inside_an_npc_line_stays_npc(monkeypatch):
+    _fake_subtitles(monkeypatch, [(0.0, 3.0, "I don't see you... come out to the parking lot.")])
+    words = [word(0.2, 0.5, "see"), word(0.5, 0.8, "you"), word(0.8, 1.1, "come"), word(1.1, 1.4, "into"),
+             word(1.4, 1.6, "the"), word(1.6, 2.0, "parking"), word(2.0, 2.3, "lot")]
+    out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["game"] * 7

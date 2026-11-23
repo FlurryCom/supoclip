@@ -893,21 +893,70 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     # only as the first word of a chunk appears — gives a pop without any
     # per-word reflow/vibration.
     def karaoke_line(indices: List[int], chunk: List[Dict[str, Any]], active: int) -> str:
-        """The block while word ``active`` is said; with ``reveal_words`` the words after it hold their
-        place invisibly, so the block doesn't reflow as each one appears."""
-        parts = []
-        for local_j, (gj, other) in enumerate(zip(indices, chunk)):
-            disp = render_text(gj, other)
-            if reveal_words and local_j > active:
-                span = f"{{{font_tag}\\alpha&HFF&}}{disp}"
-            else:
-                span = active_span(disp) if local_j == active else idle_span(gj, disp)
-                if reveal_words:
-                    span = "{\\alpha&H00&}" + span
-            if local_j:
-                parts.append("\\N" if line_words and local_j % line_words == 0 else " ")
-            parts.append(span)
-        return "".join(parts)
+        """The line while word ``active`` is said: that word highlighted, the rest idle."""
+        return " ".join(
+            active_span(render_text(gj, other)) if local_j == active else idle_span(gj, render_text(gj, other))
+            for local_j, (gj, other) in enumerate(zip(indices, chunk))
+        )
+
+    def word_by_word(chunk: List[Dict[str, Any]], indices: List[int], scale: float,
+                     path: List[Tuple[float, float, int, int, int, int]], bottom: bool) -> List[str]:
+        """Cat Clips 3.0 (owner's reference): each word is its own event at its place in the block, so it
+        balloons in on its own without shoving the others; the word being said is yellow, the ones before
+        white, two words a line. ``path``: where the block sits over time; its centre, or with ``bottom``
+        its bottom-centre (an NPC's line over the NPC's head)."""
+        from .npc_captions import segments_between
+
+        step = line_words or len(chunk)
+        rows = [list(range(i, min(i + step, len(chunk)))) for i in range(0, len(chunk), step)]
+        line_h = font_px * 0.95 * scale  # the reference stacks its lines tight
+        gap = space_width * scale
+        offsets, widest = {}, 0.0
+        for r, row in enumerate(rows):
+            width = sum(word_widths[indices[k]] for k in row) * scale + gap * (len(row) - 1)
+            widest = max(widest, width)
+            dy = (r - (len(rows) - 1) / 2) * line_h if not bottom else -(len(rows) - 1 - r + 0.5) * line_h
+            x = -width / 2
+            for k in row:
+                w = word_widths[indices[k]] * scale
+                offsets[k] = (x + w / 2, dy)
+                x += w + gap
+        low = min(widest / 2 + 30, video_width / 2)
+        high = max(video_width - widest / 2 - 30, video_width / 2)
+        end = max(float(chunk[-1]["end"]), float(chunk[0]["start"]) + 0.05)
+        size = scaled(100, scale)
+        glow = max(outline_px * 2, 6)
+        out = []
+        for k, word in enumerate(chunk):
+            said = float(word["start"])
+            nxt = float(chunk[k + 1]["start"]) if k + 1 < len(chunk) else end
+            phases = [(said, max(nxt, said + 0.05), highlight, True)]
+            if nxt < end:
+                phases.append((nxt, end, primary, False))
+            dx, dy = offsets[k]
+            text = render_text(indices[k], word)
+            for a, b, colour, pops in phases:
+                pieces = segments_between(path, a, b)
+                if not pieces:  # the path ended before the line did: hold its last point
+                    _, _, _, _, lx, ly = path[-1]
+                    pieces = [(a, b, lx, ly, lx, ly)]
+                elif pieces[-1][1] < b:
+                    pieces.append((pieces[-1][1], b, *pieces[-1][4:], *pieces[-1][4:]))
+                for t0, t1, x0, y0, x1, y1 in pieces:
+                    if t1 - t0 < 0.02:
+                        continue
+                    p0 = (round(min(max(x0, low), high) + dx), round(y0 + dy))
+                    p1 = (round(min(max(x1, low), high) + dx), round(y1 + dy))
+                    place = f"\\pos({p0[0]},{p0[1]})" if p0 == p1 else f"\\move({p0[0]},{p0[1]},{p1[0]},{p1[1]})"
+                    grow = (f"\\fscx{scaled(40, scale)}\\fscy{scaled(40, scale)}"
+                            f"\\t(0,70,\\fscx{scaled(112, scale)}\\fscy{scaled(112, scale)})"
+                            f"\\t(70,150,\\fscx{size}\\fscy{size})") if pops and t0 == a else f"\\fscx{size}\\fscy{size}"
+                    when = f"{ass_timestamp(t0)},{ass_timestamp(t1)},Default,,0,0,0,,"
+                    out.append(f"Dialogue: 0,{when}{{\\an5{place}{grow}{font_tag}\\1a&HFF&\\3c&H000000&"
+                               f"\\3a&H60&\\bord{glow}\\blur{glow // 2}\\shad0}}{text}")  # the soft dark halo
+                    out.append(f"Dialogue: 1,{when}{{\\an5{place}{grow}{font_tag}\\c{colour}\\3c&H000000&"
+                               f"\\bord{outline_px}\\shad0}}{text}")
+        return out
 
     def line_entrance(scale: float) -> str:
         if not word_pop:
@@ -935,6 +984,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             prefix = f"{{\\pos({placement['x']},{placement['y']})\\fs{px}\\bord{border}\\shad{shadow_px}" + ("\\blur4" if glow else "") + "}"
 
         role_style = ROLE_STYLES.get(chunk[0].get("role"))
+        if reveal_words:
+            npc_path = chunk[0].get("npc_path") if role_style is not None else None
+            size = role_style[1] if role_style is not None else 100
+            path = npc_path or [(float(chunk[0]["start"]), chunk_end, x_pos, y_pos, x_pos, y_pos)]
+            events += word_by_word(chunk, indices, chunk_scale * size / 100, path, bottom=npc_path is not None)
+            continue
         if role_style is not None:
             # A friend or the game: one still line in its own colour, no yellow word box or pop.
             colour, size = role_style
@@ -942,20 +997,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text = " ".join(render_text(gj, word) for gj, word in zip(indices, chunk))
             fit = f"\\fscx{scaled(size, chunk_scale)}\\fscy{scaled(size, chunk_scale)}" if size != 100 or chunk_scale < 1 else ""
             if chunk[0].get("npc_path"):  # Cat Clips 3.0: the NPC's line above the NPC, moving with it
-                step = line_words or len(indices)
-                rendered = max(sum(word_widths[gj] for gj in row) + space_width * (len(row) - 1)
-                               for row in (indices[i:i + step] for i in range(0, len(indices), step)))
-                tags = f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}"
-                half = rendered * size / 100 * min(chunk_scale, 1.0) / 2
-                if not reveal_words:
-                    events += npc_events(chunk, start, end, text, tags, half_width=half, video_width=video_width)
-                    continue
-                for local_i, word in enumerate(chunk):  # the NPC's words pop in as said, like the streamer's
-                    w_start = float(word["start"])
-                    w_end = float(chunk[local_i + 1]["start"]) if local_i + 1 < len(chunk) else end
-                    events += npc_events(chunk, w_start, max(w_end, w_start + 0.05),
-                                         karaoke_line(indices, chunk, local_i), tags,
-                                         half_width=half, video_width=video_width)
+                rendered = sum(word_widths[gj] for gj in indices) + space_width * (len(indices) - 1)
+                events += npc_events(chunk, start, end, text,
+                                     f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}",
+                                     half_width=rendered * size / 100 * min(chunk_scale, 1.0) / 2,
+                                     video_width=video_width)
                 continue
             events.append(
                 f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Default,,0,0,0,,"

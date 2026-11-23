@@ -279,6 +279,67 @@ def plain_subtitle_on(frame: np.ndarray) -> bool:
     return right - left >= 0.06 * w and abs(centre) <= 0.12 * w
 
 
+SUBTITLE_HZ = 3  # GTA keeps a subtitle up for a second or more
+
+
+def _tokens(text: str) -> set[str]:
+    """Lower-case words of a line; OCR reads a capital I as a bar."""
+    import re
+
+    return set(re.findall(r"[a-z0-9']+", text.replace("|", "I").replace("\u2019", "'").lower()))
+
+
+def subtitle_text(frame: np.ndarray) -> str:
+    """What the game's subtitle says ('' when there is none), read with tesseract."""
+    import subprocess
+
+    import cv2
+
+    if not plain_subtitle_on(frame):
+        return ""
+    h, w = frame.shape[:2]
+    gray = cv2.cvtColor(frame[int(0.80 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)], cv2.COLOR_BGR2GRAY)
+    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    _, ink = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY_INV)  # dark text on white reads best
+    png = cv2.imencode(".png", ink)[1].tobytes()
+    return subprocess.run(["tesseract", "stdin", "stdout", "--psm", "6", "-l", "eng"], input=png,
+                          capture_output=True, timeout=20, check=True).stdout.decode(errors="ignore").strip()
+
+
+def subtitle_tokens(path: Path, times: list[float]) -> list[set[str]]:
+    """The words of the game's subtitle on screen at each time."""
+    seen = {index: _tokens(subtitle_text(frame)) for index, frame in _frames(path, times)}
+    return [seen.get(index, set()) for index in _index(path, times)]
+
+
+def label_by_subtitles(clip: Path, words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Cat Clips 3.0: a word is the game's when GTA writes it in its own subtitle as it's said; every
+    other word is the streamer's, even while a subtitle is up. Voice groups proved unreliable here."""
+    if not words:
+        return []
+    first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
+    times = [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
+    shown = subtitle_tokens(clip, times)
+    texts = [next(iter(_tokens(str(w.get("text", "")))), "") for w in words]
+    written = []
+    for w, token in zip(words, texts):
+        near = set().union(*[s for t, s in zip(times, shown) if float(w["start"]) - 0.4 <= t <= float(w["end"]) + 0.4])
+        written.append(bool(token) and token in near)
+    roles = []
+    for i, token in enumerate(texts):
+        # a short common word ("the", "you") counts only next to another written word
+        neighbour = (i > 0 and written[i - 1]) or (i + 1 < len(words) and written[i + 1])
+        roles.append("game" if written[i] and (len(token) >= 4 or neighbour) else "streamer")
+    for i in range(1, len(roles) - 1):  # one or two words the OCR or the transcript got wrong mid-line
+        for gap in (1, 2):
+            j = i + gap
+            if j < len(roles) and roles[i - 1] == roles[j] == "game" and "game" not in roles[i:j] \
+                    and float(words[j]["start"]) - float(words[i - 1]["end"]) <= 1.5:
+                roles[i:j] = ["game"] * gap
+    logger.info("Caption voices by subtitle: %d game, %d streamer words", roles.count("game"), roles.count("streamer"))
+    return [{**w, "role": role} for w, role in zip(words, roles)]
+
+
 def game_subtitles_on(path: Path, times: list[float]) -> list[bool]:
     """Whether the frame at each time shows the game's own subtitles (outlined or plain)."""
     from .source_captions import caption_lines_in_frame
@@ -303,13 +364,18 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
                 keep_game_lines: bool = False) -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
 
-    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; a line is "game" only while the game's own
-    subtitle is on screen, every other line is the streamer (the voice groups proved unreliable). The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
+    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; see ``label_by_subtitles``. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
 
     ``face`` is the webcam face (source pixels) when the layout already found it.
     Any failure returns every word as the streamer.
     """
     plain = [{**w, "role": "streamer"} for w in words]
+    if keep_game_lines:
+        try:
+            return label_by_subtitles(clip, words)
+        except Exception as exc:
+            logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
+            return plain
     try:
         segments = speech_segments(words)
         if len(segments) < 2:
@@ -360,10 +426,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         labelled = []
         for i, (_, _, indexes) in enumerate(segments):
             role = roles[group_of[i]]
-            if keep_game_lines:
-                # owner: an NPC only where the game shows its own subtitle; every other voice is the streamer
-                role = "game" if subs_on[i] else "streamer"
-            elif role == "unsure" or (role == "game" and subs_on[i]):
+            if role == "unsure" or (role == "game" and subs_on[i]):
                 continue  # owner: leave doubtful voices out; the game already shows its own subtitle
             labelled += [{**words[k], "role": role} for k in indexes]
         return labelled
