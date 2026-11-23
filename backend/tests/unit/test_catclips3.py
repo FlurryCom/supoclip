@@ -14,7 +14,7 @@ def _overlap(a, b):
 
 
 def test_game_crop_any_resolution():
-    assert game_crop(1920, 1080) == (554, 0, 812, 918)  # 85% of the height, the output's 1080x1220 shape
+    assert game_crop(1920, 1080) == (400, 0, 812, 918)  # 85% of the height, the output's 1080x1220 shape
     for width, height in ((1280, 720), (1440, 1080)):
         x, y, w, h = rect = game_crop(width, height)
         assert h == (int(height * 0.85) // 2) * 2 and abs(w / h - 1080 / GAME_H) < 0.01 and _inside(rect, width, height)
@@ -31,7 +31,13 @@ def test_game_crop_avoids_the_webcam():
 
 def test_game_crop_uses_the_game_box():
     x, y, w, h = game_crop(1920, 1080, game_rect=(0, 0, 1600, 1080))
-    assert abs(x + w / 2 - 800) <= 2
+    assert abs(x + w / 2 - 0.42 * 1600) <= 2
+
+
+def test_game_crop_centres_gta_s_protagonist():
+    # GTA 6's chase camera keeps the player at ~42% of the width (measured on xQc's lives), not mid-screen
+    x, y, w, h = game_crop(1920, 1080)
+    assert abs(x + w / 2 - 0.42 * 1920) <= 2
 
 
 def test_title_badge_falls_back_without_assets(tmp_path):

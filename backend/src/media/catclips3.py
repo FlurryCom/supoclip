@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 Rect = Tuple[int, int, int, int]
 TOP_H, GAME_H = 700, 1220
 GAME_Y = TOP_H
+PLAYER_X = 0.42  # GTA 6's chase camera holds the player here (share of the width); the cut centres on it
 GAME_SHARE = 0.85  # the bottom 15% is where GTA draws its subtitles; it would show cut in half
 BADGE_H, BADGE_MIN_W, BADGE_MAX_W = 170, 560, 980
 BADGE_SKEW = 34  # px the top edge leans right
@@ -86,12 +87,12 @@ def _overlap(a: Rect, b: Rect) -> bool:
 
 
 def game_crop(width: int, height: int, game_rect: Optional[Rect] = None, cam_rect: Optional[Rect] = None) -> Rect:
-    """Cut of the game box with the output's game shape, centred, moved (or made shorter) so the webcam
-    stays out of it."""
+    """Cut of the game box with the output's game shape, centred on the player, moved (or made shorter) so
+    the webcam stays out of it."""
     gx, gy, gw, gh = game_rect or (0, 0, width, height)
     h = round_to_even(int(min(gh * GAME_SHARE, gw * GAME_H / 1080)))
     w = round_to_even(int(h * 1080 / GAME_H))
-    x = clamp_even(gx + (gw - w) // 2, gx, gx + gw - w)
+    x = clamp_even(gx + int(gw * PLAYER_X) - w // 2, gx, gx + gw - w)
     if cam_rect is None or not _overlap((x, gy, w, h), cam_rect):
         return x, gy, w, h
     cx, cy, cw, _ = cam_rect
@@ -102,7 +103,7 @@ def game_crop(width: int, height: int, game_rect: Optional[Rect] = None, cam_rec
     if cy - gy >= gh * 0.5:  # cam right under the middle: keep the part above it
         h = round_to_even(cy - gy)
         w = round_to_even(int(h * 1080 / GAME_H))
-        return clamp_even(gx + (gw - w) // 2, gx, gx + gw - w), gy, w, h
+        return clamp_even(gx + int(gw * PLAYER_X) - w // 2, gx, gx + gw - w), gy, w, h
     return x, gy, w, h  # nowhere to dodge it: the cam shows twice, the game stays whole
 
 
