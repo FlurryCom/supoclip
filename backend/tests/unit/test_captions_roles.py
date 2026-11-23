@@ -50,3 +50,44 @@ def test_a_cut_marked_on_a_word_starts_a_new_caption(tmp_path):
              {**w("three", 0.6, 0.9, "streamer"), "break_before": True}, w("four", 0.9, 1.2, "streamer")]
     lines = _ass(tmp_path, words)
     assert not any("TWO" in line and "THREE" in line for line in lines)
+
+
+def _v3(tmp_path, words):
+    out = tmp_path / "v3.ass"
+    assert build_assemblyai_ass_subtitles(
+        tmp_path / "missing.mp4", 0.0, 10.0, 1080, 1920, out, caption_template="catclips3", caption_words=words,
+    )
+    return [line for line in out.read_text().splitlines() if line.startswith("Dialogue:")]
+
+
+def test_v3_words_appear_one_by_one_two_per_line(tmp_path):
+    # owner's reference: words pop in as spoken, the newest yellow, the ones before white, two words a line
+    lines = _v3(tmp_path, [w("your", 0.0, 0.3, "streamer"), w("cash", 0.3, 0.6, "streamer"),
+                           w("now", 0.6, 0.9, "streamer"), w("bro", 0.9, 1.2, "streamer")])
+    assert len(lines) == 4
+    first, third = lines[0], lines[2]
+    assert "\\alpha&HFF&}CASH" in first and "\\alpha&HFF&}BRO" in first  # not said yet: hidden, holding its place
+    assert "03C8FE&" in third.split("NOW")[0].rsplit("{", 1)[1]  # the word being said is yellow
+    assert "\\alpha&HFF&" not in third.split("NOW")[0]  # what was said stays on screen
+    assert "\\N" in first and first.index("\\N") > first.index("CASH")  # break after the second word
+
+
+def test_v3_npc_line_appears_word_by_word_over_the_npc(tmp_path):
+    path = [(1.0, 2.0, 500, 1300, 500, 1300)]
+    lines = _v3(tmp_path, [{**w("give", 1.0, 1.4, "game"), "npc_path": path},
+                           {**w("me", 1.4, 2.0, "game"), "npc_path": path}])
+    assert len(lines) == 2 and all("\\pos(500,1300)" in line for line in lines)
+    assert "\\alpha&HFF&}ME" in lines[0] and "\\alpha&HFF&" not in lines[1]
+
+
+def test_v3_two_line_block_stays_below_the_title_bar(tmp_path):
+    import re
+    from src.media.catclips3 import CAPTION_Y, GAME_Y
+    out = tmp_path / "bar.ass"
+    words = [w(t, i * 0.3, i * 0.3 + 0.3, "streamer") for i, t in enumerate(["oh", "my", "god", "bro"])]
+    assert build_assemblyai_ass_subtitles(tmp_path / "missing.mp4", 0.0, 10.0, 1080, 1920, out,
+                                          caption_template="catclips3", caption_words=words, position_y_override=CAPTION_Y)
+    text = out.read_text()
+    font_px = int(text.split("Style: Default,")[1].split(",")[1])
+    centre = int(re.search(r"\\pos\(\d+,(\d+)\)", text).group(1))
+    assert centre - font_px * 1.2 >= GAME_Y + 20  # two lines centred here: the top one clears the bar

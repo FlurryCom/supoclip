@@ -182,7 +182,7 @@ CAPTION_TEMPLATES: Dict[str, Dict[str, Any]] = {
     },
     "catclips3": {
         "name": "Cat Clips 3.0",
-        "description": "Cat Clips 3.0: big white caps, the spoken word yellow and popping",
+        "description": "Cat Clips 3.0: big caps that pop in word by word, the spoken word yellow",
         "font_family": "THEBOLDFONT",
         "font_size": 44,
         "font_color": "#FFFFFF",
@@ -199,7 +199,9 @@ CAPTION_TEMPLATES: Dict[str, Dict[str, Any]] = {
         "uppercase": True,
         "shadow": True,
         "glow": False,
-        "max_words_per_line": 3,
+        "max_words_per_line": 4,
+        "line_words": 2,
+        "reveal_words": True,
         "position_y": 0.60,
     },
     "podcast": {

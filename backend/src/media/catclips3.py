@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 Rect = Tuple[int, int, int, int]
 TOP_H, BAR_H, GAME_H = 640, 200, 1080
 GAME_Y = TOP_H + BAR_H
-CAPTION_Y = (GAME_Y + 90) / 1920
+CAPTION_Y = (GAME_Y + 210) / 1920  # the 2-line block (centred here) clears the title bar
 GAME_SHARE = 0.85  # the bottom 15% is where GTA draws its subtitles; it would show cut in half
 BAR_BG_AT = 0.55  # owner picked the middle of the palm picture
 # Local only: Pricedown's licence forbids sharing the file, and the picture is someone else's.

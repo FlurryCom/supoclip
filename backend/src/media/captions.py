@@ -676,6 +676,8 @@ def build_assemblyai_ass_subtitles(
     # Only inject emojis when the runtime can actually render them in colour.
     enable_emoji = bool(template.get("emoji", True)) and emoji_rendering_supported()
     word_pop = bool(template.get("word_pop", True))
+    reveal_words = bool(template.get("reveal_words"))  # Cat Clips 3.0: a word shows up only once it's said
+    line_words = int(template.get("line_words") or 0)  # break the block every N words (0: one line)
     word_box = bool(template.get("word_box"))
     glow = bool(template.get("glow"))
     has_outline = template.get("stroke_color") is not None
@@ -818,6 +820,11 @@ def build_assemblyai_ass_subtitles(
             chunk_spans.append((chunk_start, chunk_stop, 1.0))
             continue
         widths = word_widths[chunk_start:chunk_stop]
+        if line_words:
+            rows = [sum(widths[i:i + line_words]) + space_width * (len(widths[i:i + line_words]) - 1)
+                    for i in range(0, len(widths), line_words)]
+            chunk_spans.append((chunk_start, chunk_stop, min(1.0, available_width / max(max(rows), 1.0))))
+            continue
         for start, end in split_caption_chunk(widths, space_width, available_width):
             line_width = sum(widths[start:end]) + space_width * (end - start - 1)
             scale = min(1.0, available_width / line_width) if line_width > 0 else 1.0
@@ -885,6 +892,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     # Subtle one-shot entrance for the whole line (uniform scale, centred), shown
     # only as the first word of a chunk appears — gives a pop without any
     # per-word reflow/vibration.
+    def karaoke_line(indices: List[int], chunk: List[Dict[str, Any]], active: int) -> str:
+        """The block while word ``active`` is said; with ``reveal_words`` the words after it hold their
+        place invisibly, so the block doesn't reflow as each one appears."""
+        parts = []
+        for local_j, (gj, other) in enumerate(zip(indices, chunk)):
+            disp = render_text(gj, other)
+            if reveal_words and local_j > active:
+                span = f"{{{font_tag}\\alpha&HFF&}}{disp}"
+            else:
+                span = active_span(disp) if local_j == active else idle_span(gj, disp)
+                if reveal_words:
+                    span = "{\\alpha&H00&}" + span
+            if local_j:
+                parts.append("\\N" if line_words and local_j % line_words == 0 else " ")
+            parts.append(span)
+        return "".join(parts)
+
     def line_entrance(scale: float) -> str:
         if not word_pop:
             return ""
@@ -918,11 +942,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text = " ".join(render_text(gj, word) for gj, word in zip(indices, chunk))
             fit = f"\\fscx{scaled(size, chunk_scale)}\\fscy{scaled(size, chunk_scale)}" if size != 100 or chunk_scale < 1 else ""
             if chunk[0].get("npc_path"):  # Cat Clips 3.0: the NPC's line above the NPC, moving with it
-                rendered = sum(word_widths[gj] for gj in indices) + space_width * (len(indices) - 1)
-                events += npc_events(chunk, start, end, text,
-                                     f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}",
-                                     half_width=rendered * size / 100 * min(chunk_scale, 1.0) / 2,
-                                     video_width=video_width)
+                step = line_words or len(indices)
+                rendered = max(sum(word_widths[gj] for gj in row) + space_width * (len(row) - 1)
+                               for row in (indices[i:i + step] for i in range(0, len(indices), step)))
+                tags = f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}"
+                half = rendered * size / 100 * min(chunk_scale, 1.0) / 2
+                if not reveal_words:
+                    events += npc_events(chunk, start, end, text, tags, half_width=half, video_width=video_width)
+                    continue
+                for local_i, word in enumerate(chunk):  # the NPC's words pop in as said, like the streamer's
+                    w_start = float(word["start"])
+                    w_end = float(chunk[local_i + 1]["start"]) if local_i + 1 < len(chunk) else end
+                    events += npc_events(chunk, w_start, max(w_end, w_start + 0.05),
+                                         karaoke_line(indices, chunk, local_i), tags,
+                                         half_width=half, video_width=video_width)
                 continue
             events.append(
                 f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Default,,0,0,0,,"
@@ -940,12 +973,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 )
                 if end <= start:
                     end = start + 0.05
-                parts = []
-                for local_j, other in enumerate(chunk):
-                    gj = indices[local_j]
-                    disp = render_text(gj, other)
-                    parts.append(active_span(disp) if local_j == local_i else idle_span(gj, disp))
-                line = " ".join(parts)
+                line = karaoke_line(indices, chunk, local_i)
                 # Entrance only on the first word's event so it plays once, not
                 # once per word.
                 entrance = f"{{{entrance_tags}}}" if (entrance_tags and local_i == 0) else ""

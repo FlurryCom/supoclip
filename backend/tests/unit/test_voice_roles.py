@@ -132,7 +132,7 @@ def test_game_words_without_subtitles_on_screen_stay(monkeypatch):
 
 def _scene(tmp_path, name, text_x):
     font = "/app/fonts/ArchivoBlack-Regular.ttf"
-    return _video(tmp_path, name, f"drawtext=fontfile={font}:text='Cal where is Jay':fontsize=18:fontcolor=white:"
+    return _video(tmp_path, name, f"drawtext=fontfile={font}:text='Cal where is Jay':fontsize=9:fontcolor=white:"
                   f"x={text_x}:y=318:enable='between(t,1,2.5)'")
 
 
@@ -233,3 +233,22 @@ def test_v3_gives_unsure_voices_to_the_streamer(monkeypatch):
     assert [w["text"] for w in vr.label_words("clip.mp4", words, 1920, 1080, face=None)] == ["a", "c"]
     out = vr.label_words("clip.mp4", words, 1920, 1080, face=None, keep_game_lines=True)
     assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("b", "streamer")]
+
+
+def _bottom_text(size, thickness):
+    import cv2
+    frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    cv2.putText(frame, "Give me your cash now", (700, 990), cv2.FONT_HERSHEY_SIMPLEX, size, (255, 255, 255), thickness)
+    return frame
+
+
+def test_plain_subtitle_is_the_games_thin_line_not_a_big_burned_caption():
+    assert vr.plain_subtitle_on(_bottom_text(0.7, 2))  # GTA subtitle: ~1.5% of the frame height
+    assert not vr.plain_subtitle_on(_bottom_text(2.0, 6))  # an editor's caption already burned in: ~5%
+
+
+def test_v3_npc_only_where_the_game_shows_its_subtitle(monkeypatch):
+    # b and d share a voice, but only d has the game's subtitle on screen: b is the streamer, never blue
+    _fake_pipeline(monkeypatch, subs=lambda t: 11 <= t <= 13)
+    out = vr.label_words("clip.mp4", _words_two_voices(), 1920, 1080, face=None, keep_game_lines=True)
+    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("b", "streamer"), ("c", "streamer"), ("d", "game")]

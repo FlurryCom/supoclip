@@ -270,6 +270,9 @@ def plain_subtitle_on(frame: np.ndarray) -> bool:
     rows = np.flatnonzero(bright.sum(axis=1) > 0.004 * region.shape[1])
     if len(rows) < 0.012 * h:
         return False
+    tallest = max(len(run) for run in np.split(rows, np.flatnonzero(np.diff(rows) > 1) + 1))
+    if tallest > 0.025 * h:  # GTA's line is ~1.5% of the height; an editor's burned-in caption is ~5%
+        return False
     cols = np.flatnonzero(bright[rows].any(axis=0))
     left, right = int(cols[0]), int(cols[-1])
     centre = (left + right) / 2 - region.shape[1] / 2
@@ -300,8 +303,8 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
                 keep_game_lines: bool = False) -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
 
-    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; unsure voices count as the streamer, and game
-    lines stay even when subtitled. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
+    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; a line is "game" only while the game's own
+    subtitle is on screen, every other line is the streamer (the voice groups proved unreliable). The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
 
     ``face`` is the webcam face (source pixels) when the layout already found it.
     Any failure returns every word as the streamer.
@@ -358,7 +361,8 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         for i, (_, _, indexes) in enumerate(segments):
             role = roles[group_of[i]]
             if keep_game_lines:
-                role = "streamer" if role == "unsure" else role  # owner: a doubtful voice is the streamer
+                # owner: an NPC only where the game shows its own subtitle; every other voice is the streamer
+                role = "game" if subs_on[i] else "streamer"
             elif role == "unsure" or (role == "game" and subs_on[i]):
                 continue  # owner: leave doubtful voices out; the game already shows its own subtitle
             labelled += [{**words[k], "role": role} for k in indexes]
