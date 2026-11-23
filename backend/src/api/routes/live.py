@@ -5,6 +5,9 @@ records broadcasts and sends windows through the normal task pipeline. These
 routes only manage channels and report what happened. docs/live-clipping.md.
 """
 import asyncio
+import base64
+import json
+import math
 import os
 import re
 import shutil
@@ -116,7 +119,30 @@ def _settings(data: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(data["edit_kit"], str) or data["edit_kit"] not in KITS:
             raise HTTPException(status_code=422, detail=f"edit_kit must be one of: {', '.join(KITS)}")
         settings["edit_kit"] = data["edit_kit"]
+    if "cam_box" in data or "game_box" in data:
+        # game box alone = the streamer has no webcam; both null = back to the automatic detector
+        cam, game = _box(data.get("cam_box"), "cam_box"), _box(data.get("game_box"), "game_box")
+        if cam is not None and game is None or "cam_box" not in data or "game_box" not in data:
+            raise HTTPException(status_code=422, detail="Send cam_box and game_box together; a webcam needs a game box")
+        settings["cam_box"], settings["game_box"] = cam, game
     return settings
+
+
+def _box(value: Any, name: str) -> Dict[str, float] | None:
+    """A {x, y, w, h} box in fractions of the frame, inside it, at least 4% a side; None is allowed."""
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {"x", "y", "w", "h"} or any(
+        isinstance(v, bool) or not isinstance(v, (int, float)) for v in value.values()
+    ):
+        raise HTTPException(status_code=422, detail=f"{name} must be {{x, y, w, h}} numbers")
+    try:
+        x, y, w, h = (float(value[k]) for k in ("x", "y", "w", "h"))
+    except OverflowError:
+        raise HTTPException(status_code=422, detail=f"{name} has a number out of range") from None
+    if not all(map(math.isfinite, (x, y, w, h))) or x < 0 or y < 0 or w < 0.04 or h < 0.04 or x + w > 1.0001 or y + h > 1.0001:
+        raise HTTPException(status_code=422, detail=f"{name} must fit inside the frame, at least 4% a side")
+    return {"x": x, "y": y, "w": w, "h": h}
 
 
 async def _body(request: Request) -> Dict[str, Any]:
@@ -140,7 +166,8 @@ async def list_channels(request: Request, db: AsyncSession = Depends(get_db)):
     user_id = await _user(request, db)
     channels = (await db.execute(text("""
         SELECT c.id, c.platform, c.channel, c.enabled, c.chat_filter, c.min_score, c.chat_weight, c.daily_window_cap, c.limit_windows, c.safe_posting, c.safe_gap_minutes, c.waiting_since,
-            c.edit_kit, c.blur_sensitive, c.post_visibility, r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
+            c.edit_kit, c.blur_sensitive, c.post_visibility, c.cam_box, c.game_box, c.framing_frame_at,
+            r.id AS recording_id, r.title AS live_title, r.started_at AS live_since
         FROM live_channels c
         LEFT JOIN LATERAL (
             SELECT id, title, started_at FROM live_recordings
@@ -312,15 +339,32 @@ async def update_channel(channel_id: str, request: Request, db: AsyncSession = D
     settings = _settings(await _body(request))
     if not settings:
         raise HTTPException(status_code=422, detail="Nothing to update")
-    assignments = ", ".join(f"{key} = :{key}" for key in settings)  # keys come from _settings' allowlist
+    boxes = {"cam_box", "game_box"}
+    # keys come from _settings' allowlist
+    assignments = ", ".join(f"{key} = CAST(:{key} AS jsonb)" if key in boxes else f"{key} = :{key}" for key in settings)
+    values = {key: json.dumps(value) if key in boxes and value is not None else value for key, value in settings.items()}
     result = await db.execute(
         text(f"UPDATE live_channels SET {assignments}, updated_at = now() WHERE id = :id AND user_id = :user_id"),
-        {**settings, "id": channel_id, "user_id": user_id},
+        {**values, "id": channel_id, "user_id": user_id},
     )
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Channel not found")
     await db.commit()
     return {"id": channel_id, **settings}
+
+
+@router.get("/channels/{channel_id}/framing-frame")
+async def framing_frame(channel_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """A recent frame of the channel's live, to mark the webcam and the game on (JSON: the proxy only passes text)."""
+    user_id = await _user(request, db)
+    row = (await db.execute(
+        text("SELECT framing_frame, framing_frame_at FROM live_channels WHERE id = :id AND user_id = :user_id"),
+        {"id": channel_id, "user_id": user_id},
+    )).first()
+    if row is None or row.framing_frame is None:
+        raise HTTPException(status_code=404, detail="No frame yet")
+    image = base64.b64encode(bytes(row.framing_frame)).decode()
+    return {"image": f"data:image/jpeg;base64,{image}", "at": row.framing_frame_at.isoformat()}
 
 
 async def _postiz_user(request: Request, db: AsyncSession) -> str:

@@ -150,5 +150,35 @@
     "disk": "Poco disco: {gb} GB libres.",
     "shared": "Compartido con otra cuenta: hasta {share} por ahora.",
     "saveError": "No se pudo guardar el número."
+  },
+  "framing": {
+    "title": "Encuadre",
+    "auto": "Automático: la webcam se busca en cada clip.",
+    "marked": "Marcado a mano: webcam y juego.",
+    "noCam": "Marcado a mano: sin webcam (arriba se ve el juego desenfocado).",
+    "open": "Marcar webcam y juego",
+    "dialogTitle": "Encuadre de {channel}",
+    "hint": "Arrastra las cajas sobre un fotograma del directo. Cada clip de este canal se corta justo ahí.",
+    "noFrame": "El fotograma aparece tras el primer clip del directo de este canal. Vuelve cuando esté en directo y tenga un clip.",
+    "loading": "Cargando el fotograma…",
+    "frameAlt": "Fotograma reciente del directo de {channel}",
+    "frameAt": "Fotograma de {time}",
+    "cam": "Webcam",
+    "game": "Juego",
+    "boxLabel": "Caja {name}: arrastra; las flechas mueven, Mayús+flechas cambian el tamaño",
+    "drawing": "Arrastrar en la imagen dibuja:",
+    "corners": "Webcam en la esquina:",
+    "corner": {
+      "nw": "↖ Sup. izq.",
+      "ne": "↗ Sup. der.",
+      "sw": "↙ Inf. izq.",
+      "se": "↘ Inf. der."
+    },
+    "fullGame": "Juego = pantalla completa",
+    "withoutCam": "Sin webcam",
+    "preview": "Vista previa",
+    "apply": "Usar este encuadre",
+    "automatic": "Volver a automático",
+    "cancel": "Cancelar"
   }
 }

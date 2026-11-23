@@ -150,5 +150,35 @@
     "disk": "Disk hampir penuh: {gb} GB tersisa.",
     "shared": "Dibagi dengan akun lain: saat ini hingga {share}.",
     "saveError": "Angka tidak dapat disimpan."
+  },
+  "framing": {
+    "title": "Pembingkaian",
+    "auto": "Otomatis: webcam dicari di setiap klip.",
+    "marked": "Ditandai manual: webcam dan game.",
+    "noCam": "Ditandai manual: tanpa webcam (bagian atas menampilkan game yang diburamkan).",
+    "open": "Tandai webcam dan game",
+    "dialogTitle": "Pembingkaian {channel}",
+    "hint": "Seret kotak di atas frame siaran. Setiap klip dari channel ini dipotong tepat di sana.",
+    "noFrame": "Frame muncul setelah klip live pertama channel ini. Kembali saat channel sedang live dan sudah punya klip.",
+    "loading": "Memuat frame…",
+    "frameAlt": "Frame terbaru dari siaran {channel}",
+    "frameAt": "Frame dari {time}",
+    "cam": "Webcam",
+    "game": "Game",
+    "boxLabel": "Kotak {name}: seret; tombol panah memindahkan, Shift+panah mengubah ukuran",
+    "drawing": "Menyeret di gambar menggambar:",
+    "corners": "Webcam di pojok:",
+    "corner": {
+      "nw": "↖ Kiri atas",
+      "ne": "↗ Kanan atas",
+      "sw": "↙ Kiri bawah",
+      "se": "↘ Kanan bawah"
+    },
+    "fullGame": "Game = layar penuh",
+    "withoutCam": "Tanpa webcam",
+    "preview": "Pratinjau",
+    "apply": "Pakai pembingkaian ini",
+    "automatic": "Kembali ke otomatis",
+    "cancel": "Batal"
   }
 }

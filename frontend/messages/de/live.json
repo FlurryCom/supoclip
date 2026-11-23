@@ -150,5 +150,35 @@
     "disk": "Wenig Speicher: {gb} GB frei.",
     "shared": "Mit einem anderen Konto geteilt: derzeit bis zu {share}.",
     "saveError": "Die Zahl konnte nicht gespeichert werden."
+  },
+  "framing": {
+    "title": "Bildausschnitt",
+    "auto": "Automatisch: Die Webcam wird in jedem Clip gesucht.",
+    "marked": "Von Hand markiert: Webcam und Spiel.",
+    "noCam": "Von Hand markiert: keine Webcam (oben ist das Spiel unscharf).",
+    "open": "Webcam und Spiel markieren",
+    "dialogTitle": "Bildausschnitt für {channel}",
+    "hint": "Zieh die Rahmen über ein Bild des Streams. Jeder Clip dieses Kanals wird genau dort geschnitten.",
+    "noFrame": "Das Bild erscheint nach dem ersten Live-Clip dieses Kanals. Schau wieder vorbei, wenn er live ist und einen Clip hat.",
+    "loading": "Bild wird geladen…",
+    "frameAlt": "Aktuelles Bild aus dem Stream von {channel}",
+    "frameAt": "Bild von {time}",
+    "cam": "Webcam",
+    "game": "Spiel",
+    "boxLabel": "Rahmen {name}: ziehen; Pfeiltasten verschieben, Umschalt+Pfeile ändern die Größe",
+    "drawing": "Ziehen im Bild zeichnet:",
+    "corners": "Webcam in der Ecke:",
+    "corner": {
+      "nw": "↖ Oben links",
+      "ne": "↗ Oben rechts",
+      "sw": "↙ Unten links",
+      "se": "↘ Unten rechts"
+    },
+    "fullGame": "Spiel = ganzer Bildschirm",
+    "withoutCam": "Keine Webcam",
+    "preview": "Vorschau",
+    "apply": "Diesen Ausschnitt verwenden",
+    "automatic": "Zurück zu automatisch",
+    "cancel": "Abbrechen"
   }
 }

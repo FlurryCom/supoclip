@@ -150,5 +150,35 @@
     "disk": "磁盘空间不足：剩余 {gb} GB。",
     "shared": "与另一个账号共享：目前最多 {share} 个。",
     "saveError": "无法保存该数量。"
+  },
+  "framing": {
+    "title": "取景",
+    "auto": "自动：每个片段都会自动寻找摄像头画面。",
+    "marked": "手动标记：摄像头和游戏画面。",
+    "noCam": "手动标记：无摄像头（顶部显示模糊的游戏画面）。",
+    "open": "标记摄像头和游戏",
+    "dialogTitle": "{channel} 的取景",
+    "hint": "在直播画面上拖动方框。该频道的每个片段都会按此位置裁剪。",
+    "noFrame": "该频道的第一个直播片段生成后才会出现画面。请在频道开播并有片段后再来。",
+    "loading": "正在加载画面…",
+    "frameAlt": "{channel} 直播的最新画面",
+    "frameAt": "{time} 的画面",
+    "cam": "摄像头",
+    "game": "游戏",
+    "boxLabel": "{name}方框：拖动；方向键移动，Shift+方向键调整大小",
+    "drawing": "在图片上拖动会绘制：",
+    "corners": "摄像头在角落：",
+    "corner": {
+      "nw": "↖ 左上",
+      "ne": "↗ 右上",
+      "sw": "↙ 左下",
+      "se": "↘ 右下"
+    },
+    "fullGame": "游戏 = 全屏",
+    "withoutCam": "无摄像头",
+    "preview": "预览",
+    "apply": "使用此取景",
+    "automatic": "恢复自动",
+    "cancel": "取消"
   }
 }

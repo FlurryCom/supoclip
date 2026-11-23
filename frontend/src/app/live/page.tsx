@@ -19,6 +19,8 @@ import { useLiveAccess } from "@/hooks/use-live-access";
 import { useSession } from "@/lib/auth-client";
 
 import { ConfirmButton } from "./confirm-button";
+import { FramingSetting } from "./framing-editor";
+import type { Box } from "./framing-math";
 import { TrendingSection } from "./trending-section";
 import { NumberField } from "./number-field";
 import { PostingSection } from "./posting-section";
@@ -65,10 +67,13 @@ interface LiveChannel {
   is_live: boolean;
   is_waiting: boolean;
   live_title: string | null;
+  // Cat Clips v2 framing marked by the owner (fractions of the frame); game box alone = no webcam
+  cam_box: Box | null;
+  game_box: Box | null;
   windows: LiveWindow[];
 }
 
-type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility" | "daily_window_cap" | "limit_windows" | "safe_posting" | "safe_gap_minutes">>;
+type Settings = Partial<Pick<LiveChannel, "enabled" | "chat_filter" | "min_score" | "chat_weight" | "edit_kit" | "blur_sensitive" | "post_visibility" | "daily_window_cap" | "limit_windows" | "safe_posting" | "safe_gap_minutes" | "cam_box" | "game_box">>;
 
 interface EditKit {
   id: string;
@@ -301,6 +306,7 @@ function ChannelCard({ channel, kits, onChange, onRemove }: {
           <p className="text-xs text-muted-foreground">{t("editKitHint")}</p>
         </div>
       ) : null}
+      {channel.edit_kit === "catclips_v2" ? <div className="mt-5"><FramingSetting channel={channel} onChange={onChange} /></div> : null}
 
       <div className="mt-5 space-y-1.5">
         <Label htmlFor={`vis-${channel.id}`}>{t("postVisibility")}</Label>

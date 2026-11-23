@@ -190,3 +190,37 @@ def test_account_slots_shows_the_fair_share():
     assert account_slots(20, 24, 2) == 12
     assert account_slots(None, 24, 1) == 10
     assert account_slots(30, 24, 0) == 24
+
+
+CAM = {"x": 0.7, "y": 0.02, "w": 0.28, "h": 0.36}
+GAME = {"x": 0, "y": 0, "w": 1, "h": 1}
+
+
+def test_settings_accept_framing_boxes():
+    assert _settings({"cam_box": CAM, "game_box": GAME}) == {"cam_box": CAM, "game_box": GAME}
+    # no webcam: only the game box; both null: back to the automatic detector
+    assert _settings({"cam_box": None, "game_box": GAME}) == {"cam_box": None, "game_box": GAME}
+    assert _settings({"cam_box": None, "game_box": None}) == {"cam_box": None, "game_box": None}
+
+
+@pytest.mark.parametrize("data", [
+    {"cam_box": {"x": 0.9, "y": 0, "w": 0.2, "h": 0.3}, "game_box": GAME},  # x+w > 1
+    {"cam_box": {"x": 0, "y": 0, "w": 0.01, "h": 0.3}, "game_box": GAME},  # w < 0.04
+    {"cam_box": {"x": 0, "y": 0, "w": 0.2}, "game_box": GAME},  # missing h
+    {"cam_box": {"x": -0.1, "y": 0, "w": 0.2, "h": 0.3}, "game_box": GAME},
+    {"cam_box": {"x": True, "y": 0, "w": 0.2, "h": 0.3}, "game_box": GAME},
+    {"cam_box": CAM},  # only one of the two
+    {"cam_box": CAM, "game_box": None},  # a webcam needs the game box too
+    {"cam_box": "0,0,1,1", "game_box": GAME},
+])
+def test_settings_reject_bad_framing(data):
+    with pytest.raises(HTTPException) as err:
+        _settings(data)
+    assert err.value.status_code == 422
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), 10**400])
+def test_settings_reject_non_finite_boxes(bad):
+    with pytest.raises(HTTPException) as err:
+        _settings({"cam_box": {"x": bad, "y": 0, "w": 0.2, "h": 0.3}, "game_box": GAME})
+    assert err.value.status_code == 422

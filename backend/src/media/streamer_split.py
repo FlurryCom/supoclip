@@ -7,6 +7,7 @@ part of the frame. Without one, the top shows the gameplay blurred.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
@@ -14,6 +15,8 @@ import numpy as np
 
 from ..font_registry import FONTS_DIR
 from .ffmpeg import clamp_even, round_to_even
+
+logger = logging.getLogger(__name__)
 
 Box = Tuple[float, float, float, float]
 TOP_H, BAR_H, GAME_H = 720, 200, 1000
@@ -219,9 +222,14 @@ def _drawtext_value(text: str) -> str:
 
 
 def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
-                       cam_rect: Optional[Tuple[int, int, int, int]] = None) -> str:
-    """filter_complex from [0:v] to [vout]. With ``cam_rect`` the whole webcam is shown, fitted."""
-    gx, gy, gw, gh = game_crop(width, height, tuple(map(float, cam_rect)) if cam_rect else face)
+                       cam_rect: Optional[Tuple[int, int, int, int]] = None,
+                       game_rect: Optional[Tuple[int, int, int, int]] = None) -> str:
+    """filter_complex from [0:v] to [vout]. With ``cam_rect`` the whole webcam is shown, fitted.
+
+    With ``game_rect`` (the owner's game box) the gameplay comes from that region, and so does the
+    blurred top when there is no webcam.
+    """
+    gx, gy, gw, gh = game_rect or game_crop(width, height, tuple(map(float, cam_rect)) if cam_rect else face)
     graph = ["[0:v]split=2[top_src][game_src]"]
     if cam_rect is not None:
         x, y, w, h = cam_rect
@@ -238,7 +246,8 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
             f"crop=1080:{TOP_H},boxblur=20:2,setsar=1[top]"
         )
     # Owner: the whole game screen in 16:9, never cropped, centred on a blurred copy of itself.
-    graph.append("[game_src]split=2[game_bg][game_fg]")
+    game_src = f"[game_src]crop={game_rect[2]}:{game_rect[3]}:{game_rect[0]}:{game_rect[1]}," if game_rect else "[game_src]"
+    graph.append(f"{game_src}split=2[game_bg][game_fg]")
     graph.append(f"[game_bg]scale=1080:{GAME_H}:force_original_aspect_ratio=increase,crop=1080:{GAME_H},boxblur=20:2[game_fill]")
     graph.append(f"[game_fg]scale=1080:{GAME_H}:force_original_aspect_ratio=decrease:flags=lanczos[game_fit]")
     graph.append("[game_fill][game_fit]overlay=(W-w)/2:(H-h)/2,setsar=1[game]")
@@ -256,12 +265,44 @@ def build_split_filter(width: int, height: int, face: Optional[Box], title: str,
     return ";".join(graph)
 
 
-def plan_streamer_split(input_path: Path, width: int, height: int, title: str) -> Tuple[str, str, float, Optional[Box]]:
-    """(filter, "complex", caption_y, webcam face) for a horizontal clip, like ``build_vertical_filter_plan``."""
+def _framing(input_path: Path, width: int, height: int, channel_id: str):
+    """The live channel's marked boxes, or None. Never breaks the render."""
+    from . import framing
+
+    try:
+        framing.save_reference_frame(input_path, channel_id)
+    except Exception as exc:
+        logger.warning("Saving the framing frame failed (%s)", exc)
+    try:
+        return framing.channel_framing(channel_id, width, height)
+    except Exception as exc:
+        logger.warning("Reading the channel's framing failed (%s); using the detector", exc)
+        return None
+
+
+def plan_streamer_split(input_path: Path, width: int, height: int, title: str,
+                        channel_id: Optional[str] = None) -> Tuple[str, str, float, Optional[Box]]:
+    """(filter, "complex", caption_y, webcam face) for a horizontal clip, like ``build_vertical_filter_plan``.
+
+    With ``channel_id`` (a live clip), the boxes the owner marked for that channel win over the detector.
+    """
     from .reframing import analyze_vertical_clip
 
     # 960 px: a corner webcam face is too small to find reliably in the usual 480 px pass.
     samples = analyze_vertical_clip(input_path, proc_width=960, analyze_context=False)[2]
     face = find_streamer_cam(width, height, samples)
+    marked = _framing(input_path, width, height, channel_id) if channel_id else None
+    if marked is not None:
+        cam_rect, game_rect = marked
+        # the face only counts (for the per-voice captions) inside the marked webcam
+        if face is not None and (cam_rect is None or not _inside(face, cam_rect)):
+            face = None
+        logger.info("Streamer split: channel framing (webcam %s, game %s)", cam_rect, game_rect)
+        return build_split_filter(width, height, face, title, cam_rect, game_rect), "complex", CAPTION_Y, face
     cam_rect = find_cam_rect(input_path, width, height, face) if face is not None else None
     return build_split_filter(width, height, face, title, cam_rect), "complex", CAPTION_Y, face
+
+
+def _inside(face: Box, rect: Tuple[int, int, int, int]) -> bool:
+    cx, cy = face[0] + face[2] / 2, face[1] + face[3] / 2
+    return rect[0] <= cx <= rect[0] + rect[2] and rect[1] <= cy <= rect[1] + rect[3]

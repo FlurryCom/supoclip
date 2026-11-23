@@ -1071,7 +1071,8 @@ class VideoService:
                 broll_overlays=broll_overlays,
                 **({"output_offsets": output_offsets} if output_offsets is not None else {}),
                 **({"point_labels": point_labels} if point_labels else {}),
-                **({"kit_layout": kit["layout"], "layout_title": segment.get("hook_title")} if kit.get("layout") else {}),
+                **({"kit_layout": kit["layout"], "layout_title": segment.get("hook_title"),
+                    "kit_channel_id": segment["edit_kit"].get("channel_id")} if kit.get("layout") else {}),
                 **({"kit_voice_roles": True} if kit.get("voice_roles") else {}),
             )
 

@@ -124,10 +124,11 @@ def peak_overlay(
     return {"peak_s": max(0.5, peak_s), "chat": chat[:MAX_CHAT_SHOWN]}
 
 
-def segment_kit(kit_id: str, overlay: dict[str, Any] | None) -> dict[str, Any]:
-    """What a kept segment carries to the render for its channel's edit kit."""
+def segment_kit(kit_id: str, overlay: dict[str, Any] | None, channel_id: str | None = None) -> dict[str, Any]:
+    """What a kept segment carries to the render for its channel's edit kit (the channel: for its framing)."""
     overlay = overlay or {}
-    return {"id": kit_id, "peak_s": overlay.get("peak_s"), "chat": overlay.get("chat", [])}
+    kit = {"id": kit_id, "peak_s": overlay.get("peak_s"), "chat": overlay.get("chat", [])}
+    return {**kit, "channel_id": channel_id} if channel_id else kit
 
 
 async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -137,7 +138,7 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     """
     async with get_session_maker()() as db:
         row = (await db.execute(text("""
-            SELECT w.chunks, w.recording_id, c.min_score, c.chat_weight, c.edit_kit, c.blur_sensitive,
+            SELECT w.chunks, w.recording_id, c.id AS channel_id, c.min_score, c.chat_weight, c.edit_kit, c.blur_sensitive,
                 (SELECT min(t.process_min_score) FROM live_post_targets t WHERE t.user_id = c.user_id AND t.enabled) AS account_min
             FROM live_windows w
             JOIN live_recordings r ON r.id = w.recording_id
@@ -165,5 +166,6 @@ async def gate_live_segments(task_id: str, segments: list[dict[str, Any]]) -> li
     if kit["id"] != "none":
         with_text = [(b.at, b.chatters, b.messages or []) for b in rows]
         for segment in kept:
-            segment["edit_kit"] = segment_kit(kit["id"], peak_overlay(segment, chunks, with_text))
+            segment["edit_kit"] = segment_kit(kit["id"], peak_overlay(segment, chunks, with_text),
+                                              row.channel_id if kit.get("layout") else None)
     return kept

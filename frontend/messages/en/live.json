@@ -150,5 +150,35 @@
     "disk": "Low disk: {gb} GB free.",
     "shared": "Shared with another account: up to {share} for now.",
     "saveError": "Couldn't save the number."
+  },
+  "framing": {
+    "title": "Framing",
+    "auto": "Automatic: the webcam is found in each clip.",
+    "marked": "Marked by hand: webcam and game.",
+    "noCam": "Marked by hand: no webcam (the top shows the game blurred).",
+    "open": "Mark webcam and game",
+    "dialogTitle": "Framing for {channel}",
+    "hint": "Drag the boxes over a frame of the live. Every clip from this channel is cut exactly there.",
+    "noFrame": "The frame shows up after this channel's first live clip. Come back once it's live and has a clip.",
+    "loading": "Loading the frame…",
+    "frameAlt": "Recent frame of {channel}'s live",
+    "frameAt": "Frame from {time}",
+    "cam": "Webcam",
+    "game": "Game",
+    "boxLabel": "{name} box: drag; arrow keys move, Shift+arrows resize",
+    "drawing": "Dragging on the image draws:",
+    "corners": "Webcam in the corner:",
+    "corner": {
+      "nw": "↖ Top left",
+      "ne": "↗ Top right",
+      "sw": "↙ Bottom left",
+      "se": "↘ Bottom right"
+    },
+    "fullGame": "Game = full screen",
+    "withoutCam": "No webcam",
+    "preview": "Preview",
+    "apply": "Use this framing",
+    "automatic": "Back to automatic",
+    "cancel": "Cancel"
   }
 }

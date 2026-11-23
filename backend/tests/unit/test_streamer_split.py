@@ -180,3 +180,49 @@ def test_captions_sit_between_the_bar_and_the_game():
     from src.media.streamer_split import CAPTION_Y
     game_top = TOP_H + BAR_H + (GAME_H - 608) // 2
     assert TOP_H + BAR_H < CAPTION_Y * 1920 < game_top
+
+
+def test_split_filter_crops_the_game_box():
+    graph = build_split_filter(W, H, CAM, "x", cam_rect=(0, 600, 480, 360), game_rect=(480, 0, 1440, 1080))
+    assert "[game_src]crop=1440:1080:480:0,split=2" in graph and "crop=480:360:0:600" in graph
+
+
+def test_split_filter_without_a_webcam_blurs_the_game_box_on_top():
+    graph = build_split_filter(W, H, None, "x", game_rect=(0, 0, 1600, 1080))
+    assert graph.startswith("[0:v]split=2[top_src][game_src];[top_src]crop=1600:1080:0:0,scale=1080:720")
+
+
+def test_split_filter_without_game_rect_is_unchanged():
+    assert build_split_filter(W, H, CAM, "x") == build_split_filter(W, H, CAM, "x", game_rect=None)
+
+
+def _plan(monkeypatch, marked, face=CAM):
+    from src.media import framing, reframing, streamer_split
+    monkeypatch.setattr(reframing, "analyze_vertical_clip", lambda *a, **k: (None, None, samples_with()))
+    monkeypatch.setattr(streamer_split, "find_cam_rect", lambda *a: pytest.fail("the detector ran"))
+    monkeypatch.setattr(framing, "save_reference_frame", lambda *a: (_ for _ in ()).throw(OSError("disk")))
+    monkeypatch.setattr(framing, "channel_framing", lambda *a: marked)
+    return streamer_split.plan_streamer_split("clip.mp4", W, H, "t", channel_id="chan-1")
+
+
+def test_plan_uses_the_channels_boxes_even_if_saving_the_frame_fails(monkeypatch):
+    graph, _, _, face = _plan(monkeypatch, ((0, 600, 480, 360), (480, 0, 1440, 1080)))
+    assert "crop=480:360:0:600" in graph and "[game_src]crop=1440:1080:480:0" in graph
+    assert face is not None  # the webcam face sits inside the marked webcam
+
+
+def test_plan_with_no_webcam_drops_the_face(monkeypatch):
+    graph, _, _, face = _plan(monkeypatch, (None, (0, 0, 1920, 1080)))
+    assert face is None and "[top_src]crop=1920:1080:0:0,scale=1080:720" in graph
+
+
+def test_plan_without_marked_boxes_uses_the_detector(monkeypatch):
+    from src.media import streamer_split
+    called = []
+    monkeypatch.setattr(streamer_split, "find_cam_rect", lambda *a: called.append(1))
+    from src.media import framing, reframing
+    monkeypatch.setattr(reframing, "analyze_vertical_clip", lambda *a, **k: (None, None, samples_with()))
+    monkeypatch.setattr(framing, "save_reference_frame", lambda *a: None)
+    monkeypatch.setattr(framing, "channel_framing", lambda *a: None)
+    streamer_split.plan_streamer_split("clip.mp4", W, H, "t", channel_id="chan-1")
+    assert called
