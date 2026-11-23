@@ -300,8 +300,8 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
                 keep_game_lines: bool = False) -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
 
-    ``keep_game_lines`` (Cat Clips 3.0): every voice that isn't the streamer or a friend is a "game" line,
-    and none is removed. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
+    ``keep_game_lines`` (Cat Clips 3.0): no line is removed; unsure voices count as the streamer, and game
+    lines stay even when subtitled. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
 
     ``face`` is the webcam face (source pixels) when the layout already found it.
     Any failure returns every word as the streamer.
@@ -358,7 +358,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         for i, (_, _, indexes) in enumerate(segments):
             role = roles[group_of[i]]
             if keep_game_lines:
-                role = "game" if role == "unsure" else role
+                role = "streamer" if role == "unsure" else role  # owner: a doubtful voice is the streamer
             elif role == "unsure" or (role == "game" and subs_on[i]):
                 continue  # owner: leave doubtful voices out; the game already shows its own subtitle
             labelled += [{**words[k], "role": role} for k in indexes]

@@ -224,12 +224,12 @@ def test_v3_keeps_subtitled_game_lines(monkeypatch):
     assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("b", "game"), ("c", "streamer"), ("d", "game")]
 
 
-def test_v3_turns_unsure_voices_into_game_lines(monkeypatch):
-    # b talks once, at the end, with no subtitles: v2 calls it "unsure" and drops it
+def test_v3_gives_unsure_voices_to_the_streamer(monkeypatch):
+    # b talks once, at the end, with no subtitles: v2 calls it "unsure" and drops it; owner: in 3.0 it's the streamer
     _fake_pipeline(monkeypatch, subs=lambda t: False)
     words = [word(0, 3, "a"), word(4, 7, "c"), word(8, 10, "b")]
     a, b = _unit([1, 0, 0]), _unit([0, 1, 0])
     monkeypatch.setattr(vr, "embed", lambda samples, it=iter([a, a, b, a, a, b]): next(it))
     assert [w["text"] for w in vr.label_words("clip.mp4", words, 1920, 1080, face=None)] == ["a", "c"]
     out = vr.label_words("clip.mp4", words, 1920, 1080, face=None, keep_game_lines=True)
-    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("b", "game")]
+    assert [(w["text"], w["role"]) for w in out] == [("a", "streamer"), ("c", "streamer"), ("b", "streamer")]
