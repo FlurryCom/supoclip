@@ -284,6 +284,7 @@ def create_optimized_clip(
     kit_recording_id: Optional[str] = None,
     layout_title: Optional[str] = None,
     kit_voice_roles: bool = False,
+    kit_npc_captions: bool = False,
 ) -> bool:
     """Create clip with optional subtitles. output_format: 'vertical' (9:16) or 'original' (keep source size).
 
@@ -509,7 +510,8 @@ def create_optimized_clip(
                         if index < len(clip_words):
                             clip_words[index]["break_before"] = True
                 if clip_words:
-                    labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"))
+                    labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"),
+                                           keep_game_lines=kit_npc_captions)
                     # Every line left out (doubtful voices, subtitled game lines): no captions, not a reload.
                     role_kwargs = {"caption_words": labelled} if labelled else {"include_captions": False}
 

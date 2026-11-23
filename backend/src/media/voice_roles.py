@@ -296,8 +296,12 @@ def _audio(clip: Path) -> np.ndarray:
 
 
 def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int,
-                face: Optional[tuple[float, float, float, float]] = None) -> list[dict[str, Any]]:
+                face: Optional[tuple[float, float, float, float]] = None,
+                keep_game_lines: bool = False) -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
+
+    ``keep_game_lines`` (Cat Clips 3.0): every voice that isn't the streamer or a friend is a "game" line,
+    and none is removed. The game's own subtitles fall outside the 3.0 crop, so they'd be lost otherwise.
 
     ``face`` is the webcam face (source pixels) when the layout already found it.
     Any failure returns every word as the streamer.
@@ -353,7 +357,9 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         labelled = []
         for i, (_, _, indexes) in enumerate(segments):
             role = roles[group_of[i]]
-            if role == "unsure" or (role == "game" and subs_on[i]):
+            if keep_game_lines:
+                role = "game" if role == "unsure" else role
+            elif role == "unsure" or (role == "game" and subs_on[i]):
                 continue  # owner: leave doubtful voices out; the game already shows its own subtitle
             labelled += [{**words[k], "role": role} for k in indexes]
         return labelled

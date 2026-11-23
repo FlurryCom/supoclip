@@ -1075,6 +1075,7 @@ class VideoService:
                     "kit_channel_id": segment["edit_kit"].get("channel_id"),
                     "kit_recording_id": segment["edit_kit"].get("recording_id")} if kit.get("layout") else {}),
                 **({"kit_voice_roles": True} if kit.get("voice_roles") else {}),
+                **({"kit_npc_captions": True} if kit.get("npc_captions") else {}),
             )
 
             if not success:
