@@ -15,6 +15,7 @@ def _no_network(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(mc, "identify_span", lambda path, start, end: COMMERCIAL)
     monkeypatch.setattr(mc, "singing_per_second", lambda mono: np.zeros(64))
     monkeypatch.setattr(mc, "MUSIC_BED_DIR", tmp_path_factory.mktemp("no-bed"))
+    monkeypatch.setattr(mc, "_shazam_paused_until", 0.0)
 
 
 def test_music_spans_joins_short_gaps_and_drops_blips():
@@ -261,3 +262,42 @@ def test_bed_is_mixed_under_removed_music(tmp_path, monkeypatch):
     loud = subprocess.run(["ffmpeg", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
                           capture_output=True, text=True).stderr
     assert "max_volume: -91" not in loud  # the free track is heard where the music was
+
+
+def test_after_shazam_fails_the_rest_of_the_clip_skips_it(monkeypatch):
+    calls = []
+    def down(s, e):
+        calls.append(s)
+        raise TimeoutError("shazam")
+    remove, report = mc.decide_spans([(0.0, 6.0), (10.0, 16.0)], down, np.zeros(20), NAMES)
+    assert calls == [0.0]  # the second stretch goes straight to the singing rule
+    assert all(r["by"].startswith("singing") for r in report)
+
+
+def test_a_failure_pauses_shazam_for_a_while(monkeypatch):
+    monkeypatch.setattr(mc, "_shazam_paused_until", 0.0)
+    monkeypatch.setattr(mc.time, "monotonic", lambda: 100.0)
+    mc._pause_shazam()
+    assert mc._shazam_paused()
+    monkeypatch.setattr(mc.time, "monotonic", lambda: 100.0 + mc.SHAZAM_PAUSE_SECONDS + 1)
+    assert not mc._shazam_paused()
+
+
+def test_long_stretches_are_sampled_more_than_once():
+    asked = []
+    def middle_unknown(s, e):
+        asked.append((s, e))
+        return COMMERCIAL if len(asked) == 2 else None  # the song only in the second sample
+    assert _decide(middle_unknown, spans=[(0.0, 36.0)]) == [(0.0, 36.0)]
+    assert len(asked) >= 2 and all(e - s <= mc.IDENTIFY_SECONDS for s, e in asked)
+
+
+def test_allowlist_matches_whole_words_only():
+    assert mc.is_allowed({"artist": "NCS", "title": "x"}, ["NCS"])
+    assert not mc.is_allowed({"artist": "Lincs Band", "title": "Francs"}, ["NCS"])
+
+
+def test_bed_never_pushes_audio_past_full_scale():
+    audio = np.full((2, 40), 0.98, dtype=np.float32)
+    out = mc.add_bed(audio, np.ones((2, 40), dtype=np.float32), [(0.0, 4.0)], 10, gain=0.5, fade=0.3)
+    assert out.max() <= 1.0
