@@ -282,11 +282,15 @@ def plain_subtitle_on(frame: np.ndarray) -> bool:
 SUBTITLE_HZ = 3  # GTA keeps a subtitle up for a second or more
 
 
-def _tokens(text: str) -> set[str]:
-    """Lower-case words of a line; OCR reads a capital I as a bar."""
+def _token_list(text: str) -> list[str]:
+    """Lower-case words of a line, in order; OCR reads a capital I as a bar."""
     import re
 
-    return set(re.findall(r"[a-z0-9']+", text.replace("|", "I").replace("\u2019", "'").lower()))
+    return re.findall(r"[a-z0-9']+", text.replace("|", "I").replace("\u2019", "'").lower())
+
+
+def _tokens(text: str) -> set[str]:
+    return set(_token_list(text))
 
 
 def subtitle_text(frame: np.ndarray) -> str:
@@ -306,36 +310,65 @@ def subtitle_text(frame: np.ndarray) -> str:
                           capture_output=True, timeout=20, check=True).stdout.decode(errors="ignore").strip()
 
 
-def subtitle_tokens(path: Path, times: list[float]) -> list[set[str]]:
-    """The words of the game's subtitle on screen at each time."""
-    seen = {index: _tokens(subtitle_text(frame)) for index, frame in _frames(path, times)}
-    return [seen.get(index, set()) for index in _index(path, times)]
+def subtitle_tokens(path: Path, times: list[float]) -> list[list[str]]:
+    """The words of the game's subtitle on screen at each time, in order."""
+    seen = {index: _token_list(subtitle_text(frame)) for index, frame in _frames(path, times)}
+    return [seen.get(index, []) for index in _index(path, times)]
+
+
+def subtitle_lines(times: list[float], reads: list[list[str]]) -> list[tuple[float, float, list[str]]]:
+    """(from, to, words) of each subtitle GTA showed: the same line read on consecutive frames is one."""
+    from collections import Counter
+
+    lines: list[list[Any]] = []  # [from, to, readings]
+    showing = False
+    for t, read in zip(times, reads):
+        if not read:
+            showing = False
+            continue
+        seen = set(lines[-1][2][0]) if showing else set()
+        if showing and len(set(read) & seen) >= 0.4 * len(set(read) | seen):
+            lines[-1][1] = t
+            lines[-1][2].append(read)
+        else:
+            lines.append([t, t, [read]])
+            showing = True
+    out = []
+    for start, end, readings in lines:
+        # OCR noise differs frame to frame; the clean reading repeats
+        counts = Counter(tuple(r) for r in readings)
+        top = max(counts.values())
+        out.append((start, end, list(max((r for r, c in counts.items() if c == top), key=len))))
+    return out
 
 
 def label_by_subtitles(clip: Path, words: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Cat Clips 3.0: a word is the game's when GTA writes it in its own subtitle as it's said; every
-    other word is the streamer's, even while a subtitle is up. Voice groups proved unreliable here."""
+    """Cat Clips 3.0: the words said while GTA shows a subtitle they match are the game's, the whole line
+    of them (the transcript often mishears the game); every other word is the streamer's."""
+    from difflib import SequenceMatcher
+
     if not words:
         return []
     first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
     times = [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
-    shown = subtitle_tokens(clip, times)
-    texts = [next(iter(_tokens(str(w.get("text", "")))), "") for w in words]
-    written = []
-    for w, token in zip(words, texts):
-        near = set().union(*[s for t, s in zip(times, shown) if float(w["start"]) - 0.4 <= t <= float(w["end"]) + 0.4])
-        written.append(bool(token) and token in near)
-    roles = []
-    for i, token in enumerate(texts):
-        # a short common word ("the", "you") counts only next to another written word
-        neighbour = (i > 0 and written[i - 1]) or (i + 1 < len(words) and written[i + 1])
-        roles.append("game" if written[i] and (len(token) >= 4 or neighbour) else "streamer")
-    for i in range(1, len(roles) - 1):  # one or two words the OCR or the transcript got wrong mid-line
-        for gap in (1, 2):
-            j = i + gap
-            if j < len(roles) and roles[i - 1] == roles[j] == "game" and "game" not in roles[i:j] \
-                    and float(words[j]["start"]) - float(words[i - 1]["end"]) <= 1.5:
-                roles[i:j] = ["game"] * gap
+    texts = [(_token_list(str(w.get("text", ""))) or [""])[0] for w in words]
+    roles = ["streamer"] * len(words)
+    for start, end, line in subtitle_lines(times, subtitle_tokens(clip, times)):
+        # frames are 1/3 s apart and the transcript's timing is loose by over half a second
+        window = [i for i, w in enumerate(words) if start - 1.0 <= float(w["start"]) <= end + 1.0]
+        if not window:
+            continue
+        said = [texts[i] for i in window]
+        pairs = [(block.a + k, block.b + k) for block in SequenceMatcher(None, line, said, autojunk=False)
+                 .get_matching_blocks() for k in range(block.size)]
+        # a lone common word ("the", "you") is the streamer talking over the subtitle
+        if len(pairs) < 2 and not (pairs and len(line[pairs[0][0]]) >= 4 and len(line) <= 3):
+            continue
+        # the words between the first and last match, plus as many as the line has before/after them
+        a = max(0, pairs[0][1] - pairs[0][0])
+        b = min(len(window) - 1, pairs[-1][1] + len(line) - 1 - pairs[-1][0])
+        for i in window[a:b + 1]:
+            roles[i] = "game"
     logger.info("Caption voices by subtitle: %d game, %d streamer words", roles.count("game"), roles.count("streamer"))
     return [{**w, "role": role} for w, role in zip(words, roles)]
 

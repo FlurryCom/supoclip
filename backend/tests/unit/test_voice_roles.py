@@ -233,7 +233,7 @@ def test_plain_subtitle_is_the_games_thin_line_not_a_big_burned_caption():
 def _fake_subtitles(monkeypatch, shown):
     """``shown``: (from, to, text) of the game's subtitle on screen."""
     monkeypatch.setattr(vr, "subtitle_tokens", lambda clip, times: [
-        set().union(*[vr._tokens(text) for a, b, text in shown if a <= t <= b]) for t in times])
+        sum([vr._token_list(text) for a, b, text in shown if a <= t <= b], []) for t in times])
 
 
 def test_v3_npc_words_are_the_ones_written_in_the_games_subtitle(monkeypatch):
@@ -275,3 +275,29 @@ def test_v3_a_word_the_ocr_missed_inside_an_npc_line_stays_npc(monkeypatch):
              word(1.4, 1.6, "the"), word(1.6, 2.0, "parking"), word(2.0, 2.3, "lot")]
     out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
     assert [w["role"] for w in out] == ["game"] * 7
+
+
+def test_v3_a_misheard_npc_line_is_the_npc_from_end_to_end(monkeypatch):
+    # Whisper hears "Tell her, Dre. We can go on after" as "tell the driver we could go after"
+    _fake_subtitles(monkeypatch, [(0.0, 3.0, "Right? Tell her, Dre. We can go on after, right?")])
+    said = "Right tell the driver we could go after right".split()
+    words = [word(0.1 + 0.3 * i, 0.4 + 0.3 * i, text) for i, text in enumerate(said)]
+    out = vr.label_words("clip.mp4", words + [word(4.0, 4.5, "bro")], 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["game"] * len(said) + ["streamer"]
+
+
+def test_v3_the_npc_line_takes_its_unmatched_tail_but_not_the_streamer_after_it(monkeypatch):
+    _fake_subtitles(monkeypatch, [(0.0, 1.8, "Girl, you drivin', let's go.")])
+    said = [word(0.1, 0.3, "Girl,"), word(0.3, 0.5, "you"), word(0.5, 0.8, "try"), word(0.8, 1.1, "hang"),
+            word(1.1, 1.4, "up."), word(2.6, 2.8, "Oh"), word(2.8, 3.0, "my"), word(3.0, 3.3, "god.")]
+    out = vr.label_words("clip.mp4", said, 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["game"] * 5 + ["streamer"] * 3
+
+
+def test_v3_the_line_s_last_words_said_just_after_the_subtitle_went_away_are_still_the_npc(monkeypatch):
+    # sampled 3x a second, the subtitle's last sighting is up to 1/3 s before it really goes
+    _fake_subtitles(monkeypatch, [(49.7, 51.3, "Yeah, I ran, I mean...")])
+    said = [word(49.1, 49.4, "Yeah,"), word(49.5, 49.6, "I"), word(49.6, 50.0, "ran."), word(51.5, 51.8, "I"),
+            word(51.9, 52.2, "mean..."), word(53.5, 53.8, "dude")]
+    out = vr.label_words("clip.mp4", said, 1920, 1080, keep_game_lines=True)
+    assert [w["role"] for w in out] == ["game"] * 5 + ["streamer"]
