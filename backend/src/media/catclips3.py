@@ -3,7 +3,7 @@
 1080x1920 output, measured from the owner's reference: the webcam fills the top 700 px and the game the
 bottom 1220 px, cut from the middle of the source without the bottom band where GTA draws its own
 subtitles. The title sits on a slanted badge (Pricedown over a palm sunset, a doodled cat at its corner)
-across the seam: it balloons in at the start and is sucked away after 3 s. The captions (streamer words, NPC lines) are
+across the seam: it drips onto the screen at the start and is sucked away after 3 s. The captions (streamer words, NPC lines) are
 drawn later. Spec: docs/superpowers/specs/2026-11-23-cat-clips-3-design.md.
 """
 from __future__ import annotations
@@ -31,14 +31,35 @@ BADGE_TILT = -0.04  # radians: the right end a little higher
 BADGE_PAD = 36
 BADGE_Y = GAME_Y - BADGE_H // 2
 TITLE_BOTTOM = BADGE_Y + BADGE_H
-TITLE_SECONDS = 3.0  # then it's sucked away: shrinks to nothing while rising a little
-TITLE_OUT = TITLE_SECONDS + 0.25
-TITLE_FPS = 30
+TITLE_SECONDS = 3.0  # on screen, then sucked away
+TITLE_FPS = 60  # the animation's own frame rate: smooth even on a 60 fps clip
+
+
+def _esc(expr: str) -> str:
+    """An ffmpeg expression inside -filter_complex: commas escaped from the graph parser."""
+    return expr.replace(" ", "").replace(",", "\\,")
+
+
+# The badge drips onto the screen: it falls in from above, stretched like a drop (p: 0 -> 1 in 0.2 s), lands
+# and wobbles like jelly (u: time since landing). After 3 s it puffs up a little and is sucked away upward,
+# faster and faster (w: 0 -> 1 in 0.24 s, after a 0.08 s puff). SX/SY scale the width/height, DY moves it.
+_FALL, _PUFF, _SUCK = 0.2, 0.08, 0.24
+_P, _U = f"(t/{_FALL})", f"(t-{_FALL})"
+_V = f"(t-{TITLE_SECONDS:g})"
+_W = f"min(1,max(0,({_V}-{_PUFF})/{_SUCK}))"
+_GROW = f"(1+0.08*min(1,{_V}/{_PUFF}))*(1-pow({_W},3))"
+_JELLY = f"exp(-9*{_U})*cos(18*{_U})"
+
+
+def _phases(fall: str, land: str, leave: str) -> str:
+    return _esc(f"if(lt(t,{_FALL}),{fall},if(lt(t,{TITLE_SECONDS:g}),{land},{leave}))")
+
+
+SX = _phases(f"0.4+0.42*{_P}", f"1-0.18*{_JELLY}", f"max(0.02,{_GROW}*(1-0.15*{_W}))")
+SY = _phases(f"0.4+0.82*{_P}", f"1+0.22*{_JELLY}", f"max(0.02,{_GROW}*(1+0.2*{_W}))")
+DY = _phases(f"-110*(1-pow({_P},2))", "0", f"-200*pow({_W},2)")
+TITLE_OUT = TITLE_SECONDS + _PUFF + _SUCK
 TITLE_FRAMES = int(TITLE_OUT * TITLE_FPS) + 2  # the still, repeated as long as it shows
-# Scale over time, like a balloon: in from 10% past full size in 0.12 s, settles by 0.22 s, out in 0.25 s
-POP = ("if(lt(t\\,0.12)\\,0.1+8.5*t\\,if(lt(t\\,0.22)\\,1.12-1.2*(t-0.12)\\,"
-       f"if(lt(t\\,{TITLE_SECONDS:g})\\,1\\,max(0.02\\,1-3.9*(t-{TITLE_SECONDS:g})))))")
-SUCK_RISE = f"if(gte(t\\,{TITLE_SECONDS:g})\\,400*(t-{TITLE_SECONDS:g})\\,0)"
 TITLE_W = BADGE_MAX_W - BADGE_SKEW - 2 * BADGE_PAD
 CAPTION_Y = (TITLE_BOTTOM + 210) / 1920  # the 2-line block (centred here) clears the title badge
 BAR_BG_AT = 0.55  # owner picked the middle of the palm picture
@@ -83,6 +104,43 @@ def game_crop(width: int, height: int, game_rect: Optional[Rect] = None, cam_rec
         w = round_to_even(int(h * 1080 / GAME_H))
         return clamp_even(gx + (gw - w) // 2, gx, gx + gw - w), gy, w, h
     return x, gy, w, h  # nowhere to dodge it: the cam shows twice, the game stays whole
+
+
+def dark_band(tops: list) -> int:
+    """Rows of black at the top of the game cut in most frames (GTA's cinema bars in cutscenes), else 0."""
+    import numpy as np
+
+    bands = []
+    for gray in tops:
+        black = (gray.mean(axis=1) < 18) & (gray.max(axis=1) < 60)
+        bands.append(len(black) if black.all() else int(np.argmin(black)))
+    band = int(np.median(bands)) if bands else 0
+    return band if band >= 6 else 0
+
+
+def without_letterbox(path: Path, crop: Rect, count: int = 12) -> Rect:
+    """The game cut moved below the cinema bars, when the clip mostly has them; same centre and shape."""
+    import cv2
+
+    x, y, w, h = crop
+    cap = cv2.VideoCapture(str(path))
+    try:
+        frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        tops = []
+        for k in range(count):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(frames * (k + 0.5) / count))
+            ok, frame = cap.read()
+            if ok:
+                tops.append(cv2.cvtColor(frame[y:y + h // 3, x:x + w], cv2.COLOR_BGR2GRAY))
+    finally:
+        cap.release()
+    band = dark_band(tops)
+    band += band % 2  # even, and never short of the bar
+    if not band:
+        return crop
+    new_h = round_to_even(h - band)
+    new_w = round_to_even(int(new_h * 1080 / GAME_H))
+    return x + (w - new_w) // 2 + ((w - new_w) // 2) % 2, y + band, new_w, new_h
 
 
 def pricedown_width(line: str, size: int) -> float:
@@ -139,8 +197,8 @@ def _title_draws(lines: list[str], size: int, font: Path, join: bool) -> str:
 
 def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE_BG_V3,
                 doodles: Path = DOODLES) -> str:
-    """From ``[stack]`` (1080x1920) to ``[vout]``: the slanted title badge across the seam. It balloons in at
-    the start and is sucked away after 3 s.
+    """From ``[stack]`` (1080x1920) to ``[vout]``: the slanted title badge across the seam. It drips onto the
+    screen at the start and is sucked away after 3 s.
 
     Without the Pricedown file or the palm picture, the v2 look (Archivo Black on yellow).
     """
@@ -165,7 +223,7 @@ def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE
         f"rotate={BADGE_TILT}:c=none:ow=rotw({BADGE_TILT}):oh=roth({BADGE_TILT}),split=2[badge_shadow][badge_still]",
         "[badge_shadow]lutrgb=r=0:g=0:b=0[shadow_still]",
     ]
-    # every layer pops with the same scale around the badge's centre, keeping its offset from it
+    # every layer moves with the same curves around the badge's centre, keeping its offset from it
     layers = [("shadow_still", 10, 12), ("badge_still", 0, 0)]
     cat, dots = doodles / "cat.png", doodles / "dots.png"
     if readable and cat.is_file() and dots.is_file():
@@ -176,10 +234,11 @@ def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE
         out = "vout" if i == len(layers) - 1 else f"title_{i}"
         graph.append(
             f"[{name}]loop=loop={TITLE_FRAMES}:size=1,setpts=N/{TITLE_FPS}/TB,"
-            f"scale=w='max(2\\,trunc(iw*{POP}/2)*2)':h='max(2\\,trunc(ih*{POP}/2)*2)':eval=frame[{name}_pop]"
+            f"scale=w='max(2\\,trunc(iw*{SX}/2)*2)':h='max(2\\,trunc(ih*{SY}/2)*2)':eval=frame:flags=bicubic"
+            f"[{name}_pop]"
         )
         graph.append(
-            f"[{base}][{name}_pop]overlay=x='540+{dx}*{POP}-w/2':y='{GAME_Y}+{dy}*{POP}-h/2-{SUCK_RISE}'"
+            f"[{base}][{name}_pop]overlay=x='540+{dx}*{SX}-w/2':y='{GAME_Y}+{dy}*{SY}-h/2+{DY}'"
             f":eof_action=pass:enable='lt(t\\,{TITLE_OUT:g})'[{out}]"
         )
         base = out
@@ -228,6 +287,10 @@ def plan_catclips3(input_path: Path, width: int, height: int, title: str, channe
         cam_rect = find_cam_rect(input_path, width, height, face) if face is not None else None
     # only a real webcam box is dodged: a lone face may be a game character (cutscene close-up)
     crop = game_crop(width, height, game_rect, cam_rect)
+    try:
+        crop = without_letterbox(input_path, crop)
+    except Exception as exc:  # an unreadable frame: keep the cut as it is
+        logger.warning("Cat Clips 3.0 letterbox check failed: %s", exc)
     logger.info("Cat Clips 3.0: webcam %s, game crop %s", cam_rect, crop)
     graph = build_v3_filter(width, height, face, title, cam_rect, crop)
     return graph, "complex", CAPTION_Y, face, crop, samples

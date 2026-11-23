@@ -56,16 +56,35 @@ def test_v3_filter_heights(tmp_path):
     assert graph.endswith("[vout]") and "vstack=inputs=2" in graph
 
 
-def test_title_badge_balloons_in_and_is_sucked_away_after_three_seconds(tmp_path):
+def test_title_badge_drips_in_and_is_sucked_away_after_three_seconds(tmp_path):
+    from src.media import catclips3 as c3
     font, background = tmp_path / "pricedown.otf", tmp_path / "palms.webp"
     font.write_bytes(b"x")
     background.write_bytes(b"x")
-    badge = title_badge("GTA 6", font, background)
-    assert "eval=frame" in badge and "0.1+8.5*t" in badge  # grows in, like a balloon
-    assert "max(0.02\\,1-3.9*(t-3))" in badge and "400*(t-3)" in badge  # shrinks while rising
-    assert "enable='lt(t\\,3.25)'" in badge
+    badge = c3.title_badge("GTA 6", font, background)
+    assert "eval=frame" in badge and c3.SX in badge and c3.SY in badge and c3.DY in badge
+    assert "setpts=N/60/TB" in badge and "enable='lt(t\\,3.32)'" in badge
     assert "rotate=" in badge and "between(X" in badge  # slanted and tilted
     assert "cat.png" in badge and "dots.png" in badge and badge.endswith("[vout]")
+
+
+def test_the_drip_curves_join_without_jumps():
+    from src.media import catclips3 as c3
+
+    def at(expr, t):
+        import math
+        code = expr.replace("\\,", ",")
+        env = {"t": t, "exp": math.exp, "cos": math.cos, "pow": pow, "min": min, "max": max,
+               "lt": lambda a, b: a < b, "if": None}
+        code = code.replace("if(", "iff(")
+        env["iff"] = lambda c, a, b: a if c else b
+        return eval(code, env)
+
+    for curve in (c3.SX, c3.SY, c3.DY):
+        for edge in (0.2, 3.0):
+            assert abs(at(curve, edge - 1e-6) - at(curve, edge + 1e-6)) < 0.01
+    assert at(c3.SX, 0.0) < 0.5 and abs(at(c3.SX, 2.5) - 1) < 0.01 and at(c3.SY, 0.2) > 1.1  # lands stretched
+    assert at(c3.SX, 3.32) <= 0.03 and at(c3.DY, 3.32) < -150  # sucked away upward
 
 
 def test_v3_kit_hidden_until_approved():
@@ -97,3 +116,36 @@ def test_title_lines_are_balanced():
     lines, size = fit_title("Ginge tentou assaltar o posto e levou uma surra do caixa")
     widths = [pricedown_width(line, size) for line in lines]
     assert len(lines) == 2 and min(widths) >= 0.6 * max(widths)
+
+
+def test_dark_band_finds_gta_s_cinema_bars_in_most_frames():
+    import numpy as np
+    from src.media.catclips3 import dark_band
+    scene = np.full((300, 400), 90, dtype=np.uint8)
+    barred = scene.copy()
+    barred[:68] = 3  # cutscene: black bar on top
+    dark_club = scene.copy()
+    dark_club[:40] = 10
+    dark_club[:40, 200:210] = 200  # a dim scene with a neon light: not a bar
+    assert dark_band([barred, barred, scene]) == 68
+    assert dark_band([scene, scene, barred]) == 0
+    assert dark_band([dark_club, dark_club]) == 0
+
+
+def test_without_letterbox_cuts_below_the_bars_keeping_the_shape(tmp_path, monkeypatch):
+    import src.media.catclips3 as c3
+    monkeypatch.setattr(c3, "dark_band", lambda tops: 68)
+
+    class Cap:
+        def __init__(self, path): pass
+        def get(self, prop): return 100
+        def set(self, prop, value): pass
+        def read(self):
+            import numpy as np
+            return True, np.zeros((1080, 1920, 3), dtype=np.uint8)
+        def release(self): pass
+    import cv2
+    monkeypatch.setattr(cv2, "VideoCapture", Cap)
+    x, y, w, h = c3.without_letterbox(tmp_path / "clip.mp4", (554, 0, 812, 918))
+    assert y == 68 and h == 850 and abs(w / h - 1080 / 1220) < 0.01
+    assert abs((x + w / 2) - (554 + 812 / 2)) <= 2 and x % 2 == y % 2 == w % 2 == h % 2 == 0
