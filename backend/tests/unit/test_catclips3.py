@@ -56,14 +56,14 @@ def test_v3_filter_heights(tmp_path):
     assert graph.endswith("[vout]") and "vstack=inputs=2" in graph
 
 
-def test_title_badge_drips_in_and_is_sucked_away_after_three_seconds(tmp_path):
+def test_title_badge_drips_in_and_shrinks_away_after_three_seconds(tmp_path):
     from src.media import catclips3 as c3
     font, background = tmp_path / "pricedown.otf", tmp_path / "palms.webp"
     font.write_bytes(b"x")
     background.write_bytes(b"x")
     badge = c3.title_badge("GTA 6", font, background)
     assert "eval=frame" in badge and c3.SX in badge and c3.SY in badge and c3.DY in badge
-    assert "setpts=N/60/TB" in badge and "enable='lt(t\\,3.32)'" in badge
+    assert "setpts=N/60/TB" in badge and "enable='lt(t\\,3.24)'" in badge
     assert "rotate=" in badge and "between(X" in badge  # slanted and tilted
     assert "cat.png" in badge and "dots.png" in badge and badge.endswith("[vout]")
 
@@ -84,7 +84,8 @@ def test_the_drip_curves_join_without_jumps():
         for edge in (0.2, 3.0):
             assert abs(at(curve, edge - 1e-6) - at(curve, edge + 1e-6)) < 0.01
     assert at(c3.SX, 0.0) < 0.5 and abs(at(c3.SX, 2.5) - 1) < 0.01 and at(c3.SY, 0.2) > 1.1  # lands stretched
-    assert at(c3.SX, 3.32) <= 0.03 and at(c3.DY, 3.32) < -150  # sucked away upward
+    assert at(c3.SX, 3.24) <= 0.03 and at(c3.SY, 3.24) <= 0.03 and at(c3.DY, 3.2) == 0  # shrinks in place
+    assert at(c3.SX, 3.12) == at(c3.SY, 3.12)  # evenly, into its centre
 
 
 def test_v3_kit_hidden_until_approved():
@@ -123,12 +124,14 @@ def test_dark_band_finds_gta_s_cinema_bars_in_most_frames():
     from src.media.catclips3 import dark_band
     scene = np.full((300, 400), 90, dtype=np.uint8)
     barred = scene.copy()
-    barred[:68] = 3  # cutscene: black bar on top
+    barred[:59] = 3  # cutscene: black bar on top
+    night = np.full((300, 400), 4, dtype=np.uint8)  # dark all the way down: says nothing
     dark_club = scene.copy()
     dark_club[:40] = 10
     dark_club[:40, 200:210] = 200  # a dim scene with a neon light: not a bar
-    assert dark_band([barred, barred, scene]) == 68
-    assert dark_band([scene, scene, barred]) == 0
+    assert dark_band([barred, barred, scene]) == 63  # the bar and its soft edge
+    assert dark_band([barred, night, night, night, scene]) == 63  # the night frames don't outvote it
+    assert dark_band([scene, scene, scene, barred]) == 0
     assert dark_band([dark_club, dark_club]) == 0
 
 

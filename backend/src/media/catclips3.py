@@ -3,7 +3,7 @@
 1080x1920 output, measured from the owner's reference: the webcam fills the top 700 px and the game the
 bottom 1220 px, cut from the middle of the source without the bottom band where GTA draws its own
 subtitles. The title sits on a slanted badge (Pricedown over a palm sunset, a doodled cat at its corner)
-across the seam: it drips onto the screen at the start and is sucked away after 3 s. The captions (streamer words, NPC lines) are
+across the seam: it drips onto the screen at the start and shrinks away after 3 s. The captions (streamer words, NPC lines) are
 drawn later. Spec: docs/superpowers/specs/2026-11-23-cat-clips-3-design.md.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ BADGE_TILT = -0.04  # radians: the right end a little higher
 BADGE_PAD = 36
 BADGE_Y = GAME_Y - BADGE_H // 2
 TITLE_BOTTOM = BADGE_Y + BADGE_H
-TITLE_SECONDS = 3.0  # on screen, then sucked away
+TITLE_SECONDS = 3.0  # on screen, then it shrinks away into its centre
 TITLE_FPS = 60  # the animation's own frame rate: smooth even on a 60 fps clip
 
 
@@ -41,13 +41,13 @@ def _esc(expr: str) -> str:
 
 
 # The badge drips onto the screen: it falls in from above, stretched like a drop (p: 0 -> 1 in 0.2 s), lands
-# and wobbles like jelly (u: time since landing). After 3 s it puffs up a little and is sucked away upward,
-# faster and faster (w: 0 -> 1 in 0.24 s, after a 0.08 s puff). SX/SY scale the width/height, DY moves it.
-_FALL, _PUFF, _SUCK = 0.2, 0.08, 0.24
+# and wobbles like jelly (u: time since landing). After 3 s it shrinks away into its centre, faster and faster
+# (w: 0 -> 1 in 0.24 s). SX/SY scale the width/height, DY moves it.
+_FALL, _SUCK = 0.2, 0.24
 _P, _U = f"(t/{_FALL})", f"(t-{_FALL})"
 _V = f"(t-{TITLE_SECONDS:g})"
-_W = f"min(1,max(0,({_V}-{_PUFF})/{_SUCK}))"
-_GROW = f"(1+0.08*min(1,{_V}/{_PUFF}))*(1-pow({_W},3))"
+_W = f"min(1,max(0,{_V}/{_SUCK}))"
+_SHRINK = f"max(0.02,1-pow({_W},2))"
 _JELLY = f"exp(-9*{_U})*cos(18*{_U})"
 
 
@@ -55,10 +55,10 @@ def _phases(fall: str, land: str, leave: str) -> str:
     return _esc(f"if(lt(t,{_FALL}),{fall},if(lt(t,{TITLE_SECONDS:g}),{land},{leave}))")
 
 
-SX = _phases(f"0.4+0.42*{_P}", f"1-0.18*{_JELLY}", f"max(0.02,{_GROW}*(1-0.15*{_W}))")
-SY = _phases(f"0.4+0.82*{_P}", f"1+0.22*{_JELLY}", f"max(0.02,{_GROW}*(1+0.2*{_W}))")
-DY = _phases(f"-110*(1-pow({_P},2))", "0", f"-200*pow({_W},2)")
-TITLE_OUT = TITLE_SECONDS + _PUFF + _SUCK
+SX = _phases(f"0.4+0.42*{_P}", f"1-0.18*{_JELLY}", _SHRINK)
+SY = _phases(f"0.4+0.82*{_P}", f"1+0.22*{_JELLY}", _SHRINK)
+DY = _phases(f"-110*(1-pow({_P},2))", "0", "0")
+TITLE_OUT = TITLE_SECONDS + _SUCK
 TITLE_FRAMES = int(TITLE_OUT * TITLE_FPS) + 2  # the still, repeated as long as it shows
 TITLE_W = BADGE_MAX_W - BADGE_SKEW - 2 * BADGE_PAD
 CAPTION_Y = (TITLE_BOTTOM + 210) / 1920  # the 2-line block (centred here) clears the title badge
@@ -107,15 +107,24 @@ def game_crop(width: int, height: int, game_rect: Optional[Rect] = None, cam_rec
 
 
 def dark_band(tops: list) -> int:
-    """Rows of black at the top of the game cut in most frames (GTA's cinema bars in cutscenes), else 0."""
+    """Rows of black at the top of the game cut (GTA's cinema bars in cutscenes), else 0.
+
+    Frames dark all the way down (a night scene) say nothing; the bar must show in a third of the rest. Its
+    edge is soft, so a few rows more are cut.
+    """
     import numpy as np
 
-    bands = []
+    bands, told = [], 0
     for gray in tops:
         black = (gray.mean(axis=1) < 18) & (gray.max(axis=1) < 60)
-        bands.append(len(black) if black.all() else int(np.argmin(black)))
-    band = int(np.median(bands)) if bands else 0
-    return band if band >= 6 else 0
+        if black.all():
+            continue
+        told += 1
+        if int(np.argmin(black)) >= 6:
+            bands.append(int(np.argmin(black)))
+    if not bands or len(bands) < told / 3:
+        return 0
+    return min(150, int(np.percentile(bands, 75)) + 4)
 
 
 def without_letterbox(path: Path, crop: Rect, count: int = 12) -> Rect:
@@ -198,7 +207,7 @@ def _title_draws(lines: list[str], size: int, font: Path, join: bool) -> str:
 def title_badge(title: str, font: Path = TITLE_FONT_V3, background: Path = TITLE_BG_V3,
                 doodles: Path = DOODLES) -> str:
     """From ``[stack]`` (1080x1920) to ``[vout]``: the slanted title badge across the seam. It drips onto the
-    screen at the start and is sucked away after 3 s.
+    screen at the start and shrinks away into its centre after 3 s.
 
     Without the Pricedown file or the palm picture, the v2 look (Archivo Black on yellow).
     """
