@@ -261,6 +261,24 @@ class VideoProcessor:
         return settings.get(target_quality, settings["high"])
 
 
+def _npc_placed(words: List[Dict[str, Any]], clip: Path, plan_report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Cat Clips 3.0: each NPC line gets its path above the NPC; any failure leaves the plain game style."""
+    try:
+        import numpy as np
+        from .media.npc_captions import annotate_npc_words, head_track
+        from .media.voice_roles import mouth_motion
+
+        def speaker(start: float, end: float, faces: list) -> int:  # the face whose mouth moves with the line
+            times = list(np.linspace(start, end, 6))
+            return int(np.argmax([float(np.mean(mouth_motion(clip, face, times))) for face in faces]))
+
+        track = head_track(plan_report["face_samples"], plan_report.get("cam_face"), plan_report["game_crop"])
+        return annotate_npc_words(words, track, speaker)
+    except Exception as exc:
+        logger.warning("Cat Clips 3.0 NPC placement failed (%s); NPC lines in the plain game style", exc)
+        return words
+
+
 def create_optimized_clip(
     video_path: Path,
     start_time: float,
@@ -512,6 +530,8 @@ def create_optimized_clip(
                 if clip_words:
                     labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"),
                                            keep_game_lines=kit_npc_captions)
+                    if kit_npc_captions and labelled and plan_report.get("kind") == "catclips3":
+                        labelled = _npc_placed(labelled, source_clip_path, plan_report)
                     # Every line left out (doubtful voices, subtitled game lines): no captions, not a reload.
                     role_kwargs = {"caption_words": labelled} if labelled else {"include_captions": False}
 

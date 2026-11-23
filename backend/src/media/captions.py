@@ -534,6 +534,19 @@ def _passage_breaks(
 ROLE_STYLES = {"game": ("&HFFFFFF&", 75), "friend": ("&HFFCB7C&", 100)}
 
 
+def npc_events(chunk: List[Dict[str, Any]], start: float, end: float, text: str, tags: str) -> List[str]:
+    """Cat Clips 3.0: one event per stretch of the line's path, anchored bottom-centre above the NPC."""
+    from .npc_captions import segments_between
+
+    events = []
+    for a, b, x0, y0, x1, y1 in segments_between(chunk[0]["npc_path"], start, end):
+        if b - a < 0.02:
+            continue
+        place = f"\\pos({x0},{y0})" if (x0, y0) == (x1, y1) else f"\\move({x0},{y0},{x1},{y1})"
+        events.append(f"Dialogue: 0,{ass_timestamp(a)},{ass_timestamp(b)},Default,,0,0,0,,{{\\an2{place}}}{tags}{text}")
+    return events
+
+
 def _chunk_bounds(word_count: int, chunk_size: int, breaks: List[int]):
     """Caption lines of ``chunk_size`` words that never straddle a passage break.
 
@@ -888,6 +901,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             start, end = float(chunk[0]["start"]), max(chunk_end, float(chunk[0]["start"]) + 0.05)
             text = " ".join(render_text(gj, word) for gj, word in zip(indices, chunk))
             fit = f"\\fscx{scaled(size, chunk_scale)}\\fscy{scaled(size, chunk_scale)}" if size != 100 or chunk_scale < 1 else ""
+            if chunk[0].get("npc_path"):  # Cat Clips 3.0: the NPC's line above the NPC, moving with it
+                events += npc_events(chunk, start, end, text,
+                                     f"{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}")
+                continue
             events.append(
                 f"Dialogue: 0,{ass_timestamp(start)},{ass_timestamp(end)},Default,,0,0,0,,"
                 f"{prefix}{{{fit}{font_tag}\\c{colour}\\3c&H111111&\\bord{max(2, outline_px)}}}{text}"
