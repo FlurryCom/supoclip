@@ -432,6 +432,12 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
                                                       second, third)
     except Exception as exc:
         logger.warning("Second judge pass failed (%s); using the first alone", exc)
+    kept = fading(lines, louds)
+    faded = [k for k, line in enumerate(lines) if line not in kept]
+    if faded:  # these lines and the words heard of them are not captioned, whatever Claude said
+        verdicts = [v for v in answer.get("subtitles") or [] if v.get("id") not in faded]
+        answer["subtitles"] = verdicts + [{"id": k, "speaker": "background", "text": ""} for k in faded]
+        logger.info("GTA lines faded out (quieter than the scene): %s", [" ".join(lines[k][2]) for k in faded])
     out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls, high=high), lines,
                          answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
@@ -448,6 +454,21 @@ def make_timer(audio: Optional[np.ndarray], rate: int) -> Optional[Callable[[str
     from .align import line_times
 
     return lambda text, a, b: line_times(audio, rate, text, a, b)
+
+
+FADE_DB = 2.5  # a subtitled line this far under the clip's typical game line has faded out of the scene
+FADE_MIN_LINES = 5  # too few lines for a typical level: never filter
+
+
+def fading(lines: list[tuple[float, float, list[str]]], louds: list[Optional[float]],
+           drop: float = FADE_DB) -> list[tuple[float, float, list[str]]]:
+    """Owner's rule: a GTA line much quieter than the clip's other game lines is background — the
+    player walked away from the talker, or it is the club's song — and gets no caption."""
+    known = [v for v in louds if v is not None]
+    if len(known) < FADE_MIN_LINES:
+        return lines
+    floor = float(np.median(known)) - drop
+    return [line for line, loud in zip(lines, louds) if loud is None or loud >= floor]
 
 
 def _median_db(audio: Optional[np.ndarray], rate: int, spans: list[tuple[float, float]]) -> float:

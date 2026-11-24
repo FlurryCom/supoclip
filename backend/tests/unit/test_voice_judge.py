@@ -317,3 +317,18 @@ def test_a_third_pass_breaks_a_subtitle_tie():
     out = vj.judge(said, None, 16000, None, subs, fallback, run=run)
     assert asked["n"] == 3
     assert [w.get("voice") for w in out] == ["protagonist"] * 3
+
+
+
+def test_fading_game_lines_are_dropped_by_loudness():
+    from src.media.voice_judge import fading
+    louds = [-3.1, 2.7, -3.4, -1.3, 1.9, 1.2, -1.7, -4.8, -6.0, -6.4, -7.1]
+    lines = [(float(k), float(k) + 1.0, ["x"]) for k in range(len(louds))]
+    kept = fading(lines, louds)
+    assert [round(a) for a, _b, _t in kept] == [0, 1, 2, 3, 4, 5, 6, 7]  # the -6/-7 dB tail is gone
+
+
+def test_few_lines_are_never_loudness_filtered():
+    from src.media.voice_judge import fading
+    lines = [(0.0, 1.0, ["a"]), (2.0, 3.0, ["b"]), (4.0, 5.0, ["c"])]
+    assert fading(lines, [-3.3, -7.6, -4.5]) == lines  # the quiet therapy answer survives
