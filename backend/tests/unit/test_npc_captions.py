@@ -62,7 +62,7 @@ def test_annotate_npc_words_groups_lines_and_leaves_the_streamer_alone():
              {"text": "larga", "start": 1.0, "end": 1.3, "role": "game"},
              {"text": "isso", "start": 1.4, "end": 1.8, "role": "game"}]
     out = annotate_npc_words(words, track)
-    assert "npc_path" not in out[0] and out[1]["npc_path"] == out[2]["npc_path"]
+    assert "npc_path" not in out[0] and out[0]["seat_path"] and out[1]["npc_path"] == out[2]["npc_path"]
     assert out[1]["npc_path"][0][0] == 1.0 and out[1]["npc_path"][-1][1] == 1.8
 
 
@@ -102,3 +102,23 @@ def test_a_broken_speaker_check_falls_back_to_the_nearest_face():
         raise RuntimeError("no video")
     path = line_path(0.0, 0.5, track, broken)
     assert abs(path[0][2] - round((1000 - 554) * 1080 / 812)) <= 2  # 1000 is nearer the centre (959)
+
+
+def test_the_protagonist_and_the_phone_talk_from_over_the_player_and_split_from_npcs():
+    from src.media.npc_captions import PLAYER_SPOT
+    track = head_track(samples((0.0, [npc(959)]), (3.0, [npc(959)])), None, CROP)
+    words = [{"text": "where", "start": 1.0, "end": 1.3, "role": "game", "voice": "protagonist"},
+             {"text": "here", "start": 1.4, "end": 1.6, "role": "game", "voice": "phone", "caller": "Jason"},
+             {"text": "move", "start": 1.7, "end": 2.0, "role": "game", "voice": "npc"}]
+    out = annotate_npc_words(words, track)
+    assert out[0]["npc_path"] == [(1.0, 1.3, *PLAYER_SPOT, *PLAYER_SPOT)]
+    assert out[1]["npc_path"] == [(1.4, 1.6, *PLAYER_SPOT, *PLAYER_SPOT)]
+    assert out[2]["npc_path"][0][:2] == (1.7, 2.0) and out[2]["npc_path"][0][2:4] != PLAYER_SPOT
+
+
+def test_the_streamer_s_caption_climbs_onto_the_seam_once_the_title_is_gone():
+    from src.media.catclips3 import GAME_Y, TITLE_OUT
+    from src.media.npc_captions import streamer_path
+    path = streamer_path()
+    assert segments_between(path, 0.0, 1.0)[0][3] > GAME_Y + 100  # under the title badge
+    assert segments_between(path, TITLE_OUT + 1, TITLE_OUT + 2)[0][3] == GAME_Y  # on the seam after

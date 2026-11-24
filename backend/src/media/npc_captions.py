@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Optional, Sequence
 
-from .catclips3 import GAME_H, GAME_Y, TITLE_BOTTOM
+from .catclips3 import GAME_H, GAME_Y, STREAMER_Y, STREAMER_Y_TITLE, TITLE_BOTTOM, TITLE_OUT
 
 Face = tuple[float, float, float, float]
 Point = tuple[int, int, Face]
@@ -22,6 +22,18 @@ Y_MAX = 1920 - 40
 EDGE_Y = GAME_Y + round(0.45 * GAME_H)
 FIXED = (540, GAME_Y + round(0.62 * GAME_H))
 HEAD_GAP = 20
+# The protagonist (and the voice on their phone) talks from above the player, whom the 3.0 crop centres:
+# the arrow's tip lands about over their head (GTA 6's chase camera keeps it near here on foot).
+PLAYER_SPOT = (540, GAME_Y + round(0.36 * GAME_H))
+SEAT_MOVE = 0.25  # seconds the streamer's caption takes to climb onto the seam once the title is gone
+
+
+def streamer_path() -> list[Segment]:
+    """Where the streamer's caption block sits (its centre): under the title, then on the seam."""
+    up = TITLE_OUT + SEAT_MOVE
+    return [(0.0, TITLE_OUT, 540, STREAMER_Y_TITLE, 540, STREAMER_Y_TITLE),
+            (TITLE_OUT, up, 540, STREAMER_Y_TITLE, 540, STREAMER_Y),
+            (up, 1e6, 540, STREAMER_Y, 540, STREAMER_Y)]
 
 
 def _clamp(value: float, low: float, high: float) -> int:
@@ -118,22 +130,32 @@ def segments_between(path: Sequence[Segment], start: float, end: float) -> list[
 def annotate_npc_words(words: list[dict[str, Any]], track: Track,
                        speaker: Optional[Callable[[float, float, list[Face]], int]] = None,
                        gap: float = 1.0) -> list[dict[str, Any]]:
-    """Copies of ``words`` where every "game" word carries its line's ``npc_path``.
+    """Copies of ``words`` where every "game" word carries its line's ``npc_path`` and every streamer word
+    the ``seat_path`` of the streamer's caption.
 
-    Lines split like caption lines (a pause over ``gap`` or a cut in the edit), so a caption line never
-    outlives its path.
+    Lines split like caption lines (a pause over ``gap``, a cut in the edit, another voice), so a caption
+    line never outlives its path. The protagonist's and the phone's lines sit over the player; an NPC's
+    over the NPC.
     """
     out = [dict(word) for word in words]
+    seat = streamer_path()
     i = 0
     while i < len(out):
         if out[i].get("role") != "game":
+            if out[i].get("role") == "streamer":
+                out[i]["seat_path"] = seat
             i += 1
             continue
         j = i
         while j + 1 < len(out) and out[j + 1].get("role") == "game" and not out[j + 1].get("break_before") \
+                and out[j + 1].get("voice") == out[i].get("voice") \
                 and float(out[j + 1]["start"]) - float(out[j]["end"]) <= gap:
             j += 1
-        path = line_path(float(out[i]["start"]), float(out[j]["end"]), track, speaker)
+        start, end = float(out[i]["start"]), float(out[j]["end"])
+        if out[i].get("voice") in ("protagonist", "phone"):
+            path = [(start, end, *PLAYER_SPOT, *PLAYER_SPOT)]
+        else:
+            path = line_path(start, end, track, speaker)
         for k in range(i, j + 1):
             out[k]["npc_path"] = path
         i = j + 1

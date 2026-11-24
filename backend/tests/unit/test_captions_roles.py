@@ -87,19 +87,42 @@ def test_v3_npc_words_balloon_in_over_the_npc(tmp_path):
     lines = _v3(tmp_path, [{**w("give", 1.0, 1.4, "game"), "npc_path": path},
                            {**w("me", 1.4, 2.0, "game"), "npc_path": path}])
     text = [line for line in lines if line.startswith("Dialogue: 1,")]
-    give, me = text[0], next(line for line in text if line.endswith("}ME"))
+    give, me = next(line for line in text if line.endswith("}GIVE")), next(line for line in text if line.endswith("}ME"))
     assert me.startswith("Dialogue: 1,0:00:01.40")
     (gx, gy), (mx, my) = _at(give), _at(me)
     assert gy == my < 1300 and gx < 500 < mx  # one line, sitting on the anchor above the head
+    arrow = next(line for line in text if "\\p1" in line)
+    assert _at(arrow) == (500, 1300) and "\\c&H00C4C4C4&" in give  # the arrow's tip on the head; an NPC is grey
 
 
-def test_v3_two_line_block_stays_below_the_title_bar(tmp_path):
-    from src.media.catclips3 import CAPTION_Y, TITLE_BOTTOM
-    out = tmp_path / "bar.ass"
-    words = [w(t, i * 0.3, i * 0.3 + 0.3, "streamer") for i, t in enumerate(["oh", "my", "god", "bro"])]
-    assert build_assemblyai_ass_subtitles(tmp_path / "missing.mp4", 0.0, 10.0, 1080, 1920, out,
-                                          caption_template="catclips3", caption_words=words, position_y_override=CAPTION_Y)
-    text = out.read_text()
-    font_px = int(text.split("Style: Default,")[1].split(",")[1])
-    top = min(_at(line)[1] for line in text.splitlines() if line.startswith("Dialogue: 1,"))
-    assert top - font_px * 0.6 >= TITLE_BOTTOM + 20  # the top line's letters clear the title badge
+def test_v3_streamer_block_and_its_arrow_clear_the_title_then_sit_on_the_seam(tmp_path):
+    from src.media.catclips3 import GAME_Y, TITLE_BOTTOM, TITLE_OUT
+    from src.media.npc_captions import streamer_path
+    words = [{**w(t, s, s + 0.3, "streamer"), "seat_path": streamer_path()}
+             for t, s in (("oh", 0.0), ("my", 0.3), ("god", 0.6), ("bro", 0.9), ("go", 5.0), ("now", 5.3))]
+    lines = _v3(tmp_path, words)
+    text = [line for line in lines if line.startswith("Dialogue: 1,")]
+    oh = next(line for line in text if line.endswith("}OH"))
+    arrow = next(line for line in text if "\\p1" in line)
+    assert _at(oh)[1] - 0.4 * 100 >= TITLE_BOTTOM + 20  # the top line's letters clear the title badge
+    assert _at(arrow)[1] - 24 >= TITLE_BOTTOM + 10 and _at(arrow)[1] < _at(oh)[1]  # the arrow, above the line
+    assert "\\c&H0000F0F5&" in arrow  # yellow, pointing up at the cam
+    go = next(line for line in text if line.endswith("}GO"))
+    assert abs(_at(go)[1] - GAME_Y) <= 45  # on the seam once the title is gone (one row: centred on it)
+
+
+def test_v3_streamer_lines_sit_tight(tmp_path):
+    lines = _v3(tmp_path, [w(t, i * 0.3, i * 0.3 + 0.3, "streamer") for i, t in enumerate(["oh", "my", "god", "bro"])])
+    text = [line for line in lines if line.startswith("Dialogue: 1,")]
+    oh, god = (_at(next(line for line in text if line.endswith(f"}}{t}")))[1] for t in ("OH", "GOD"))
+    assert god - oh <= 82  # one line under the other, the 100 px caps nearly touching
+
+
+def test_v3_a_phone_line_is_green_with_the_caller_s_name(tmp_path):
+    path = [(1.0, 2.0, 540, 1139, 540, 1139)]
+    lines = _v3(tmp_path, [{**w(t, s, s + 0.4, "game"), "npc_path": path, "voice": "phone", "caller": "Jason"}
+                           for t, s in (("where", 1.0), ("are", 1.4))])
+    label = next(line for line in lines if "JASON" in line)
+    words = [line for line in lines if line.startswith("Dialogue: 1,") and line.endswith(("}WHERE", "}ARE"))]
+    assert "\\p1" in label and "\\c&H005FDC3D&" in label and all("\\c&H005FDC3D&" in line for line in words)
+    assert _at(label)[1] < min(_at(line)[1] for line in words)  # the label over the line

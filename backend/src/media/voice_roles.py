@@ -399,6 +399,17 @@ def _audio(clip: Path) -> np.ndarray:
     return np.frombuffer(raw, dtype=np.float32)
 
 
+def _calls(clip: Path, words: list[dict[str, Any]]) -> list[tuple[float, float, str]]:
+    """GTA's phone calls during the words; none when the card can't be read."""
+    try:
+        from .call_card import calls
+
+        return calls(clip, min(float(w["start"]) for w in words) - 1.0, max(float(w["end"]) for w in words) + 1.0)
+    except Exception as exc:
+        logger.warning("Reading GTA's call card failed (%s); no phone lines", exc)
+        return []
+
+
 def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int,
                 face: Optional[tuple[float, float, float, float]] = None,
                 keep_game_lines: bool = False) -> list[dict[str, Any]]:
@@ -425,7 +436,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
             from .voice_judge import judge
 
             motion_at = (lambda ts: mouth_motion(clip, face, ts)) if face is not None else None
-            return judge(words, _audio(clip), RATE, motion_at, lines, fallback)
+            return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=_calls(clip, words))
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
             return fallback

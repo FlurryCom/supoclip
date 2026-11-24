@@ -97,3 +97,28 @@ def test_a_subtitle_pinned_on_the_streamer_s_yelling_is_ignored():
     out = vj.apply_verdict(said, answer, fallback, subtitled=set(range(9)))
     assert [w["text"] for w in out] == [w["text"] for w in said]
     assert [w["role"] for w in out] == ["streamer"] * 9
+
+
+def test_claude_hears_who_is_on_the_phone_and_tells_the_voices_apart():
+    asked = {}
+    calls = [(0.0, 2.5, "Jason")]
+
+    def run(text, images, schema, model, timeout):
+        asked["text"] = text
+        return {"lines": [{"first": 0, "last": 3, "speaker": "phone", "text": ""},
+                          {"first": 4, "last": 6, "speaker": "protagonist", "text": ""},
+                          {"first": 7, "last": 9, "speaker": "streamer", "text": ""}]}
+
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.judge(SAID, None, 16000, None, LINE, fallback, run=run, calls=calls)
+    assert "call: Jason" in asked["text"] and "protagonist" in asked["text"]
+    assert [w.get("voice") for w in out] == ["phone"] * 4 + ["protagonist"] * 3 + [None] * 3
+    assert [w.get("caller") for w in out[:4]] == ["Jason"] * 4 and "caller" not in out[4]
+    assert [w["role"] for w in out] == ["game"] * 7 + ["streamer"] * 3
+
+
+def test_a_phone_voice_without_a_call_card_is_just_a_character():
+    answer = {"lines": [{"first": 7, "last": 9, "speaker": "phone", "text": ""}]}
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(), calls=[(0.0, 2.5, "Jason")])
+    assert [w.get("voice") for w in out[7:]] == ["npc"] * 3 and "caller" not in out[7]

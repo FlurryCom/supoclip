@@ -62,7 +62,11 @@ DY = _phases(f"-110*(1-pow({_P},2))", "0", "0")
 TITLE_OUT = TITLE_SECONDS + _SUCK
 TITLE_FRAMES = int(TITLE_OUT * TITLE_FPS) + 2  # the still, repeated as long as it shows
 TITLE_W = BADGE_MAX_W - BADGE_SKEW - 2 * BADGE_PAD
-CAPTION_Y = (TITLE_BOTTOM + 210) / 1920  # the 2-line block (centred here) clears the title badge
+# The streamer's caption block (centre): on the cam/game seam, by the cam (owner's ask); while the title
+# badge sits on the seam, just under it, its arrow clear of the badge.
+STREAMER_Y_TITLE = TITLE_BOTTOM + 125
+STREAMER_Y = GAME_Y
+CAPTION_Y = STREAMER_Y_TITLE / 1920
 BAR_BG_AT = 0.55  # owner picked the middle of the palm picture
 # Local only: Pricedown's licence forbids sharing the file, and the picture is someone else's.
 TITLE_FONT_V3 = Path(os.getenv("CATCLIPS3_TITLE_FONT", "/app/uploads/kit-assets/pricedown.otf"))

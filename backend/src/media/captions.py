@@ -532,6 +532,11 @@ def _passage_breaks(
 
 # Fork (Cat Clips v2): caption roles other than the streamer -> (ASS colour &HBBGGRR&, size %).
 ROLE_STYLES = {"game": ("&HFFFFFF&", 75), "friend": ("&HFFCB7C&", 100)}
+# Cat Clips 3.0 (owner's pick): a game line's colour says whose voice it is; the streamer keeps white with
+# the spoken word yellow. Green is the call card's phone badge.
+VOICE_COLOURS = {"protagonist": "#FFFFFF", "npc": "#C4C4C4", "phone": "#3DDC5F"}
+# A phone, drawn (ASS vector) for the caller's label: body, screen cut out, home button.
+PHONE_ICON = "m 0 0 l 40 0 l 40 68 l 0 68 m 5 8 l 5 54 l 35 54 l 35 8 m 17 58 l 23 58 l 23 64 l 17 64"
 
 
 def npc_events(chunk: List[Dict[str, Any]], start: float, end: float, text: str, tags: str,
@@ -659,6 +664,7 @@ def build_assemblyai_ass_subtitles(
         passage_breaks = sorted(set(passage_breaks) | {
             i for i in range(1, len(relevant_words))
             if relevant_words[i].get("role") != relevant_words[i - 1].get("role")
+            or relevant_words[i].get("voice") != relevant_words[i - 1].get("voice")
             or float(relevant_words[i]["start"]) - float(relevant_words[i - 1]["end"]) > 1.0
             or relevant_words[i].get("break_before")  # a cut in the edit, marked before words were dropped
         })
@@ -909,13 +915,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         step = line_words or len(chunk)
         rows = [list(range(i, min(i + step, len(chunk)))) for i in range(0, len(chunk), step)]
-        line_h = font_px * 0.95 * scale  # the reference stacks its lines tight
+        line_h = font_px * 0.8 * scale  # caps only: the owner wants the lines tight
         gap = space_width * scale
+        role, voice = chunk[0].get("role"), chunk[0].get("voice")
+        if role == "game":  # one colour per voice; the word being said still balloons in
+            said_colour = past_colour = hex_to_ass_color(VOICE_COLOURS.get(voice or "npc", VOICE_COLOURS["npc"]))
+        else:
+            said_colour, past_colour = highlight, primary
+        mark = ("phone" if voice == "phone" else "down") if bottom else (
+            "up" if role == "streamer" and chunk[0].get("seat_path") else None)
+        cap = 0.36 * font_px * scale  # half the caps' height
+        arrow_w, arrow_h, arrow_gap = round(0.34 * font_px * scale), round(0.24 * font_px * scale), round(0.1 * font_px * scale)
+        lift = arrow_h + arrow_gap if mark == "down" else 0  # the arrow goes between the line and the head
         offsets, widest = {}, 0.0
         for r, row in enumerate(rows):
             width = sum(word_widths[indices[k]] for k in row) * scale + gap * (len(row) - 1)
             widest = max(widest, width)
-            dy = (r - (len(rows) - 1) / 2) * line_h if not bottom else -(len(rows) - 1 - r + 0.5) * line_h
+            dy = (r - (len(rows) - 1) / 2) * line_h if not bottom else -(len(rows) - 1 - r + 0.5) * line_h - lift
             x = -width / 2
             for k in row:
                 w = word_widths[indices[k]] * scale
@@ -926,23 +942,51 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         end = max(float(chunk[-1]["end"]), float(chunk[0]["start"]) + 0.05)
         size = scaled(100, scale)
         glow = max(outline_px * 2, 6)
+
+        def pieces_of(a: float, b: float):
+            pieces = segments_between(path, a, b)
+            if not pieces:  # the path ended before the line did: hold its last point
+                _, _, _, _, lx, ly = path[-1]
+                pieces = [(a, b, lx, ly, lx, ly)]
+            elif pieces[-1][1] < b:
+                pieces.append((pieces[-1][1], b, *pieces[-1][4:], *pieces[-1][4:]))
+            return pieces
+
         out = []
+        if mark:  # who's talking: an arrow at the cam or the speaker, or the caller's phone label
+            top = min(dy for _, dy in offsets.values()) - cap - arrow_gap
+            if mark == "up":
+                art, colour = f"{{\\p1}}m {arrow_w / 2:g} 0 l {arrow_w} {arrow_h} l 0 {arrow_h}{{\\p0}}", highlight
+            elif mark == "down":
+                art, colour = f"{{\\p1}}m 0 0 l {arrow_w} 0 l {arrow_w / 2:g} {arrow_h}{{\\p0}}", said_colour
+            else:
+                label = scaled(55, scale)
+                name = str(chunk[0].get("caller") or "").upper()
+                art = f"{{\\fscx{label}\\fscy{label}\\p1}}{PHONE_ICON}{{\\p0}} {name}"
+                colour = said_colour
+            start = float(chunk[0]["start"])
+            for t0, t1, x0, y0, x1, y1 in pieces_of(start, end):
+                if t1 - t0 < 0.02:
+                    continue
+                if mark == "down":  # the tip on the speaker, even when the line is pulled on screen
+                    p0, p1 = (round(x0), round(y0)), (round(x1), round(y1))
+                else:
+                    p0 = (round(min(max(x0, low), high)), round(y0 + top))
+                    p1 = (round(min(max(x1, low), high)), round(y1 + top))
+                place = f"\\pos({p0[0]},{p0[1]})" if p0 == p1 else f"\\move({p0[0]},{p0[1]},{p1[0]},{p1[1]})"
+                grow = "\\fscx30\\fscy30\\t(0,120,\\fscx100\\fscy100)" if t0 == start and mark != "phone" else ""
+                out.append(f"Dialogue: 1,{ass_timestamp(t0)},{ass_timestamp(t1)},Default,,0,0,0,,"
+                           f"{{\\an2{place}{grow}{font_tag}\\c{colour}\\3c&H000000&\\bord{max(3, outline_px)}\\shad0}}{art}")
         for k, word in enumerate(chunk):
             said = float(word["start"])
             nxt = float(chunk[k + 1]["start"]) if k + 1 < len(chunk) else end
-            phases = [(said, max(nxt, said + 0.05), highlight, True)]
+            phases = [(said, max(nxt, said + 0.05), said_colour, True)]
             if nxt < end:
-                phases.append((nxt, end, primary, False))
+                phases.append((nxt, end, past_colour, False))
             dx, dy = offsets[k]
             text = render_text(indices[k], word)
             for a, b, colour, pops in phases:
-                pieces = segments_between(path, a, b)
-                if not pieces:  # the path ended before the line did: hold its last point
-                    _, _, _, _, lx, ly = path[-1]
-                    pieces = [(a, b, lx, ly, lx, ly)]
-                elif pieces[-1][1] < b:
-                    pieces.append((pieces[-1][1], b, *pieces[-1][4:], *pieces[-1][4:]))
-                for t0, t1, x0, y0, x1, y1 in pieces:
+                for t0, t1, x0, y0, x1, y1 in pieces_of(a, b):
                     if t1 - t0 < 0.02:
                         continue
                     p0 = (round(min(max(x0, low), high) + dx), round(y0 + dy))
@@ -987,7 +1031,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if reveal_words:
             npc_path = chunk[0].get("npc_path") if role_style is not None else None
             size = role_style[1] if role_style is not None else 100
-            path = npc_path or [(float(chunk[0]["start"]), chunk_end, x_pos, y_pos, x_pos, y_pos)]
+            path = npc_path or chunk[0].get("seat_path") or [(float(chunk[0]["start"]), chunk_end, x_pos, y_pos, x_pos, y_pos)]
             events += word_by_word(chunk, indices, chunk_scale * size / 100, path, bottom=npc_path is not None)
             continue
         if role_style is not None:
