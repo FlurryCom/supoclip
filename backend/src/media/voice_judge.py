@@ -335,6 +335,33 @@ def _roles_of(words: list[dict[str, Any]], answer: dict[str, Any]):
     return roles, voices
 
 
+def _sub_speakers(answer: dict[str, Any]) -> dict:
+    return {v.get("id"): v for v in answer.get("subtitles") or [] if isinstance(v, dict)}
+
+
+def _disputed_subtitles(first: dict[str, Any], second: dict[str, Any]) -> list:
+    one, two = _sub_speakers(first), _sub_speakers(second)
+    return [(one.get(k) or two.get(k), two.get(k)) for k in set(one) | set(two)
+            if (one.get(k) or {}).get("speaker") != (two.get(k) or {}).get("speaker")]
+
+
+def _majority_subtitles(disputed: list, kept: list, second: dict[str, Any], third: dict[str, Any]) -> list:
+    """The agreed subtitle verdicts plus, for each disputed one, whichever speaker the third pass sides with."""
+    got = {v.get("id") for v in kept}
+    sec, thr = _sub_speakers(second), _sub_speakers(third)
+    for first_v, _second_v in disputed:
+        k = first_v.get("id")
+        if k in got:
+            continue
+        tie = (thr.get(k) or {}).get("speaker")
+        for candidate in (first_v, sec.get(k)):
+            if candidate and candidate.get("speaker") == tie:
+                kept.append(candidate)
+                got.add(k)
+                break
+    return kept
+
+
 def merge_answers(words: list[dict[str, Any]], first: dict[str, Any], second: dict[str, Any]) -> dict[str, Any]:
     """What the two passes agree on: Claude is nondeterministic, and only its stable calls count.
 
@@ -396,7 +423,13 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     ask = prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls), title)
     answer = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
     try:
-        answer = merge_answers(words, answer, run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT))
+        second = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
+        disputed_subs = _disputed_subtitles(answer, second)
+        answer = merge_answers(words, answer, second)
+        if disputed_subs:  # who says a subtitle flaps between passes: a third one breaks the tie
+            third = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
+            answer["subtitles"] = _majority_subtitles(disputed_subs, answer.get("subtitles") or [],
+                                                      second, third)
     except Exception as exc:
         logger.warning("Second judge pass failed (%s); using the first alone", exc)
     out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls, high=high), lines,

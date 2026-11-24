@@ -296,3 +296,24 @@ def test_a_high_cam_sync_makes_the_words_the_streamer_s():
     out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(range(7)), high=set(range(10)))
     assert [w["role"] for w in out[:7]] == ["game"] * 7  # a GTA subtitle is harder proof: stays game
     assert [w["role"] for w in out[7:]] == ["streamer"] * 3  # no subtitle: the cam wins
+
+
+def test_a_third_pass_breaks_a_subtitle_tie():
+    asked = {"n": 0}
+    passes = [
+        {"lines": [], "subtitles": [{"id": 0, "speaker": "protagonist", "text": "Yeah, I ran."}]},
+        {"lines": [], "subtitles": [{"id": 0, "speaker": "npc", "text": "Yeah, I ran."}]},
+        {"lines": [], "subtitles": [{"id": 0, "speaker": "protagonist", "text": "Yeah, I ran."}]},
+    ]
+
+    def run(text, images, schema, model, timeout):
+        answer = passes[asked["n"]]
+        asked["n"] += 1
+        return answer
+
+    said = _words((48.9, 49.3, "Yeah,"), (49.3, 49.6, "I"), (49.6, 50.0, "ran."))
+    subs = [(48.9, 50.0, ["yeah", "i", "ran"])]
+    fallback = [{**w, "role": "streamer"} for w in said]
+    out = vj.judge(said, None, 16000, None, subs, fallback, run=run)
+    assert asked["n"] == 3
+    assert [w.get("voice") for w in out] == ["protagonist"] * 3
