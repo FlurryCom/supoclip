@@ -251,3 +251,10 @@ def test_a_subtitle_claude_calls_music_is_not_captioned():
     out = vj.with_subtitles([{**w, "role": "game"} for w in said], subs,
                             [{"id": 0, "speaker": "music", "text": "Get in, Bae Luxe's"}])
     assert out == []
+
+
+def test_one_pass_calling_a_subtitle_music_is_enough_to_drop_it():
+    first = {"lines": [], "subtitles": [{"id": 0, "speaker": "npc", "text": "Get in, Bae Luxe's"}]}
+    second = {"lines": [], "subtitles": [{"id": 0, "speaker": "music", "text": "Get in, Bae Luxe's"}]}
+    merged = vj.merge_answers(SAID, first, second)
+    assert [v["speaker"] for v in merged["subtitles"]] == ["music"]

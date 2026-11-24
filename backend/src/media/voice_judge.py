@@ -90,7 +90,11 @@ that subtitle's speaker (the subtitle's own words will replace them). speaker is
 - "phone": the caller's voice during a call
 - "npc": any other character in the game. The protagonist is who the camera follows and who answers
   for the player: in a scripted dialogue, the voice answering questions put to the player's character
-  is usually the protagonist, and their lines share one voice-print letter across the clip.
+  is usually the protagonist, and their lines share one voice-print letter across the clip. In GTA 6
+  the playable protagonists are Lucia and Jason: a scene where one of them is questioned (police,
+  therapy, interrogation) has that one answering as "protagonist".
+Short, half-heard first-person mutters with no GTA subtitle ("what am I gonna...", "get a car") are
+usually the streamer thinking aloud; the cam reading can run low when he speaks quietly or off-axis.
 npc: for an "npc" line, which character: 1, 2, 3... the same number for the same character all clip long.
 text: for a game line whose words the GTA subtitle shows, the subtitle's words for exactly that
 line (fix the OCR noise, drop the part of the subtitle not said in this line); otherwise "".
@@ -328,6 +332,11 @@ def merge_answers(words: list[dict[str, Any]], first: dict[str, Any], second: di
     second_speaker = {v.get("id"): v.get("speaker") for v in second.get("subtitles") or [] if isinstance(v, dict)}
     subtitles = [v for v in first.get("subtitles") or []
                  if isinstance(v, dict) and second_speaker.get(v.get("id")) == v.get("speaker")]
+    kept = {v.get("id") for v in subtitles}
+    for source in (first, second):  # lyrics are dropped captions: one pass calling music is enough
+        subtitles += [v for v in source.get("subtitles") or []
+                      if isinstance(v, dict) and v.get("speaker") == "music" and v.get("id") not in kept
+                      and not kept.add(v.get("id"))]
     return {"lines": lines, "subtitles": subtitles}
 
 
