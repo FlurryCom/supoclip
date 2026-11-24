@@ -352,3 +352,13 @@ def test_a_censored_chat_overlay_is_not_a_gta_subtitle(monkeypatch):
     monkeypatch.setattr(vr, "objective_text_on", lambda frame: False)
     monkeypatch.setattr(sp, "run", lambda *a, **k: R())
     assert vr.subtitle_text(np.zeros((1080, 1920, 3), np.uint8)) == ""
+
+
+def test_a_subtitle_over_a_sunlit_road_is_seen_and_bare_ground_is_not():
+    import cv2
+    frame = np.full((1080, 1920, 3), 205, np.uint8)  # bright daylight ground filling the band
+    assert not vr.subtitle_on(frame)
+    for k, line in enumerate(("Nah, me and Sweat Juicy were playing a game", "of how many millionaires")):
+        cv2.putText(frame, line, (520, 935 + 40 * k), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 6, cv2.LINE_AA)
+        cv2.putText(frame, line, (520, 935 + 40 * k), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2, cv2.LINE_AA)
+    assert vr.subtitle_on(frame)

@@ -320,18 +320,40 @@ def _tokens(text: str) -> set[str]:
     return set(_token_list(text))
 
 
+def subtitle_strokes(frame: np.ndarray) -> np.ndarray:
+    """Thin bright strokes in the subtitle band: a white top-hat keeps letter strokes and drops broad
+    bright areas (sunlit ground, sky), which defeated a plain brightness test on daylight scenes."""
+    import cv2
+
+    h, w = frame.shape[:2]
+    band = frame[int(0.78 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)]
+    gray = cv2.cvtColor(band, cv2.COLOR_BGR2GRAY) if band.ndim == 3 else band
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (max(9, h // 72), max(9, h // 72)))
+    tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel)
+    return (tophat > 70) & (gray > 170)
+
+
+def subtitle_on(frame: np.ndarray) -> bool:
+    """A centred block of text strokes in the band (one or two lines of GTA's subtitle)."""
+    strokes = subtitle_strokes(frame)
+    rows = np.flatnonzero(strokes.sum(axis=1) > 0.01 * strokes.shape[1])
+    if len(rows) < max(8, frame.shape[0] // 135):
+        return False
+    cols = np.flatnonzero(strokes[rows].any(axis=0))
+    centre = (cols[0] + cols[-1]) / 2 - strokes.shape[1] / 2
+    return cols[-1] - cols[0] > 0.08 * strokes.shape[1] and abs(centre) < 0.15 * strokes.shape[1]
+
+
 def subtitle_text(frame: np.ndarray) -> str:
     """What the game's subtitle says ('' when there is none or it is an objective), read with tesseract."""
     import subprocess
 
     import cv2
 
-    if not plain_subtitle_on(frame) or objective_text_on(frame):
+    if not subtitle_on(frame) or objective_text_on(frame):
         return ""
-    h, w = frame.shape[:2]
-    gray = cv2.cvtColor(frame[int(0.80 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)], cv2.COLOR_BGR2GRAY)
-    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    _, ink = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY_INV)  # dark text on white reads best
+    ink = np.where(subtitle_strokes(frame), 0, 255).astype(np.uint8)  # dark text on white reads best
+    ink = cv2.resize(ink, None, fx=2, fy=2, interpolation=cv2.INTER_NEAREST)
     png = cv2.imencode(".png", ink)[1].tobytes()
     text = subprocess.run(["tesseract", "stdin", "stdout", "--psm", "6", "-l", "eng"], input=png,
                           capture_output=True, timeout=20, check=True).stdout.decode(errors="ignore").strip()
