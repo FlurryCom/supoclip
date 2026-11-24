@@ -29,7 +29,7 @@ SCHEMA = {
                 "properties": {
                     "first": {"type": "integer"},
                     "last": {"type": "integer"},
-                    "speaker": {"type": "string", "enum": ["streamer", "protagonist", "npc", "phone"]},
+                    "speaker": {"type": "string", "enum": ["streamer", "protagonist", "npc", "phone", "background"]},
                     "npc": {"type": "integer"},
                     "text": {"type": "string"},
                 },
@@ -42,7 +42,7 @@ SCHEMA = {
                 "type": "object",
                 "properties": {
                     "id": {"type": "integer"},
-                    "speaker": {"type": "string", "enum": ["protagonist", "npc", "phone", "music"]},
+                    "speaker": {"type": "string", "enum": ["protagonist", "npc", "phone", "music", "background"]},
                     "npc": {"type": "integer"},
                     "text": {"type": "string"},
                 },
@@ -93,6 +93,10 @@ that subtitle's speaker (the subtitle's own words will replace them). speaker is
   is usually the protagonist, and their lines share one voice-print letter across the clip. In GTA 6
   the playable protagonists are Lucia and Jason: a scene where one of them is questioned (police,
   therapy, interrogation) has that one answering as "protagonist".
+- "background": faint ambience nobody attends — passersby, crowd chatter, distant NPCs talking
+  among themselves, quiet (see loud) and unrelated to what the streamer is doing. These get NO
+  caption (owner's rule). A quiet line that IS the scene, a cutscene conversation for one, keeps
+  its real speaker.
 Short, half-heard first-person mutters with no GTA subtitle ("what am I gonna...", "get a car") are
 usually the streamer thinking aloud; the cam reading can run low when he speaks quietly or off-axis.
 Follow the conversation's thread (owner's rule): game dialogue is diegetic — it sounds scripted,
@@ -107,8 +111,9 @@ line (fix the OCR noise, drop the part of the subtitle not said in this line); o
 
 Then, under subtitles, one entry per GTA subtitle listed at the end (id = its S number), even when the
 transcript missed it (Whisper drops game lines the streamer talks over): who says it (protagonist, npc
-with its number, phone — or "music" when it is a song's lyrics, as in a club or on the radio: GTA
-subtitles those too and they must not be captioned) and its words with the OCR noise fixed.
+with its number, phone, "music" when it is a song's lyrics (GTA subtitles those too, in a club or
+on the radio), or "background" for faint chatter unrelated to the scene — music and background
+lines are not captioned — and its words with the OCR noise fixed.
 
 {stretches}{subtitles}"""
 
@@ -223,7 +228,7 @@ def _close(heard: list[str], text: list[str]) -> bool:
     return 0.7 <= len(text) / max(1, len(heard)) <= 1.5 and SequenceMatcher(None, a, b).ratio() >= 0.5
 
 
-GAME_VOICES = ("protagonist", "npc", "phone")
+GAME_VOICES = ("protagonist", "npc", "phone", "background")
 
 
 def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback: list[dict[str, Any]],
@@ -386,7 +391,8 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
                          answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
                 sum(w["role"] == "streamer" for w in out),
-                *(sum(w.get("voice") == v for w in out) for v in GAME_VOICES), calls or "none")
+                *(sum(w.get("voice") == v for w in out) for v in ("protagonist", "npc", "phone")),
+                calls or "none")
     return out
 
 
@@ -431,7 +437,7 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
     if not lines:
         return words
     verdict = {int(v["id"]): v for v in verdicts if isinstance(v.get("id"), int)}
-    lyric = {k for k, v in verdict.items() if v.get("speaker") == "music"}
+    lyric = {k for k, v in verdict.items() if v.get("speaker") in ("music", "background")}
     tokens = [(_token_list(str(w.get("text", ""))) or [""])[0] for w in words]
     owner: dict[int, int] = {}  # word -> the subtitle line it was
 
@@ -489,6 +495,17 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
         blocks.append((start, k, [{**(base if j == 0 else {kk: vv for kk, vv in base.items() if kk != "break_before"}),
                                    "text": token, "start": spans[j][0], "end": spans[j][1]}
                                   for j, token in enumerate(text)]))
+    blocks.sort(key=lambda item: item[0])
+    for (s1, _k1, ws1), (s2, _k2, _ws2) in zip(blocks, blocks[1:]):
+        # GTA shows one subtitle at a time: a line leaves when the next arrives
+        limit = s2 - 0.05
+        last = max(float(w["end"]) for w in ws1)
+        if last <= limit or limit <= s1 + 0.2:
+            continue
+        scale = (limit - s1) / (last - s1)
+        for w in ws1:
+            w["start"] = round(s1 + (float(w["start"]) - s1) * scale, 3)
+            w["end"] = round(s1 + (float(w["end"]) - s1) * scale, 3)
     kept = [(float(w["start"]), i, w) for i, w in enumerate(words)
             if i not in owner or owner[i] in lyric]
     kept = [(t, i, w) for t, i, w in kept if i not in owner or w["role"] != "game"]
@@ -500,4 +517,4 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
         out.extend(ws)
     logger.info("GTA subtitles: %d lines, %d not heard by Whisper", len(lines),
                 sum(1 for k in range(len(lines)) if k not in owner.values()))
-    return out
+    return [w for w in out if w.get("voice") != "background"]

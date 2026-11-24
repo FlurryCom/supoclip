@@ -258,3 +258,31 @@ def test_one_pass_calling_a_subtitle_music_is_enough_to_drop_it():
     second = {"lines": [], "subtitles": [{"id": 0, "speaker": "music", "text": "Get in, Bae Luxe's"}]}
     merged = vj.merge_answers(SAID, first, second)
     assert [v["speaker"] for v in merged["subtitles"]] == ["music"]
+
+
+def test_game_lines_show_one_at_a_time():
+    # GTA shows one subtitle at a time; a line leaves when the next one arrives
+    subs = [(22.1, 23.5, ["bitch", "slow", "yo'", "ass", "down"]),
+            (23.8, 25.5, ["come", "on", "let's", "get", "in", "the", "car"])]
+
+    def timer(text, a, b):
+        words = text.split()
+        step = 3.5 / len(words)  # deliberately overruns into the next line
+        return [(w, a + k * step, a + (k + 1) * step) for k, w in enumerate(words)]
+
+    out = vj.with_subtitles([], subs, [], timer=timer)
+    first = [w for w in out if w["text"] in ("bitch", "slow", "yo'", "ass", "down")]
+    second_start = min(w["start"] for w in out if w["text"] == "come")
+    assert max(w["end"] for w in first) <= second_start
+
+
+def test_a_background_line_claude_flags_is_not_captioned():
+    # owner's rule: a faint NPC with nothing to do with the scene gets no caption at all
+    said = _words((32.3, 33.0, "So"), (33.0, 33.6, "Rox"), (33.6, 34.4, "wanna"), (34.4, 35.2, "quit"))
+    subs = [(32.3, 35.3, ["so", "rox", "wanna", "quit", "again", "huh"])]
+    answer = {"lines": [{"first": 0, "last": 3, "speaker": "background", "text": ""}],
+              "subtitles": [{"id": 0, "speaker": "background", "text": ""}]}
+    fallback = [{**w, "role": "streamer"} for w in said]
+    labelled = vj.apply_verdict(said, answer, fallback, subtitled=set(range(4)))
+    out = vj.with_subtitles(labelled, subs, answer["subtitles"])
+    assert out == []
