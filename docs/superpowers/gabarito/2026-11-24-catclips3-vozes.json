@@ -1,0 +1,314 @@
+{
+ "boate": {
+  "src": "9fee01a4-5500-49b9-ac2e-f2c8f9474e9a.mp4",
+  "linhas": [
+   [
+    0.5,
+    3.6,
+    "…I don't see you. Come out to the parking lot, I'm with D",
+    "fone",
+    true
+   ],
+   [
+    4.5,
+    5.9,
+    "No, no",
+    "xqc",
+    true
+   ],
+   [
+    7.2,
+    9.1,
+    "That'll make us headliners",
+    "npc",
+    true
+   ],
+   [
+    9.8,
+    12.8,
+    "Right, tell her Dre, we can go on after, right?",
+    "npc",
+    true
+   ],
+   [
+    13.4,
+    17.8,
+    "So, nah, but the way the club is set up is…",
+    "npc",
+    true
+   ],
+   [
+    17.9,
+    20.1,
+    "I'm done, I'm straight off this music shit",
+    "npc",
+    true
+   ],
+   [
+    20.4,
+    21.6,
+    "Fuck you",
+    "xqc",
+    true
+   ],
+   [
+    22.1,
+    23.5,
+    "Bitch, slow yo' ass down",
+    "npc",
+    true
+   ],
+   [
+    23.8,
+    25.5,
+    "Come on, let's get in the car and go get her",
+    "npc",
+    true
+   ],
+   [
+    26.5,
+    27.9,
+    "Girl, you drivin'. Let's go",
+    "npc",
+    true
+   ],
+   [
+    28.5,
+    31.2,
+    "Don't nobody know where she going, so just catch up with her",
+    "npc",
+    true
+   ],
+   [
+    32.1,
+    35.5,
+    "So Rox wanna quit again, huh? I can't afford to lose no investment",
+    "npc",
+    true
+   ],
+   [
+    35.5,
+    36.5,
+    "Get in, Bae Luxe's (música da boate)",
+    "lixo",
+    true
+   ],
+   [
+    40.9,
+    42.0,
+    "Hey, what happened?",
+    "fone",
+    true
+   ],
+   [
+    41.8,
+    42.6,
+    "Girl, you try…",
+    "npc",
+    false
+   ],
+   [
+    41.9,
+    44.2,
+    "I dunno, I think I lost her",
+    "lucia",
+    true
+   ],
+   [
+    43.5,
+    45.2,
+    "Oh my god. Oh my god.",
+    "xqc",
+    true
+   ],
+   [
+    44.2,
+    48.6,
+    "Don't worry, c'mon back to the car. We'll figure out what these guys wanna do next",
+    "fone",
+    true
+   ],
+   [
+    45.2,
+    48.5,
+    "Hang up the phone, you bum, we don't care",
+    "xqc",
+    true
+   ],
+   [
+    55.1,
+    56.3,
+    "Yeah",
+    "npc",
+    true
+   ],
+   [
+    4.8,
+    7.4,
+    "We can find out what's going on, maybe we can go on after",
+    "npc",
+    true
+   ],
+   [
+    0.0,
+    0.7,
+    "Jay—",
+    "lucia",
+    true
+   ],
+   [
+    42.5,
+    43.5,
+    "…hang up!",
+    "xqc",
+    true
+   ]
+  ],
+  "titulo": "XQC refuses to leave the club in GTA 6"
+ },
+ "roubo-carro": {
+  "src": "87f68f82-c849-484e-86c4-a2dc87fc72b2.mp4",
+  "linhas": [
+   [
+    2.0,
+    3.9,
+    "(that next?)",
+    "xqc",
+    true
+   ],
+   [
+    8.7,
+    10.8,
+    "What am I gonna…",
+    "xqc",
+    true
+   ],
+   [
+    12.4,
+    19.2,
+    "…get a car…",
+    "xqc",
+    true
+   ],
+   [
+    20.5,
+    23.3,
+    "Whoa, y'all fucking touch me!",
+    "npc",
+    true
+   ],
+   [
+    24.7,
+    26.0,
+    "He's ashamed!",
+    "npc",
+    true
+   ],
+   [
+    26.2,
+    30.0,
+    "What the f—, yo bro, I was just… please come back",
+    "xqc",
+    true
+   ],
+   [
+    30.2,
+    31.9,
+    "I'm sure I can drive this.",
+    "xqc",
+    true
+   ],
+   [
+    33.1,
+    39.8,
+    "Oh my! God! God! God!",
+    "xqc",
+    true
+   ],
+   [
+    40.8,
+    42.6,
+    "What the hell?",
+    "npc",
+    true
+   ],
+   [
+    42.7,
+    43.7,
+    "Barry!",
+    "npc",
+    true
+   ],
+   [
+    46.7,
+    48.6,
+    "So, you're saying you ran?",
+    "npc",
+    true
+   ],
+   [
+    48.9,
+    50.1,
+    "Yeah, I ran.",
+    "lucia",
+    true
+   ],
+   [
+    51.3,
+    54.5,
+    "I mean… I don't know, it was like…",
+    "lucia",
+    true
+   ]
+  ],
+  "titulo": "XQC steals a Maibatsu truck in GTA 6"
+ },
+ "npc-xinga": {
+  "src": "ae03741e-7f3c-4c6e-b8b5-87800d8719cc.mp4",
+  "linhas": [
+   [
+    0.0,
+    3.3,
+    "What the f—! Yo, bro…",
+    "xqc",
+    true
+   ],
+   [
+    4.4,
+    7.2,
+    "Don't mess… enjoy that, enjoy that, you moron.",
+    "xqc",
+    true
+   ],
+   [
+    7.2,
+    9.2,
+    "…this guy… fucking pussy",
+    "xqc",
+    true
+   ],
+   [
+    11.4,
+    12.7,
+    "Okay, oh",
+    "xqc",
+    true
+   ],
+   [
+    15.2,
+    16.5,
+    "I'm a f—er,",
+    "xqc",
+    true
+   ],
+   [
+    16.5,
+    17.7,
+    "…swing first, bitch ass",
+    "xqc",
+    true
+   ]
+  ],
+  "titulo": "XQC gets called a f****** P**** right after he said so to an NPC in GTA 6"
+ }
+}
