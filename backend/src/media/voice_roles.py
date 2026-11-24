@@ -449,7 +449,13 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         calls = _calls(clip, words)
         try:
             motion_at = (lambda ts: mouth_motion(clip, face, ts)) if face is not None else None
-            return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls)
+            speak_at = None
+            if face is not None:
+                from .asd import speaking_scores
+
+                speak_at = lambda spans: speaking_scores(clip, face, spans)  # noqa: E731
+            return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls,
+                         speak_at=speak_at)
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
             # still: every GTA subtitle is a game line, and a game line in a call is the phone

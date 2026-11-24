@@ -314,3 +314,15 @@ def test_ocr_noise_is_not_a_subtitle():
     lines = [(4.0, 4.0, ["2", "s", "t"]), (8.33, 8.33, ["rrkrkkkk", "rrr"]), (9.0, 9.67, ["rerkkkk", "rrr"]),
              (10.0, 12.0, ["get", "in", "the", "car"])]
     assert vr.readable(lines) == [(10.0, 12.0, ["get", "in", "the", "car"])]
+
+
+def test_v3_the_cam_sync_reaches_the_judge(monkeypatch):
+    monkeypatch.setattr(vr, "subtitle_tokens", lambda clip, times: [[] for _ in times])
+    monkeypatch.setattr(vr, "_audio", lambda clip: np.zeros(16000 * 4, dtype=np.float32))
+    monkeypatch.setattr(vr, "mouth_motion", lambda clip, face, ts: [1.0 for _ in ts])
+    monkeypatch.setattr("src.media.asd.speaking_scores", lambda clip, face, spans: [0.1 for _ in spans])
+    monkeypatch.setattr("src.claude_cli.run_cli_images", lambda *a, **k: {
+        "lines": [{"first": 0, "last": 1, "speaker": "streamer", "text": ""}]})
+    out = vr.label_words("clip.mp4", [word(0.2, 0.5, "Hey,"), word(0.5, 0.8, "Lucia")], 1920, 1080,
+                         face=(0, 0, 50, 50), keep_game_lines=True)
+    assert [w["role"] for w in out] == ["game", "game"]  # cam 0.1: not the streamer, whatever Claude said

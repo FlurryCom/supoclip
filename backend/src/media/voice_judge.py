@@ -65,6 +65,10 @@ Each stretch of speech below comes with what was measured while it was said:
   more than usual, which points to the streamer talking; "no cam" when there's no webcam)
 - GTA subtitle: the line the game wrote on screen at that time, read by OCR (may have OCR noise);
   game dialogue that matches it is the game's. The streamer can talk over a subtitle.
+- cam: how surely the webcam face (the streamer) is the one talking, 0 to 1. Near 0: the voice is
+  someone else's. Near 1: the streamer's mouth moves with the audio; he often talks OVER the game,
+  so a high cam with words that live inside the game's scene (answering characters, addressing one
+  by name) can still be a game line.
 - voice: a voice-print letter; stretches with the same letter sound like the same person (it can be
   wrong on short stretches or when two people talk at once; "?" when too short to tell)
 - call: while GTA's phone-call card is on screen, who is on the line with the protagonist. Then the
@@ -189,6 +193,8 @@ def prompt(words: list[dict[str, Any]], groups: list[list[int]], facts: list[dic
         start, end = float(words[group[0]]["start"]), float(words[group[-1]]["end"])
         call = f" | call: {fact['call']}" if fact.get("call") else ""
         voice = f" | voice {fact['voice']}" if fact.get("voice") else ""
+        if fact.get("cam") is not None:
+            voice = f" | cam {fact['cam']:.2f}{voice}"
         blocks.append(f"[{start:.1f}-{end:.1f}s] loud {loud} | mouth {mouth}{voice} | GTA subtitle: {subtitle}{call}\n  {said}")
     return (PROMPT.replace("{last}", str(len(words) - 1)).replace("{stretches}", "\n".join(blocks))
             .replace("{subtitles}", subtitles))
@@ -206,10 +212,12 @@ GAME_VOICES = ("protagonist", "npc", "phone")
 
 
 def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback: list[dict[str, Any]],
-                  subtitled: set[int], calls: Sequence[tuple[float, float, str]] = ()) -> list[dict[str, Any]]:
+                  subtitled: set[int], calls: Sequence[tuple[float, float, str]] = (),
+                  low: frozenset[int] | set[int] = frozenset()) -> list[dict[str, Any]]:
     """Caption words with Claude's roles; a word Claude left out keeps its ``fallback`` role.
 
     A game word also gets its ``voice`` (protagonist, npc or phone; a phone line its ``caller``).
+    ``low``: word indexes whose cam sync says the streamer is NOT talking; they can't be his.
     A game line's ``text`` replaces its words, spread over the same time, only where a GTA
     subtitle was on screen (``subtitled`` word indexes): Claude must not rewrite anything else.
     """
@@ -239,6 +247,9 @@ def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback:
                 rewrite[first] = (last, text)
         roles[first:last + 1] = [speaker] * (last - first + 1)
         voices[first:last + 1] = [voice] * (last - first + 1)
+    for i in low:
+        if roles[i] == "streamer":
+            roles[i] = "game"
 
     def tagged(word: dict[str, Any], k: int) -> dict[str, Any]:
         out = {**word, "role": roles[k]}
@@ -275,12 +286,54 @@ def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback:
     return out
 
 
+LOW_CAM = 0.30  # at or under this, the webcam face is not the one talking
+
+
+def _roles_of(words: list[dict[str, Any]], answer: dict[str, Any]):
+    roles: list[Optional[str]] = [None] * len(words)
+    voices: list[Optional[str]] = [None] * len(words)
+    for line in answer.get("lines") or []:
+        try:
+            first, last, speaker = int(line["first"]), int(line["last"]), line["speaker"]
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not 0 <= first <= last < len(words) or speaker not in ("streamer", "game", *GAME_VOICES):
+            continue
+        role = "streamer" if speaker == "streamer" else "game"
+        voice = speaker if speaker in GAME_VOICES else None
+        roles[first:last + 1] = [role] * (last - first + 1)
+        voices[first:last + 1] = [voice] * (last - first + 1)
+    return roles, voices
+
+
+def merge_answers(words: list[dict[str, Any]], first: dict[str, Any], second: dict[str, Any]) -> dict[str, Any]:
+    """What the two passes agree on: Claude is nondeterministic, and only its stable calls count.
+
+    Lines of the first answer survive where the second gives every word the same role (and the same
+    game voice, when both name one); a subtitle verdict survives when both passes name the same
+    speaker. Words left uncovered keep the fallback role in ``apply_verdict``.
+    """
+    r1, v1 = _roles_of(words, first)
+    r2, v2 = _roles_of(words, second)
+    disputed = {i for i in range(len(words))
+                if r1[i] != r2[i] or (r1[i] == "game" and None not in (v1[i], v2[i]) and v1[i] != v2[i])}
+    lines = [line for line in first.get("lines") or []
+             if isinstance(line, dict) and isinstance(line.get("first"), int) and isinstance(line.get("last"), int)
+             and not any(i in disputed for i in range(max(0, line["first"]), min(len(words), line["last"] + 1)))]
+    second_speaker = {v.get("id"): v.get("speaker") for v in second.get("subtitles") or [] if isinstance(v, dict)}
+    subtitles = [v for v in first.get("subtitles") or []
+                 if isinstance(v, dict) and second_speaker.get(v.get("id")) == v.get("speaker")]
+    return {"lines": lines, "subtitles": subtitles}
+
+
 def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
           motion_at: Optional[Callable[[list[float]], list[float]]],
           lines: list[tuple[float, float, list[str]]], fallback: list[dict[str, Any]],
           run: Optional[Callable[..., dict]] = None,
-          calls: Sequence[tuple[float, float, str]] = ()) -> list[dict[str, Any]]:
-    """Claude's roles for ``words``; raises when Claude can't answer (the caller keeps ``fallback``)."""
+          calls: Sequence[tuple[float, float, str]] = (),
+          speak_at: Optional[Callable[[list[tuple[float, float]]], Optional[list[float]]]] = None) -> list[dict[str, Any]]:
+    """Claude's roles for ``words``, twice-agreed; raises when Claude can't answer (the caller keeps
+    ``fallback``)."""
     if run is None:
         from ..claude_cli import run_cli_images
         run = run_cli_images
@@ -289,15 +342,27 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     motion = list(motion_at(middles)) if motion_at is not None else None
     facts = evidence(words, groups, audio, rate, motion, lines, calls)
     spans = [(float(words[g[0]]["start"]), float(words[g[-1]]["end"])) for g in groups]
+    speaking = speak_at(spans) if speak_at is not None else None
+    low: set[int] = set()
+    if speaking is not None:
+        for group, score in zip(groups, speaking):
+            if score is not None:
+                facts[groups.index(group)]["cam"] = score
+        low = {i for group, score in zip(groups, speaking) if score is not None and score <= LOW_CAM
+               for i in group}
     letters = voice_letters(audio, rate, spans + [(a, b + 1 / 3) for a, b, _ in lines])
     for fact, letter in zip(facts, letters):
         fact["voice"] = letter
     median = _median_db(audio, rate, spans)
     louds = [_loud(audio, rate, a, b + 1 / 3, median) for a, b, _ in lines]
     subtitled = {i for group, fact in zip(groups, facts) if fact["subtitle"] for i in group}
-    answer = run(prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls)),
-                 [], SCHEMA, model=MODEL, timeout=TIMEOUT)
-    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls), lines,
+    ask = prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls))
+    answer = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
+    try:
+        answer = merge_answers(words, answer, run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT))
+    except Exception as exc:
+        logger.warning("Second judge pass failed (%s); using the first alone", exc)
+    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls, low), lines,
                          answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
                 sum(w["role"] == "streamer" for w in out),

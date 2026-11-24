@@ -198,3 +198,37 @@ def test_a_heard_subtitle_keeps_the_transcript_s_times():
     out = vj.with_subtitles([{**w, "role": "game"} for w in said], subs, [],
                             timer=lambda text, a, b: [(t, 99.0, 99.5) for t in text.split()])
     assert out[0]["start"] == 10.0 and out[-1]["end"] == 12.0  # the timer is for unheard lines only
+
+
+def test_a_low_cam_sync_flips_a_streamer_verdict_to_the_game():
+    # the webcam face is clearly NOT talking (cam sync 0.1): the words can't be the streamer's
+    answer = {"lines": [{"first": 0, "last": 9, "speaker": "streamer", "text": ""}]}
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(), low=set(range(7)))
+    assert [w["role"] for w in out] == ["game"] * 7 + ["streamer"] * 3
+
+
+def test_claude_runs_twice_and_disagreement_keeps_the_fallback():
+    answers = iter([
+        {"lines": [{"first": 0, "last": 6, "speaker": "npc", "text": ""},
+                   {"first": 7, "last": 9, "speaker": "npc", "text": ""}]},
+        {"lines": [{"first": 0, "last": 6, "speaker": "npc", "text": ""},
+                   {"first": 7, "last": 9, "speaker": "streamer", "text": ""}]},
+    ])
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.judge(SAID, None, 16000, None, [], fallback, run=lambda *a, **k: next(answers))
+    assert [w["role"] for w in out[:7]] == ["game"] * 7  # both passes agreed
+    assert [w["role"] for w in out[7:]] == ["streamer"] * 3  # disputed: the fallback stands
+
+
+def test_the_prompt_tells_claude_how_surely_the_cam_face_talks():
+    asked = {}
+
+    def run(text, images, schema, model, timeout):
+        asked.setdefault("text", text)
+        return {"lines": [{"first": 0, "last": 9, "speaker": "streamer", "text": ""}]}
+
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    vj.judge(SAID, None, 16000, None, [], fallback, run=run,
+             speak_at=lambda spans: [0.95 for _ in spans])
+    assert "cam 0.95" in asked["text"]
