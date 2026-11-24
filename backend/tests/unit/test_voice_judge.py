@@ -286,3 +286,13 @@ def test_a_background_line_claude_flags_is_not_captioned():
     labelled = vj.apply_verdict(said, answer, fallback, subtitled=set(range(4)))
     out = vj.with_subtitles(labelled, subs, answer["subtitles"])
     assert out == []
+
+
+def test_a_high_cam_sync_makes_the_words_the_streamer_s():
+    # measured on the gabarito: cam >= 0.7 never happened on a real NPC line; Claude's text hunch loses
+    answer = {"lines": [{"first": 0, "last": 6, "speaker": "npc", "text": ""},
+                        {"first": 7, "last": 9, "speaker": "npc", "text": ""}]}
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(range(7)), high=set(range(10)))
+    assert [w["role"] for w in out[:7]] == ["game"] * 7  # a GTA subtitle is harder proof: stays game
+    assert [w["role"] for w in out[7:]] == ["streamer"] * 3  # no subtitle: the cam wins

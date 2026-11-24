@@ -233,7 +233,8 @@ GAME_VOICES = ("protagonist", "npc", "phone", "background")
 
 def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback: list[dict[str, Any]],
                   subtitled: set[int], calls: Sequence[tuple[float, float, str]] = (),
-                  low: frozenset[int] | set[int] = frozenset()) -> list[dict[str, Any]]:
+                  low: frozenset[int] | set[int] = frozenset(),
+                  high: frozenset[int] | set[int] = frozenset()) -> list[dict[str, Any]]:
     """Caption words with Claude's roles; a word Claude left out keeps its ``fallback`` role.
 
     A game word also gets its ``voice`` (protagonist, npc or phone; a phone line its ``caller``).
@@ -270,6 +271,10 @@ def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback:
     for i in low:
         if roles[i] == "streamer":
             roles[i] = "game"
+    for i in high:
+        if roles[i] == "game" and i not in subtitled:  # the game's own subtitle is harder proof
+            roles[i] = "streamer"
+            voices[i] = None
 
     def tagged(word: dict[str, Any], k: int) -> dict[str, Any]:
         out = {**word, "role": roles[k]}
@@ -307,6 +312,8 @@ def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback:
 
 
 LOW_CAM = 0.30  # at or under this, the webcam face is not the one talking
+HIGH_CAM = 0.70  # at or over this, the words are the streamer's: on the owner's gabarito no real game
+# line ever scored this high (windowed scoring), while the streamer's taunts that READ like NPC barks do
 
 
 def _roles_of(words: list[dict[str, Any]], answer: dict[str, Any]):
@@ -368,13 +375,16 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     motion = list(motion_at(middles)) if motion_at is not None else None
     facts = evidence(words, groups, audio, rate, motion, lines, calls)
     spans = [(float(words[g[0]]["start"]), float(words[g[-1]]["end"])) for g in groups]
-    # Measured on the owner's clips: the cam score ranks loosely (very low ≈ not the streamer) but
-    # overlaps too much for a hard rule, so it is one more fact for Claude, nothing else.
+    # Measured on the owner's gabarito: a HIGH cam is proof (his lips move with these words), while a
+    # low one is only a hint (he scores low whenever he speaks quietly or off-axis).
     speaking = speak_at(spans) if speak_at is not None else None
+    high: set[int] = set()
     if speaking is not None:
         for k, score in enumerate(speaking[:len(facts)]):
             if score is not None:
                 facts[k]["cam"] = score
+        high = {i for group, score in zip(groups, speaking) if score is not None and score >= HIGH_CAM
+                for i in group}
     letters = voice_letters(audio, rate, spans + [(a, b + 1 / 3) for a, b, _ in lines])
     for fact, letter in zip(facts, letters):
         fact["voice"] = letter
@@ -387,7 +397,7 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
         answer = merge_answers(words, answer, run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT))
     except Exception as exc:
         logger.warning("Second judge pass failed (%s); using the first alone", exc)
-    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls), lines,
+    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls, high=high), lines,
                          answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
                 sum(w["role"] == "streamer" for w in out),
