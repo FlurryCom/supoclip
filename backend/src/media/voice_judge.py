@@ -72,7 +72,8 @@ Each stretch of speech below comes with what was measured while it was said:
 - voice: a voice-print letter; stretches with the same letter sound like the same person (it can be
   wrong on short stretches or when two people talk at once; "?" when too short to tell)
 - call: while GTA's phone-call card is on screen, who is on the line with the protagonist. Then the
-  game's dialogue is either the protagonist talking into the phone or the caller's voice on it.
+  game's dialogue is either the protagonist talking into the phone or the caller's voice on it: the
+  voice of the character ON SCREEN holding the phone is the protagonist, never "npc".
 
 Loudness helps tell people apart too: the streamer's microphone is usually several dB above the game's
 dialogue; a character nearer the camera is louder than one further away; a caller on the phone stays at

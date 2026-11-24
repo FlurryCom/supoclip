@@ -300,6 +300,12 @@ def objective_text_on(frame: np.ndarray) -> bool:
     return int(colored.sum()) > 0.15 * max(int(white[rows].sum()), 1)
 
 
+def objective_times(path: Path, times: list[float]) -> list[bool]:
+    """Whether each sampled frame shows objective/overlay text (a coloured key word)."""
+    seen = {index: objective_text_on(frame) for index, frame in _frames(path, times)}
+    return [seen.get(index, False) for index in _index(path, times)]
+
+
 SUBTITLE_HZ = 3  # GTA keeps a subtitle up for a second or more
 
 
@@ -464,6 +470,15 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         try:
             times = _subtitle_times(words)
             lines = readable(subtitle_lines(times, subtitle_tokens(clip, times)))
+            try:
+                # tesseract/colour flicker lets an objective through on single frames: one flagged
+                # frame inside a line's window poisons the whole line
+                flags = objective_times(clip, times)
+                poisoned = [t for t, flag in zip(times, flags) if flag]
+                lines = [(a, b, line) for a, b, line in lines
+                         if not any(a - 0.35 <= t <= b + 0.35 for t in poisoned)]
+            except Exception as exc:
+                logger.warning("Objective check failed (%s); keeping every line", exc)
             fallback = label_by_subtitles(clip, words, lines)
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
