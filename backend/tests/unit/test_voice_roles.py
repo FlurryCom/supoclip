@@ -354,6 +354,17 @@ def test_a_censored_chat_overlay_is_not_a_gta_subtitle(monkeypatch):
     assert vr.subtitle_text(np.zeros((1080, 1920, 3), np.uint8)) == ""
 
 
+def test_a_censored_chat_overlay_is_not_a_gta_subtitle(monkeypatch):
+    import subprocess as sp
+
+    class R:
+        stdout = b"Hi ************* Swing"
+    monkeypatch.setattr(vr, "plain_subtitle_on", lambda frame: True)
+    monkeypatch.setattr(vr, "objective_text_on", lambda frame: False)
+    monkeypatch.setattr(sp, "run", lambda *a, **k: R())
+    assert vr.subtitle_text(np.zeros((1080, 1920, 3), np.uint8)) == ""
+
+
 def test_one_objective_frame_poisons_the_whole_line(monkeypatch):
     _fake_subtitles(monkeypatch, [(35.4, 36.6, "Get in Bae-Luxe's car")])
     monkeypatch.setattr(vr, "objective_times", lambda clip, times: [abs(t - 36.1) < 0.2 for t in times])

@@ -470,15 +470,8 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         try:
             times = _subtitle_times(words)
             lines = readable(subtitle_lines(times, subtitle_tokens(clip, times)))
-            try:
-                # tesseract/colour flicker lets an objective through on single frames: one flagged
-                # frame inside a line's window poisons the whole line
-                flags = objective_times(clip, times)
-                poisoned = [t for t, flag in zip(times, flags) if flag]
-                lines = [(a, b, line) for a, b, line in lines
-                         if not any(a - 0.35 <= t <= b + 0.35 for t in poisoned)]
-            except Exception as exc:
-                logger.warning("Objective check failed (%s); keeping every line", exc)
+            # the coloured-word check runs per frame inside subtitle_text; a line-level poison was
+            # tried and reverted: the colour detector flickers with club lighting and killed real lines
             fallback = label_by_subtitles(clip, words, lines)
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)

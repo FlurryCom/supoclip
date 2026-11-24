@@ -113,7 +113,8 @@ line (fix the OCR noise, drop the part of the subtitle not said in this line); o
 Then, under subtitles, one entry per GTA subtitle listed at the end (id = its S number), even when the
 transcript missed it (Whisper drops game lines the streamer talks over): who says it (protagonist, npc
 with its number, phone, "music" when it is a song's lyrics (GTA subtitles those too, in a club or
-on the radio), or "background" for faint chatter unrelated to the scene — music and background
+on the radio), or "background" for faint chatter unrelated to the scene, which also covers a mission OBJECTIVE the game wrote on
+screen (an imperative instruction like "Get in X's car", not something a voice says) — music and background
 lines are not captioned — and its words with the OCR noise fixed.
 
 {stretches}{subtitles}"""
