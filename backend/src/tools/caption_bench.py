@@ -82,21 +82,31 @@ def main() -> None:
     from src.media.voice_roles import label_words
 
     gabarito = json.loads(Path(sys.argv[1]).read_text())
-    totals = {"right": 0, "wrong": 0}
+    cache = Path("/tmp/bench_labels.json")
+    labels = json.loads(cache.read_text()) if "--reuse" in sys.argv and cache.exists() else {}
+    totals = {"right": 0, "wrong": 0, "sure_right": 0, "sure_wrong": 0}
     for clip_name, info in gabarito.items():
         clip = Path("/app/uploads/uploads") / info["src"]
         cache = json.loads(Path(str(clip).replace(".mp4", ".transcript_cache.json")).read_text())
         end = max(b for _a, b, *_ in info["linhas"]) + 2.0
         words = [{"text": w["text"], "start": w["start"] / 1000, "end": w["end"] / 1000}
                  for w in cache["words"] if w["end"] / 1000 <= end]
-        face = plan_catclips3(clip, 1920, 1080, "x")[3]
-        labelled = label_words(clip, words, 1920, 1080, face, keep_game_lines=True,
-                               title=info.get("titulo", ""))
+        if clip_name in labels:
+            labelled = labels[clip_name]
+        else:
+            face = plan_catclips3(clip, 1920, 1080, "x")[3]
+            labelled = label_words(clip, words, 1920, 1080, face, keep_game_lines=True,
+                                   title=info.get("titulo", ""))
+            labels[clip_name] = labelled
         report = grade(labelled, info["linhas"])
+        sure = grade(labelled, [l for l in info["linhas"] if l[4]])
         totals["right"] += report["right"]
         totals["wrong"] += report["wrong"]
+        totals["sure_right"] += sure["right"]
+        totals["sure_wrong"] += sure["wrong"]
         print(f"== {clip_name}: {report['accuracy'] * 100:.0f}% "
-              f"({report['right']}/{report['right'] + report['wrong']} palavras)")
+              f"({report['right']}/{report['right'] + report['wrong']} palavras; "
+              f"linhas comprovadas: {sure['accuracy'] * 100:.0f}%)")
         for pair, n in report["confusion"].items():
             print(f"   {pair}: {n}")
         for text in report["missed_lines"]:
@@ -105,8 +115,11 @@ def main() -> None:
             print(f"   adiantada: {text[:60]}")
         if report["stray_words"]:
             print(f"   fora do gabarito: {report['stray_words']} palavras")
+    cache.write_text(json.dumps(labels))
     share = totals["right"] / max(1, totals["right"] + totals["wrong"])
-    print(f"== total: {share * 100:.1f}% ({totals['right']}/{totals['right'] + totals['wrong']})")
+    sure_share = totals["sure_right"] / max(1, totals["sure_right"] + totals["sure_wrong"])
+    print(f"== total: {share * 100:.1f}% ({totals['right']}/{totals['right'] + totals['wrong']}) | "
+          f"comprovadas: {sure_share * 100:.1f}% ({totals['sure_right']}/{totals['sure_right'] + totals['sure_wrong']})")
 
 
 if __name__ == "__main__":
