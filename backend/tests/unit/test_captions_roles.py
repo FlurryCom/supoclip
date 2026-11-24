@@ -126,3 +126,18 @@ def test_v3_a_phone_line_is_green_with_the_caller_s_name(tmp_path):
     words = [line for line in lines if line.startswith("Dialogue: 1,") and line.endswith(("}WHERE", "}ARE"))]
     assert "\\p1" in label and "\\c&H005FDC3D&" in label and all("\\c&H005FDC3D&" in line for line in words)
     assert _at(label)[1] < min(_at(line)[1] for line in words)  # the label over the line
+
+
+def test_v3_two_npcs_and_the_streamer_talking_over_a_line_each_get_their_own_caption(tmp_path):
+    a, b = [(15.0, 20.0, 300, 1200, 300, 1200)], [(20.0, 22.0, 800, 1200, 800, 1200)]
+    words = [{**w("done", 15.0, 17.0, "game"), "voice": "npc", "npc": 1, "npc_path": a},
+             {**w("shit", 17.0, 20.0, "game"), "voice": "npc", "npc": 1, "npc_path": a},
+             w("collection", 15.5, 16.0, "streamer"),  # xQc, said while the NPC's line shows
+             {**w("slow", 20.0, 21.0, "game"), "voice": "npc", "npc": 2, "npc_path": b},
+             {**w("down", 21.0, 22.0, "game"), "voice": "npc", "npc": 2, "npc_path": b}]
+    lines = [line for line in _v3(tmp_path, words) if line.startswith("Dialogue: 1,")]
+    done = next(line for line in lines if line.endswith("}DONE"))
+    slow = next(line for line in lines if line.endswith("}SLOW"))
+    xqc = next(line for line in lines if line.endswith("}COLLECTION"))
+    assert _at(done)[0] < 540 < _at(slow)[0]  # each NPC over its own head
+    assert xqc.startswith("Dialogue: 1,0:00:15.50") and done.startswith("Dialogue: 1,0:00:15.00")

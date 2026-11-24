@@ -244,13 +244,18 @@ def test_v3_npc_words_are_the_ones_written_in_the_games_subtitle(monkeypatch):
     assert [w["role"] for w in out] == ["streamer", "streamer", "game", "game", "game", "game", "game", "streamer"]
 
 
-def test_v3_streamer_talking_over_a_subtitle_stays_the_streamer(monkeypatch):
-    # GTA shows the NPC's line while the streamer yells something else; a lone common word isn't enough
+def test_v3_streamer_talking_over_a_subtitle_stays_the_streamer_and_the_line_shows_too(monkeypatch):
+    # GTA shows the NPC's line while the streamer yells something else (Whisper only heard the streamer):
+    # the streamer's words stay his, and the subtitle still becomes the NPC's line (owner's rule)
     _fake_subtitles(monkeypatch, [(0.0, 3.0, "Get in the car and go get her.")])
     words = [word(0.2, 0.6, "Oh"), word(0.6, 1.0, "my"), word(1.0, 1.5, "god"), word(1.5, 1.8, "the"),
              word(1.8, 2.2, "button")]
     out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
-    assert [w["role"] for w in out] == ["streamer"] * 5
+    streamer = [w["text"] for w in out if w["role"] == "streamer"]
+    game = [w for w in out if w["role"] == "game"]
+    assert streamer == ["Oh", "my", "god", "the", "button"]
+    assert [w["text"] for w in game] == "get in the car and go get her".split() and game[0]["start"] == 0.0
+    assert all(w["voice"] == "npc" for w in game)
 
 
 def test_v3_ocr_trouble_leaves_everything_to_the_streamer(monkeypatch):
@@ -274,7 +279,8 @@ def test_v3_a_word_the_ocr_missed_inside_an_npc_line_stays_npc(monkeypatch):
     words = [word(0.2, 0.5, "see"), word(0.5, 0.8, "you"), word(0.8, 1.1, "come"), word(1.1, 1.4, "into"),
              word(1.4, 1.6, "the"), word(1.6, 2.0, "parking"), word(2.0, 2.3, "lot")]
     out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
-    assert [w["role"] for w in out] == ["game"] * 7
+    assert [w["text"] for w in out] == "i don't see you come out to the parking lot".split()  # the subtitle's words
+    assert all(w["role"] == "game" for w in out) and out[0]["start"] == 0.2 and out[-1]["end"] == 2.3
 
 
 def test_v3_a_misheard_npc_line_is_the_npc_from_end_to_end(monkeypatch):
@@ -283,7 +289,8 @@ def test_v3_a_misheard_npc_line_is_the_npc_from_end_to_end(monkeypatch):
     said = "Right tell the driver we could go after right".split()
     words = [word(0.1 + 0.3 * i, 0.4 + 0.3 * i, text) for i, text in enumerate(said)]
     out = vr.label_words("clip.mp4", words + [word(4.0, 4.5, "bro")], 1920, 1080, keep_game_lines=True)
-    assert [w["role"] for w in out] == ["game"] * len(said) + ["streamer"]
+    assert [w["text"] for w in out] == "right tell her dre we can go on after right".split() + ["bro"]
+    assert [w["role"] for w in out] == ["game"] * 10 + ["streamer"]
 
 
 def test_v3_the_npc_line_takes_its_unmatched_tail_but_not_the_streamer_after_it(monkeypatch):

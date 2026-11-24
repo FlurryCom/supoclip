@@ -432,7 +432,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
             lines, fallback = [], plain
-        from .voice_judge import apply_verdict, judge
+        from .voice_judge import apply_verdict, judge, with_subtitles
 
         calls = _calls(clip, words)
         try:
@@ -440,7 +440,8 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
             return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls)
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
-            return apply_verdict(words, {}, fallback, set(), calls)  # still: a game line in a call is the phone
+            # still: every GTA subtitle is a game line, and a game line in a call is the phone
+            return with_subtitles(apply_verdict(words, {}, fallback, set(), calls), lines, [], calls)
     try:
         segments = speech_segments(words)
         if len(segments) < 2:

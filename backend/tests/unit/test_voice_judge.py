@@ -110,7 +110,7 @@ def test_claude_hears_who_is_on_the_phone_and_tells_the_voices_apart():
                           {"first": 7, "last": 9, "speaker": "streamer", "text": ""}]}
 
     fallback = [{**w, "role": "streamer"} for w in SAID]
-    out = vj.judge(SAID, None, 16000, None, LINE, fallback, run=run, calls=calls)
+    out = vj.judge(SAID, None, 16000, None, [], fallback, run=run, calls=calls)  # no subtitle: Claude's split
     assert "call: Jason" in asked["text"] and "protagonist" in asked["text"]
     assert [w.get("voice") for w in out] == ["phone"] * 4 + ["protagonist"] * 3 + [None] * 3
     assert [w.get("caller") for w in out[:4]] == ["Jason"] * 4 and "caller" not in out[4]
@@ -148,3 +148,31 @@ def test_v3_without_claude_game_lines_in_a_call_still_come_from_the_phone(monkey
                    (1.4, 1.8, "ran?"), (3.0, 3.4, "bro"))
     out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
     assert [w.get("voice") for w in out] == ["phone"] * 5 + [None] and out[0]["caller"] == "Jason"
+
+
+def test_every_gta_subtitle_is_a_game_line_even_one_whisper_never_heard():
+    # xQc yells over Jason's call: Whisper only has him, but GTA wrote both lines of the call
+    said = _words((41.9, 42.4, "Hang"), (42.4, 42.9, "up."), (45.4, 45.8, "you"), (45.8, 46.3, "bum"))
+    subs = [(41.5, 42.5, ["hey", "what", "happened"]), (43.0, 44.5, ["i", "dunno", "i", "think", "i", "lost", "her"])]
+    roles = [{**w, "role": "streamer"} for w in said]
+    verdicts = [{"id": 0, "speaker": "npc", "text": "Hey, what happened?"},
+                {"id": 1, "speaker": "protagonist", "text": "I dunno, I think I lost her."}]
+    out = vj.with_subtitles(roles, subs, verdicts, calls=[(39.5, 48.5, "Jason")])
+    game = [w for w in out if w["role"] == "game"]
+    assert [w["text"] for w in game] == "Hey, what happened? I dunno, I think I lost her.".split()
+    assert [w["voice"] for w in game] == ["phone"] * 3 + ["protagonist"] * 7 and game[0]["caller"] == "Jason"
+    assert [w["text"] for w in out if w["role"] == "streamer"] == ["Hang", "up.", "you", "bum"]
+    assert all(a["start"] <= b["start"] for a, b in zip(out, out[1:]) if a["role"] == b["role"])
+
+
+def test_a_subtitle_heard_mixed_into_the_streamer_s_talk_is_the_npc_s():
+    # "My collection then I get up is all my music shit": the NPC's "...this music shit" under xQc's talk
+    said = _words((15.0, 15.5, "My"), (15.5, 16.0, "collection"), (16.0, 16.5, "then"), (16.5, 17.0, "I"),
+                  (17.0, 17.5, "get"), (17.5, 18.0, "up"), (18.0, 18.5, "is"), (18.5, 19.0, "all"),
+                  (19.0, 19.3, "my"), (19.3, 19.6, "music"), (19.6, 19.9, "shit"))
+    subs = [(16.0, 19.5, "i'm done i'm straight off this music shit".split())]
+    out = vj.with_subtitles([{**w, "role": "streamer"} for w in said], subs, [{"id": 0, "speaker": "npc", "npc": 2,
+                            "text": "I'm done, I'm straight off this music shit."}])
+    game = [w for w in out if w["role"] == "game"]
+    assert " ".join(w["text"] for w in game) == "I'm done, I'm straight off this music shit."
+    assert game[0]["npc"] == 2 and game[-1]["end"] == 19.9

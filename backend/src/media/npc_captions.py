@@ -148,7 +148,7 @@ def annotate_npc_words(words: list[dict[str, Any]], track: Track,
             continue
         j = i
         while j + 1 < len(out) and out[j + 1].get("role") == "game" and not out[j + 1].get("break_before") \
-                and out[j + 1].get("voice") == out[i].get("voice") \
+                and out[j + 1].get("voice") == out[i].get("voice") and out[j + 1].get("npc") == out[i].get("npc") \
                 and float(out[j + 1]["start"]) - float(out[j]["end"]) <= gap:
             j += 1
         start, end = float(out[i]["start"]), float(out[j]["end"])
