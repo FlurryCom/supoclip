@@ -308,3 +308,9 @@ def test_v3_the_line_s_last_words_said_just_after_the_subtitle_went_away_are_sti
             word(51.9, 52.2, "mean..."), word(53.5, 53.8, "dude")]
     out = vr.label_words("clip.mp4", said, 1920, 1080, keep_game_lines=True)
     assert [w["role"] for w in out] == ["game"] * 5 + ["streamer"]
+
+
+def test_ocr_noise_is_not_a_subtitle():
+    lines = [(4.0, 4.0, ["2", "s", "t"]), (8.33, 8.33, ["rrkrkkkk", "rrr"]), (9.0, 9.67, ["rerkkkk", "rrr"]),
+             (10.0, 12.0, ["get", "in", "the", "car"])]
+    assert vr.readable(lines) == [(10.0, 12.0, ["get", "in", "the", "car"])]

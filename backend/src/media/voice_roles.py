@@ -342,6 +342,18 @@ def subtitle_lines(times: list[float], reads: list[list[str]]) -> list[tuple[flo
     return out
 
 
+def readable(lines: list[tuple[float, float, list[str]]]) -> list[tuple[float, float, list[str]]]:
+    """The subtitle lines that are text: GTA holds a line for a second or more, so a read seen on one
+    frame only is OCR noise on headlights or signs ("rrkrkkkk rrr"), and so are lines of non-words."""
+    import re
+
+    def word(token: str) -> bool:
+        return bool(re.search(r"[aeiouy]", token)) and not re.search(r"(.)\1\1", token) and len(token) <= 14
+
+    return [(a, b, line) for a, b, line in lines
+            if b - a >= 0.5 / SUBTITLE_HZ and line and sum(map(word, line)) >= 0.6 * len(line)]
+
+
 def _subtitle_times(words: list[dict[str, Any]]) -> list[float]:
     first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
     return [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
@@ -427,7 +439,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
             return []
         try:
             times = _subtitle_times(words)
-            lines = subtitle_lines(times, subtitle_tokens(clip, times))
+            lines = readable(subtitle_lines(times, subtitle_tokens(clip, times)))
             fallback = label_by_subtitles(clip, words, lines)
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
