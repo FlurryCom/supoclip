@@ -122,3 +122,29 @@ def test_a_phone_voice_without_a_call_card_is_just_a_character():
     fallback = [{**w, "role": "streamer"} for w in SAID]
     out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(), calls=[(0.0, 2.5, "Jason")])
     assert [w.get("voice") for w in out[7:]] == ["npc"] * 3 and "caller" not in out[7]
+
+
+def test_during_a_call_a_game_line_that_isn_t_the_protagonist_comes_from_the_phone():
+    # owner's rule: while the call card is up, the other voice is the caller, whatever Claude guessed
+    answer = {"lines": [{"first": 0, "last": 3, "speaker": "npc", "text": ""},
+                        {"first": 4, "last": 6, "speaker": "protagonist", "text": ""},
+                        {"first": 7, "last": 9, "speaker": "npc", "text": ""}]}
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    out = vj.apply_verdict(SAID, answer, fallback, subtitled=set(), calls=[(0.0, 1.2, "Jason")])
+    assert [w.get("voice") for w in out] == ["phone"] * 4 + ["protagonist"] * 3 + ["npc"] * 3
+    assert out[0]["caller"] == "Jason"
+
+
+def test_v3_without_claude_game_lines_in_a_call_still_come_from_the_phone(monkeypatch):
+    monkeypatch.setattr(vr, "subtitle_tokens", lambda clip, times: [
+        vr._token_list("So, you're saying you ran?") if 0 <= t <= 2 else [] for t in times])
+    monkeypatch.setattr(vr, "_audio", lambda clip: np.zeros(16000 * 4, dtype=np.float32))
+    monkeypatch.setattr(vr, "_calls", lambda clip, words: [(0.0, 2.0, "Jason")])
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("claude CLI timed out")
+    monkeypatch.setattr("src.claude_cli.run_cli_images", broken)
+    words = _words((0.2, 0.5, "So,"), (0.5, 0.8, "you're"), (0.8, 1.2, "saying"), (1.2, 1.4, "you"),
+                   (1.4, 1.8, "ran?"), (3.0, 3.4, "bro"))
+    out = vr.label_words("clip.mp4", words, 1920, 1080, keep_game_lines=True)
+    assert [w.get("voice") for w in out] == ["phone"] * 5 + [None] and out[0]["caller"] == "Jason"

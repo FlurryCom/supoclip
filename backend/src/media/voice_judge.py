@@ -174,10 +174,14 @@ def apply_verdict(words: list[dict[str, Any]], answer: dict[str, Any], fallback:
         out = {**word, "role": roles[k]}
         out.pop("voice", None)
         out.pop("caller", None)
-        if roles[k] == "game" and voices[k]:
-            out["voice"] = voices[k]
-            if voices[k] == "phone":
-                out["caller"] = _caller_at(calls, float(word["start"]), float(word["end"]))
+        voice = voices[k]
+        on_call = _caller_at(calls, float(word["start"]), float(word["end"]))
+        if roles[k] == "game" and on_call and voice != "protagonist":
+            voice = "phone"  # owner's rule: during a call the other voice is the caller's
+        if roles[k] == "game" and voice:
+            out["voice"] = voice
+            if voice == "phone":
+                out["caller"] = on_call
         return out
 
     out: list[dict[str, Any]] = []

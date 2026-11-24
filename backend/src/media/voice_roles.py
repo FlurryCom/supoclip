@@ -432,14 +432,15 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         except Exception as exc:
             logger.warning("Reading the game's subtitles failed (%s); every line is the streamer's", exc)
             lines, fallback = [], plain
-        try:
-            from .voice_judge import judge
+        from .voice_judge import apply_verdict, judge
 
+        calls = _calls(clip, words)
+        try:
             motion_at = (lambda ts: mouth_motion(clip, face, ts)) if face is not None else None
-            return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=_calls(clip, words))
+            return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls)
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
-            return fallback
+            return apply_verdict(words, {}, fallback, set(), calls)  # still: a game line in a call is the phone
     try:
         segments = speech_segments(words)
         if len(segments) < 2:
