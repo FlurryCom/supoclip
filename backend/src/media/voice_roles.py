@@ -424,7 +424,7 @@ def _calls(clip: Path, words: list[dict[str, Any]]) -> list[tuple[float, float, 
 
 def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int,
                 face: Optional[tuple[float, float, float, float]] = None,
-                keep_game_lines: bool = False) -> list[dict[str, Any]]:
+                keep_game_lines: bool = False, title: str = "") -> list[dict[str, Any]]:
     """Caption words with a ``role``; unsure voices and game lines already subtitled on screen removed.
 
     ``keep_game_lines`` (Cat Clips 3.0): no line is removed; Claude judges each line (``voice_judge``),
@@ -455,7 +455,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
 
                 speak_at = lambda spans: speaking_scores(clip, face, spans)  # noqa: E731
             return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls,
-                         speak_at=speak_at)
+                         speak_at=speak_at, title=title)
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
             # still: every GTA subtitle is a game line, and a game line in a call is the phone

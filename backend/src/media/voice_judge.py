@@ -88,7 +88,9 @@ that subtitle's speaker (the subtitle's own words will replace them). speaker is
 - "streamer": the streamer
 - "protagonist": the character the streamer plays (in GTA 6 usually Lucia, or Jason)
 - "phone": the caller's voice during a call
-- "npc": any other character in the game
+- "npc": any other character in the game. The protagonist is who the camera follows and who answers
+  for the player: in a scripted dialogue, the voice answering questions put to the player's character
+  is usually the protagonist, and their lines share one voice-print letter across the clip.
 npc: for an "npc" line, which character: 1, 2, 3... the same number for the same character all clip long.
 text: for a game line whose words the GTA subtitle shows, the subtitle's words for exactly that
 line (fix the OCR noise, drop the part of the subtitle not said in this line); otherwise "".
@@ -183,8 +185,10 @@ def subtitle_block(lines: list[tuple[float, float, list[str]]], letters: list[st
 
 
 def prompt(words: list[dict[str, Any]], groups: list[list[int]], facts: list[dict[str, Any]],
-           subtitles: str = "") -> str:
+           subtitles: str = "", title: str = "") -> str:
     blocks = []
+    if title:
+        blocks.append(f"The clip's editor titled this moment: {title!r} — it says what happens in the scene.")
     for group, fact in zip(groups, facts):
         said = " ".join(f"{i}:{str(words[i]['text']).strip()}" for i in group)
         loud = "?" if fact["loud"] is None else f"{fact['loud']:+.1f} dB"
@@ -331,7 +335,8 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
           lines: list[tuple[float, float, list[str]]], fallback: list[dict[str, Any]],
           run: Optional[Callable[..., dict]] = None,
           calls: Sequence[tuple[float, float, str]] = (),
-          speak_at: Optional[Callable[[list[tuple[float, float]]], Optional[list[float]]]] = None) -> list[dict[str, Any]]:
+          speak_at: Optional[Callable[[list[tuple[float, float]]], Optional[list[float]]]] = None,
+          title: str = "") -> list[dict[str, Any]]:
     """Claude's roles for ``words``, twice-agreed; raises when Claude can't answer (the caller keeps
     ``fallback``)."""
     if run is None:
@@ -342,27 +347,26 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     motion = list(motion_at(middles)) if motion_at is not None else None
     facts = evidence(words, groups, audio, rate, motion, lines, calls)
     spans = [(float(words[g[0]]["start"]), float(words[g[-1]]["end"])) for g in groups]
+    # Measured on the owner's clips: the cam score ranks loosely (very low ≈ not the streamer) but
+    # overlaps too much for a hard rule, so it is one more fact for Claude, nothing else.
     speaking = speak_at(spans) if speak_at is not None else None
-    low: set[int] = set()
     if speaking is not None:
-        for group, score in zip(groups, speaking):
+        for k, score in enumerate(speaking[:len(facts)]):
             if score is not None:
-                facts[groups.index(group)]["cam"] = score
-        low = {i for group, score in zip(groups, speaking) if score is not None and score <= LOW_CAM
-               for i in group}
+                facts[k]["cam"] = score
     letters = voice_letters(audio, rate, spans + [(a, b + 1 / 3) for a, b, _ in lines])
     for fact, letter in zip(facts, letters):
         fact["voice"] = letter
     median = _median_db(audio, rate, spans)
     louds = [_loud(audio, rate, a, b + 1 / 3, median) for a, b, _ in lines]
     subtitled = {i for group, fact in zip(groups, facts) if fact["subtitle"] for i in group}
-    ask = prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls))
+    ask = prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls), title)
     answer = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
     try:
         answer = merge_answers(words, answer, run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT))
     except Exception as exc:
         logger.warning("Second judge pass failed (%s); using the first alone", exc)
-    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls, low), lines,
+    out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls), lines,
                          answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
                 sum(w["role"] == "streamer" for w in out),
@@ -428,9 +432,11 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
             matched.setdefault(i, set()).add(k)
     for i, ks in matched.items():  # words that match a line are that line's (the nearest, if several)
         owner[i] = min(ks, key=lambda k: gap(i, k))
-    for k, window in enumerate(windows):  # other game words go to the nearest line
+    line_tokens = [set(line) for _a, _b, line in lines]
+    for k, window in enumerate(windows):  # a game word sharing a word with the line joins it too
         for i in window:
-            if words[i]["role"] == "game" and i not in matched and (i not in owner or gap(i, k) < gap(i, owner[i])):
+            if words[i]["role"] == "game" and i not in matched and tokens[i] in line_tokens[k] \
+                    and (i not in owner or gap(i, k) < gap(i, owner[i])):
                 owner[i] = k
     blocks: list[tuple[float, int, list[dict[str, Any]]]] = []
     for k, (a, b, line) in enumerate(lines):

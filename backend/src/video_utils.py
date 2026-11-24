@@ -1,6 +1,7 @@
 """Video utils helpers for the video pipeline."""
 
 from .clip_source_map import save_clip_broll, save_clip_caption_settings, save_clip_vertical_layout
+from .caption_templates import CAPTION_MAX_Y
 from .media.common import (
     Any,
     Dict,
@@ -484,6 +485,9 @@ def create_optimized_clip(
                 except Exception as exc:
                     logger.warning("Vertical layout planning failed: %s", exc)
                     caption_y = None
+            if caption_y is not None:
+                # The Shorts/Reels UI covers the bottom ~40%: no layout may put captions lower.
+                caption_y = min(caption_y, CAPTION_MAX_Y)
             if layout_report is not None and caption_y is not None:
                 layout_report["caption_y"] = caption_y
             if layout_report is not None and vertical_plan is not None:
@@ -533,7 +537,7 @@ def create_optimized_clip(
                             clip_words[index]["break_before"] = True
                 if clip_words:
                     labelled = label_words(source_clip_path, clip_words, src_w, src_h, plan_report.get("cam_face"),
-                                           keep_game_lines=kit_npc_captions)
+                                           keep_game_lines=kit_npc_captions, title=layout_title or hook_title or "")
                     if kit_npc_captions and labelled and plan_report.get("kind") == "catclips3":
                         labelled = _npc_placed(labelled, source_clip_path, plan_report)
                     # Every line left out (doubtful voices, subtitled game lines): no captions, not a reload.

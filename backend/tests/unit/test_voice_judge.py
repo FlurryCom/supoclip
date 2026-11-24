@@ -232,3 +232,13 @@ def test_the_prompt_tells_claude_how_surely_the_cam_face_talks():
     vj.judge(SAID, None, 16000, None, [], fallback, run=run,
              speak_at=lambda spans: [0.95 for _ in spans])
     assert "cam 0.95" in asked["text"]
+
+
+def test_a_subtitle_never_swallows_words_that_sound_nothing_like_it():
+    # xQc yells "oh my god" while S0 shows; his words must not be replaced by the subtitle's text
+    said = _words((42.0, 42.4, "oh"), (42.4, 42.8, "my"), (42.8, 43.2, "god"))
+    subs = [(41.5, 43.0, ["i", "dunno", "i", "think", "i", "lost", "her"])]
+    out = vj.with_subtitles([{**w, "role": "game"} for w in said], subs, [])
+    texts = [w["text"] for w in out]
+    assert "oh" in texts and "my" in texts and "god" in texts  # kept, not absorbed
+    assert "dunno" in texts  # the unheard line still renders on its own

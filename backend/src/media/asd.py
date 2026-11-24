@@ -234,25 +234,28 @@ def _net():
     return _session
 
 
-DURATIONS = (2, 4, 6)  # seconds; the model was trained on short windows, and chunks keep the GPU small
+WINDOW, HOP = 12, 6  # seconds; overlapped windows track the whole-clip pass while fitting the GPU
 
 
 def frame_scores(net, audio_feats: np.ndarray, video: np.ndarray, device: str = "cpu") -> np.ndarray:
-    """P(the face speaks) per video frame (25/s): windows of a few seconds, ensembled like the demo."""
+    """P(the face speaks) per video frame (25/s), from overlapped windows averaged."""
     torch, _ = _torch()
     frames = min((audio_feats.shape[0] - audio_feats.shape[0] % 4) // 4, video.shape[0])
-
-    def one_pass(duration: int) -> np.ndarray:
-        pieces = []
-        for start in range(0, frames, duration * FPS):
-            stop = min(start + duration * FPS, frames)
-            with torch.no_grad():
-                scores = net(torch.from_numpy(audio_feats[start * 4:stop * 4]).float().unsqueeze(0).to(device),
-                             torch.from_numpy(video[start:stop].astype(np.float32)).unsqueeze(0).to(device))
-            pieces.append(scores.detach().cpu().numpy().reshape(-1))
-        return np.concatenate(pieces) if pieces else np.zeros(0, dtype=np.float32)
-
-    out = np.mean([one_pass(d) for d in DURATIONS], axis=0)
+    total = np.zeros(frames)
+    count = np.zeros(frames)
+    for start in range(0, max(frames, 1), HOP * FPS):
+        stop = min(start + WINDOW * FPS, frames)
+        if stop <= start:
+            break
+        with torch.no_grad():
+            scores = net(torch.from_numpy(audio_feats[start * 4:stop * 4]).float().unsqueeze(0).to(device),
+                         torch.from_numpy(video[start:stop].astype(np.float32)).unsqueeze(0).to(device))
+        piece = scores.detach().cpu().numpy().reshape(-1)
+        total[start:start + piece.size] += piece
+        count[start:start + piece.size] += 1
+        if stop >= frames:
+            break
+    out = total / np.maximum(count, 1)
     if out.size >= 5:  # the demo's ±2-frame smoothing
         out = np.convolve(out, np.ones(5) / 5, mode="same")
     return out

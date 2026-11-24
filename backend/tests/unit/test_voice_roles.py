@@ -316,13 +316,20 @@ def test_ocr_noise_is_not_a_subtitle():
     assert vr.readable(lines) == [(10.0, 12.0, ["get", "in", "the", "car"])]
 
 
-def test_v3_the_cam_sync_reaches_the_judge(monkeypatch):
+def test_v3_the_cam_sync_and_the_clip_title_reach_the_judge(monkeypatch):
+    asked = {}
     monkeypatch.setattr(vr, "subtitle_tokens", lambda clip, times: [[] for _ in times])
     monkeypatch.setattr(vr, "_audio", lambda clip: np.zeros(16000 * 4, dtype=np.float32))
     monkeypatch.setattr(vr, "mouth_motion", lambda clip, face, ts: [1.0 for _ in ts])
     monkeypatch.setattr("src.media.asd.speaking_scores", lambda clip, face, spans: [0.1 for _ in spans])
-    monkeypatch.setattr("src.claude_cli.run_cli_images", lambda *a, **k: {
-        "lines": [{"first": 0, "last": 1, "speaker": "streamer", "text": ""}]})
+
+    def run(text, images, schema, model, timeout):
+        asked.setdefault("text", text)
+        return {"lines": [{"first": 0, "last": 1, "speaker": "streamer", "text": ""}]}
+
+    monkeypatch.setattr("src.claude_cli.run_cli_images", run)
     out = vr.label_words("clip.mp4", [word(0.2, 0.5, "Hey,"), word(0.5, 0.8, "Lucia")], 1920, 1080,
-                         face=(0, 0, 50, 50), keep_game_lines=True)
-    assert [w["role"] for w in out] == ["game", "game"]  # cam 0.1: not the streamer, whatever Claude said
+                         face=(0, 0, 50, 50), keep_game_lines=True,
+                         title="NPC calls xQc out in GTA 6")
+    assert "cam 0.10" in asked["text"] and "NPC calls xQc out" in asked["text"]
+    assert [w["role"] for w in out] == ["streamer", "streamer"]  # the cam is a hint, not a rule
