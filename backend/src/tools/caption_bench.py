@@ -89,15 +89,15 @@ def main() -> None:
     from src.media.voice_roles import label_words
 
     gabarito = json.loads(Path(sys.argv[1]).read_text())
-    cache = Path("/tmp/bench_labels.json")
+    cache = Path("/tmp/bench_labels.json")  # labels survive for --reuse re-grades
     labels = json.loads(cache.read_text()) if "--reuse" in sys.argv and cache.exists() else {}
     totals = {"right": 0, "wrong": 0, "sure_right": 0, "sure_wrong": 0}
     for clip_name, info in gabarito.items():
         clip = Path("/app/uploads/uploads") / info["src"]
-        cache = json.loads(Path(str(clip).replace(".mp4", ".transcript_cache.json")).read_text())
+        transcript = json.loads(Path(str(clip).replace(".mp4", ".transcript_cache.json")).read_text())
         end = max(b for _a, b, *_ in info["linhas"]) + 2.0
         words = [{"text": w["text"], "start": w["start"] / 1000, "end": w["end"] / 1000}
-                 for w in cache["words"] if w["end"] / 1000 <= end]
+                 for w in transcript["words"] if w["end"] / 1000 <= end]
         if clip_name in labels:
             labelled = labels[clip_name]
         else:
