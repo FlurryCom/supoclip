@@ -25,6 +25,7 @@ HEAD_GAP = 20
 # The protagonist (and the voice on their phone) talks from above the player, whom the 3.0 crop centres:
 # the arrow's tip lands about over their head (GTA 6's chase camera keeps it near here on foot).
 PLAYER_SPOT = (540, GAME_Y + round(0.36 * GAME_H))
+PLAYER_BOX = (120, 320)  # how far (x, y) from the player's spot a face still counts as the player
 SEAT_MOVE = 0.25  # seconds the streamer's caption takes to climb onto the seam once the title is gone
 
 
@@ -57,6 +58,8 @@ def head_track(samples: Sequence[tuple[float, Sequence[Face]]], cam_face: Option
                 continue
             x = _clamp((mx - cx) * scale, EDGE_X, 1080 - EDGE_X)
             y = _clamp(GAME_Y + (face[1] - cy) * scale - HEAD_GAP, Y_MIN, Y_MAX)
+            if abs(x - PLAYER_SPOT[0]) <= PLAYER_BOX[0] and abs(y - PLAYER_SPOT[1]) <= PLAYER_BOX[1]:
+                continue  # the protagonist the crop centres on: an NPC's line never points at them
             points.append((x, y, face))
         track.append((float(t), points))
     return track

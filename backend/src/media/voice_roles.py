@@ -384,6 +384,18 @@ def readable(lines: list[tuple[float, float, list[str]]]) -> list[tuple[float, f
             if b - a >= 0.5 / SUBTITLE_HZ and line and sum(map(word, line)) >= 0.6 * len(line)]
 
 
+def scene_frames(path: Path, times: list[float], width: int = 640) -> list[bytes]:
+    """JPEG frames of the source at ``times`` (in order), for Claude to see the scene."""
+    import cv2
+
+    seen = {}
+    for index, frame in _frames(path, times):
+        h, w = frame.shape[:2]
+        small = cv2.resize(frame, (width, int(h * width / w)), interpolation=cv2.INTER_AREA)
+        seen[index] = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 80])[1].tobytes()
+    return [seen[i] for i in _index(path, times) if i in seen]
+
+
 def _subtitle_times(words: list[dict[str, Any]]) -> list[float]:
     first, last = min(float(w["start"]) for w in words), max(float(w["end"]) for w in words)
     return [float(t) for t in np.arange(max(0.0, first - 0.5), last + 0.5, 1 / SUBTITLE_HZ)]
@@ -487,7 +499,7 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
 
                 speak_at = lambda spans: speaking_scores(clip, face, spans)  # noqa: E731
             return judge(words, _audio(clip), RATE, motion_at, lines, fallback, calls=calls,
-                         speak_at=speak_at, title=title)
+                         speak_at=speak_at, title=title, frames_at=lambda ts: scene_frames(clip, ts))
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
             # still: every GTA subtitle is a game line, and a game line in a call is the phone

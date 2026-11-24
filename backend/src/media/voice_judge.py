@@ -80,6 +80,12 @@ dialogue; a character nearer the camera is louder than one further away; a calle
 an even level. Several characters often talk in one clip: don't put them all in one voice.
 
 Whisper can also miss a game line entirely: never stretch a subtitle over words that don't sound like it.
+Images (when attached): frames of the stream, in order, one per stretch marked "frame N" below — the
+webcam in a corner, the game behind. Look at them like a viewer would: who is on screen, who faces
+whom, whose lips move, and whether a line FITS the speaker you are about to pick. Owner's example:
+the protagonist stands at a counter facing a clerk; a line about something unrelated that a person
+behind them says does not make sense as the protagonist talking to the clerk — it is another NPC.
+Ask of every game line: does it make sense, in THIS scene, coming from that character?
 Use all of it and the conversation's context: a streamer reacts, swears, talks to chat and
 comments on what happens; game characters talk about the mission and each other by name.
 
@@ -214,6 +220,8 @@ def prompt(words: list[dict[str, Any]], groups: list[list[int]], facts: list[dic
         subtitle = f'"{fact["subtitle"]}"' if fact["subtitle"] else "none"
         start, end = float(words[group[0]]["start"]), float(words[group[-1]]["end"])
         call = f" | call: {fact['call']}" if fact.get("call") else ""
+        if fact.get("frame") is not None:
+            call += f" | frame {fact['frame']}"
         voice = f" | voice {fact['voice']}" if fact.get("voice") else ""
         if fact.get("cam") is not None:
             voice = f" | cam {fact['cam']:.2f}{voice}"
@@ -362,6 +370,65 @@ def _majority_subtitles(disputed: list, kept: list, second: dict[str, Any], thir
     return kept
 
 
+MAX_FRAMES = 12  # scene frames Claude sees per clip (each ~640 px wide)
+PASSES = 3  # Claude is nondeterministic: each word and each subtitle goes to the majority of 3 passes
+
+
+def majority(words: list[dict[str, Any]], answers: list[dict[str, Any]]) -> dict[str, Any]:
+    """One answer from several passes: per word and per subtitle, the speaker most passes gave
+    (the first pass breaks a three-way split). A lone answer comes back as it is."""
+    from collections import Counter
+
+    if len(answers) == 1:
+        return answers[0]
+    votes: list[list[tuple]] = [[] for _ in words]
+    for answer in answers:
+        for line in answer.get("lines") or []:
+            try:
+                first, last, speaker = int(line["first"]), int(line["last"]), line["speaker"]
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not 0 <= first <= last < len(words) or speaker not in ("streamer", "game", *GAME_VOICES):
+                continue
+            npc = line.get("npc") if isinstance(line.get("npc"), int) else None
+            for i in range(first, last + 1):
+                votes[i].append((speaker, npc))
+    picked: list[Optional[tuple]] = []
+    for vote in votes:
+        if not vote:
+            picked.append(None)
+            continue
+        counts = Counter(speaker for speaker, _ in vote)
+        best = max(counts.values())
+        speaker = next(sp for sp, _ in vote if counts[sp] == best)
+        npc = Counter(n for sp, n in vote if sp == speaker and n is not None).most_common(1)
+        picked.append((speaker, npc[0][0] if npc else None))
+    lines, i = [], 0
+    while i < len(words):
+        if picked[i] is None:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(words) and picked[j + 1] == picked[i]:
+            j += 1
+        line = {"first": i, "last": j, "speaker": picked[i][0], "text": ""}
+        if picked[i][1] is not None:
+            line["npc"] = picked[i][1]
+        lines.append(line)
+        i = j + 1
+    by_id: dict[Any, list[dict]] = {}
+    for answer in answers:
+        for v in answer.get("subtitles") or []:
+            if isinstance(v, dict) and "id" in v:
+                by_id.setdefault(v["id"], []).append(v)
+    subtitles = []
+    for vs in by_id.values():
+        counts = Counter(v.get("speaker") for v in vs)
+        best = max(counts.values())
+        subtitles.append(next(v for v in vs if counts[v.get("speaker")] == best))
+    return {"lines": lines, "subtitles": subtitles}
+
+
 def merge_answers(words: list[dict[str, Any]], first: dict[str, Any], second: dict[str, Any]) -> dict[str, Any]:
     """What the two passes agree on: Claude is nondeterministic, and only its stable calls count.
 
@@ -393,7 +460,8 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
           run: Optional[Callable[..., dict]] = None,
           calls: Sequence[tuple[float, float, str]] = (),
           speak_at: Optional[Callable[[list[tuple[float, float]]], Optional[list[float]]]] = None,
-          title: str = "") -> list[dict[str, Any]]:
+          title: str = "",
+          frames_at: Optional[Callable[[list[float]], list[bytes]]] = None) -> list[dict[str, Any]]:
     """Claude's roles for ``words``, twice-agreed; raises when Claude can't answer (the caller keeps
     ``fallback``)."""
     if run is None:
@@ -406,32 +474,43 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     spans = [(float(words[g[0]]["start"]), float(words[g[-1]]["end"])) for g in groups]
     # Measured on the owner's gabarito: a HIGH cam is proof (his lips move with these words), while a
     # low one is only a hint (he scores low whenever he speaks quietly or off-axis).
-    speaking = speak_at(spans) if speak_at is not None else None
+    # The override works word by word: a stretch often mixes an NPC line with the streamer's reaction,
+    # and a stretch average let his reaction claim the NPC's words (held-out test, jynxzi clip).
+    word_spans = [(float(w["start"]), float(w["end"])) for w in words]
+    scores = speak_at(spans + word_spans) if speak_at is not None else None
     high: set[int] = set()
-    if speaking is not None:
-        for k, score in enumerate(speaking[:len(facts)]):
+    if scores is not None:
+        for k, score in enumerate(scores[:len(groups)]):
             if score is not None:
                 facts[k]["cam"] = score
-        high = {i for group, score in zip(groups, speaking) if score is not None and score >= HIGH_CAM
-                for i in group}
+        high = {i for i, score in enumerate(scores[len(groups):]) if score is not None and score >= HIGH_CAM}
     letters = voice_letters(audio, rate, spans + [(a, b + 1 / 3) for a, b, _ in lines])
     for fact, letter in zip(facts, letters):
         fact["voice"] = letter
     median = _median_db(audio, rate, spans)
     louds = [_loud(audio, rate, a, b + 1 / 3, median) for a, b, _ in lines]
     subtitled = {i for group, fact in zip(groups, facts) if fact["subtitle"] for i in group}
+    images: list[bytes] = []
+    if frames_at is not None:
+        # one frame per stretch, at most MAX_FRAMES evenly spread (the rest share their neighbour's)
+        picks = sorted({round(k * (len(groups) - 1) / max(1, MAX_FRAMES - 1)) for k in range(MAX_FRAMES)}) \
+            if len(groups) > MAX_FRAMES else list(range(len(groups)))
+        try:
+            images = frames_at([(spans[k][0] + spans[k][1]) / 2 for k in picks])
+        except Exception as exc:
+            logger.warning("Scene frames for the judge failed (%s); judging from text", exc)
+            images = []
+        if images:
+            for k in range(len(groups)):
+                facts[k]["frame"] = 1 + min(range(len(picks)), key=lambda n: abs(picks[n] - k))
     ask = prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls), title)
-    answer = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
-    try:
-        second = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
-        disputed_subs = _disputed_subtitles(answer, second)
-        answer = merge_answers(words, answer, second)
-        if disputed_subs:  # who says a subtitle flaps between passes: a third one breaks the tie
-            third = run(ask, [], SCHEMA, model=MODEL, timeout=TIMEOUT)
-            answer["subtitles"] = _majority_subtitles(disputed_subs, answer.get("subtitles") or [],
-                                                      second, third)
-    except Exception as exc:
-        logger.warning("Second judge pass failed (%s); using the first alone", exc)
+    answers = [run(ask, images, SCHEMA, model=MODEL, timeout=TIMEOUT)]
+    for _ in range(PASSES - 1):
+        try:
+            answers.append(run(ask, images, SCHEMA, model=MODEL, timeout=TIMEOUT))
+        except Exception as exc:
+            logger.warning("A judge pass failed (%s); voting with %d", exc, len(answers))
+    answer = majority(words, answers)
     kept = fading(lines, louds)
     faded = [k for k, line in enumerate(lines) if line not in kept]
     if faded:  # these lines and the words heard of them are not captioned, whatever Claude said

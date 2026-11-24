@@ -14,10 +14,11 @@ def samples(*frames):
 
 
 def test_npc_line_sits_above_the_visible_face():
-    track = head_track(samples((0.0, [npc(959)]), (0.5, [npc(959)]), (1.0, [npc(959)])), None, CROP)
+    # an NPC off to the side (the middle of the crop is the protagonist's spot)
+    track = head_track(samples((0.0, [npc(800)]), (0.5, [npc(800)]), (1.0, [npc(800)])), None, CROP)
     path = line_path(0.0, 1.0, track)
     x, y = path[0][2], path[0][3]
-    assert abs(x - 540) <= 2  # face centre 959 -> middle of the 1080 output
+    assert abs(x - round((800 - 554) * 1080 / 812)) <= 2
     assert TITLE_BOTTOM + 100 <= y < GAME_Y + (300 - 0) * 1080 / 812  # above the head, inside the game area
 
 
@@ -97,11 +98,11 @@ def test_npc_events_hold_until_the_chunk_ends():
 
 
 def test_a_broken_speaker_check_falls_back_to_the_nearest_face():
-    track = head_track(samples((0.0, [npc(700), npc(1000)])), None, CROP)
+    track = head_track(samples((0.0, [npc(650), npc(1250)])), None, CROP)
     def broken(*args):
         raise RuntimeError("no video")
     path = line_path(0.0, 0.5, track, broken)
-    assert abs(path[0][2] - round((1000 - 554) * 1080 / 812)) <= 2  # 1000 is nearer the centre (959)
+    assert abs(path[0][2] - round((1250 - 554) * 1080 / 812)) <= 2  # 1250 lands nearer the centre
 
 
 def test_the_protagonist_and_the_phone_talk_from_over_the_player_and_split_from_npcs():
@@ -122,3 +123,13 @@ def test_the_streamer_s_caption_climbs_onto_the_seam_once_the_title_is_gone():
     path = streamer_path()
     assert segments_between(path, 0.0, 1.0)[0][3] > GAME_Y + 100  # under the title badge
     assert segments_between(path, TITLE_OUT + 1, TITLE_OUT + 2)[0][3] == GAME_Y  # on the seam after
+
+
+def test_an_npc_line_never_points_at_the_protagonist():
+    from src.media.npc_captions import PLAYER_SPOT
+    # a face right where the crop centres the player, and one NPC off to the side
+    cx, cy, cw, ch = CROP
+    scale = cw / 1080
+    player = (cx + PLAYER_SPOT[0] * scale - 20, cy + (PLAYER_SPOT[1] - 700 + 40) * scale, 40, 50)
+    track = head_track([(0.0, [player, npc(1000)]), (3.0, [player, npc(1000)])], None, CROP)
+    assert all(abs(x - PLAYER_SPOT[0]) > 120 for _t, pts in track for x, _y, _f in pts)

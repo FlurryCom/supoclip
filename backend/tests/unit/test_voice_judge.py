@@ -208,18 +208,30 @@ def test_a_low_cam_sync_flips_a_streamer_verdict_to_the_game():
     assert [w["role"] for w in out] == ["game"] * 7 + ["streamer"] * 3
 
 
-def test_claude_runs_twice_and_disagreement_keeps_the_fallback():
+def test_each_word_goes_to_the_majority_of_three_passes():
     answers = iter([
         {"lines": [{"first": 0, "last": 6, "speaker": "npc", "text": ""},
                    {"first": 7, "last": 9, "speaker": "npc", "text": ""}]},
         {"lines": [{"first": 0, "last": 6, "speaker": "npc", "text": ""},
                    {"first": 7, "last": 9, "speaker": "streamer", "text": ""}]},
+        {"lines": [{"first": 0, "last": 6, "speaker": "streamer", "text": ""},
+                   {"first": 7, "last": 9, "speaker": "streamer", "text": ""}]},
     ])
     fallback = [{**w, "role": "streamer"} for w in SAID]
     out = vj.judge(SAID, None, 16000, None, [], fallback, run=lambda *a, **k: next(answers))
-    assert [w["role"] for w in out[:7]] == ["game"] * 7  # both passes agreed
-    assert [w["role"] for w in out[7:]] == ["streamer"] * 3  # disputed: the fallback stands
+    assert [w["role"] for w in out[:7]] == ["game"] * 7  # 2 of 3 said npc
+    assert [w["role"] for w in out[7:]] == ["streamer"] * 3  # 2 of 3 said streamer
 
+
+def test_the_cam_override_is_per_word_not_per_stretch():
+    # one stretch mixes an NPC line (cam low) with the streamer's reaction (cam high)
+    answers = iter([{"lines": [{"first": 0, "last": 9, "speaker": "npc", "text": ""}]}] * 3)
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    def speak_at(spans):  # stretch scores first, then one per word: only words 7-9 are his
+        groups = len(spans) - len(SAID)
+        return [0.8] * groups + [0.1] * 7 + [0.9] * 3
+    out = vj.judge(SAID, None, 16000, None, [], fallback, run=lambda *a, **k: next(answers), speak_at=speak_at)
+    assert [w["role"] for w in out] == ["game"] * 7 + ["streamer"] * 3
 
 def test_the_prompt_tells_claude_how_surely_the_cam_face_talks():
     asked = {}
@@ -332,3 +344,17 @@ def test_few_lines_are_never_loudness_filtered():
     from src.media.voice_judge import fading
     lines = [(0.0, 1.0, ["a"]), (2.0, 3.0, ["b"]), (4.0, 5.0, ["c"])]
     assert fading(lines, [-3.3, -7.6, -4.5]) == lines  # the quiet therapy answer survives
+
+
+def test_claude_sees_one_scene_frame_per_stretch():
+    seen = {}
+
+    def run(text, images, schema, model, timeout):
+        seen["images"], seen["text"] = images, text
+        return {"lines": [{"first": 0, "last": 9, "speaker": "streamer", "text": ""}]}
+
+    fallback = [{**w, "role": "streamer"} for w in SAID]
+    vj.judge(SAID, None, 16000, None, [], fallback, run=run,
+             frames_at=lambda ts: [f"jpg@{t:.1f}".encode() for t in ts])
+    assert len(seen["images"]) == 2  # SAID has two stretches
+    assert "frame 1" in seen["text"] and "frame 2" in seen["text"] and "make sense" in seen["text"]
