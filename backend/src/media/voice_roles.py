@@ -327,8 +327,11 @@ def subtitle_text(frame: np.ndarray) -> str:
     gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
     _, ink = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY_INV)  # dark text on white reads best
     png = cv2.imencode(".png", ink)[1].tobytes()
-    return subprocess.run(["tesseract", "stdin", "stdout", "--psm", "6", "-l", "eng"], input=png,
+    text = subprocess.run(["tesseract", "stdin", "stdout", "--psm", "6", "-l", "eng"], input=png,
                           capture_output=True, timeout=20, check=True).stdout.decode(errors="ignore").strip()
+    if "***" in text:
+        return ""  # a censored chat/TTS overlay (the streamer's own), never GTA dialogue
+    return text
 
 
 def subtitle_tokens(path: Path, times: list[float]) -> list[list[str]]:

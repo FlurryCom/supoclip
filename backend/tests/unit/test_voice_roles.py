@@ -341,3 +341,14 @@ def test_an_objective_with_a_coloured_key_word_is_not_a_subtitle():
     assert not vr.objective_text_on(frame)
     frame[940:960, 1010:1100] = (140, 90, 230)  # "car" in GTA's pink (BGR)
     assert vr.objective_text_on(frame)
+
+
+def test_a_censored_chat_overlay_is_not_a_gta_subtitle(monkeypatch):
+    import subprocess as sp
+
+    class R:
+        stdout = b"Hi ************* Swing"
+    monkeypatch.setattr(vr, "plain_subtitle_on", lambda frame: True)
+    monkeypatch.setattr(vr, "objective_text_on", lambda frame: False)
+    monkeypatch.setattr(sp, "run", lambda *a, **k: R())
+    assert vr.subtitle_text(np.zeros((1080, 1920, 3), np.uint8)) == ""
