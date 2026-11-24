@@ -333,3 +333,11 @@ def test_v3_the_cam_sync_and_the_clip_title_reach_the_judge(monkeypatch):
                          title="NPC calls xQc out in GTA 6")
     assert "cam 0.10" in asked["text"] and "NPC calls xQc out" in asked["text"]
     assert [w["role"] for w in out] == ["streamer", "streamer"]  # the cam is a hint, not a rule
+
+
+def test_an_objective_with_a_coloured_key_word_is_not_a_subtitle():
+    frame = np.zeros((1080, 1920, 3), np.uint8)
+    frame[940:960, 800:1000] = 235  # white dialogue text
+    assert not vr.objective_text_on(frame)
+    frame[940:960, 1010:1100] = (140, 90, 230)  # "car" in GTA's pink (BGR)
+    assert vr.objective_text_on(frame)

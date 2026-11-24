@@ -279,6 +279,27 @@ def plain_subtitle_on(frame: np.ndarray) -> bool:
     return right - left >= 0.06 * w and abs(centre) <= 0.12 * w
 
 
+def objective_text_on(frame: np.ndarray) -> bool:
+    """GTA 6 writes mission objectives where subtitles go, with the key word coloured (pink/yellow);
+    spoken dialogue is plain white. A coloured word on the white text's own rows means an objective.
+    Only the text rows count: a club's neon elsewhere in the band must not trip this."""
+    import cv2
+
+    h, w = frame.shape[:2]
+    band = frame[int(0.80 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)]
+    gray = cv2.cvtColor(band, cv2.COLOR_BGR2GRAY) if band.ndim == 3 else band
+    white = gray > 200
+    rows = np.flatnonzero(white.sum(axis=1) > 0.004 * band.shape[1])
+    if not rows.size:
+        return False
+    sel = band[rows].astype(int)
+    high = sel.max(axis=2)
+    colored = (high > 150) & ((high - sel.min(axis=2)) > 60)
+    colored[:, :60] = False  # scene lights bleed in at the band's edges; the key word sits inside
+    colored[:, -60:] = False
+    return int(colored.sum()) > 0.15 * max(int(white[rows].sum()), 1)
+
+
 SUBTITLE_HZ = 3  # GTA keeps a subtitle up for a second or more
 
 
@@ -294,12 +315,12 @@ def _tokens(text: str) -> set[str]:
 
 
 def subtitle_text(frame: np.ndarray) -> str:
-    """What the game's subtitle says ('' when there is none), read with tesseract."""
+    """What the game's subtitle says ('' when there is none or it is an objective), read with tesseract."""
     import subprocess
 
     import cv2
 
-    if not plain_subtitle_on(frame):
+    if not plain_subtitle_on(frame) or objective_text_on(frame):
         return ""
     h, w = frame.shape[:2]
     gray = cv2.cvtColor(frame[int(0.80 * h):int(0.97 * h), int(0.2 * w):int(0.8 * w)], cv2.COLOR_BGR2GRAY)
