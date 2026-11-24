@@ -53,6 +53,7 @@ def grade(words: list[dict[str, Any]], lines: list[list]) -> dict[str, Any]:
     right = wrong = 0
     confusion: dict[tuple[str, str], int] = {}
     missed, early = [], []
+    by_line = [{"right": 0, "wrong": 0} for _ in lines]
     for k, (a, b, text, speaker, _sure) in enumerate(lines):
         mine = per_line[k]
         if speaker == "lixo":
@@ -64,12 +65,14 @@ def grade(words: list[dict[str, Any]], lines: list[list]) -> dict[str, Any]:
             got = spoken(word)
             if got == speaker:
                 right += 1
+                by_line[k]["right"] += 1
             else:
                 wrong += 1
+                by_line[k]["wrong"] += 1
                 confusion[(speaker, got)] = confusion.get((speaker, got), 0) + 1
         if min(float(w["start"]) for w in mine) < a - EARLY:
             early.append(text)
-    return {"right": right, "wrong": wrong,
+    return {"right": right, "wrong": wrong, "by_line": by_line,
             "accuracy": round(right / max(1, right + wrong), 3),
             "confusion": {f"{a}->{b}": n for (a, b), n in sorted(confusion.items(), key=lambda kv: -kv[1])},
             "missed_lines": missed, "early_lines": early, "stray_words": len(stray)}
@@ -99,7 +102,9 @@ def main() -> None:
                                    title=info.get("titulo", ""))
             labels[clip_name] = labelled
         report = grade(labelled, info["linhas"])
-        sure = grade(labelled, [l for l in info["linhas"] if l[4]])
+        sure = {"right": sum(c["right"] for c, l in zip(report["by_line"], info["linhas"]) if l[4]),
+                "wrong": sum(c["wrong"] for c, l in zip(report["by_line"], info["linhas"]) if l[4])}
+        sure["accuracy"] = sure["right"] / max(1, sure["right"] + sure["wrong"])
         totals["right"] += report["right"]
         totals["wrong"] += report["wrong"]
         totals["sure_right"] += sure["right"]
