@@ -95,6 +95,12 @@ that subtitle's speaker (the subtitle's own words will replace them). speaker is
   therapy, interrogation) has that one answering as "protagonist".
 Short, half-heard first-person mutters with no GTA subtitle ("what am I gonna...", "get a car") are
 usually the streamer thinking aloud; the cam reading can run low when he speaks quietly or off-axis.
+Follow the conversation's thread (owner's rule): game dialogue is diegetic — it sounds scripted,
+advances the scene, and lines answer one another (a question gets a reply, an order gets a protest).
+When a stretch reads like the reply to the previous game line, it is the game's even with no other
+proof: two voices trading in-world lines are characters talking to EACH OTHER, not the streamer.
+The streamer speaks from outside the scene: he reacts, swears at the game, talks to chat, and calls
+characters "he", "she", "this guy" — he doesn't deliver generic in-world lines mid-scene.
 npc: for an "npc" line, which character: 1, 2, 3... the same number for the same character all clip long.
 text: for a game line whose words the GTA subtitle shows, the subtitle's words for exactly that
 line (fix the OCR noise, drop the part of the subtitle not said in this line); otherwise "".
