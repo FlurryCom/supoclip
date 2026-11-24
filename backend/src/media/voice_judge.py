@@ -42,7 +42,7 @@ SCHEMA = {
                 "type": "object",
                 "properties": {
                     "id": {"type": "integer"},
-                    "speaker": {"type": "string", "enum": ["protagonist", "npc", "phone"]},
+                    "speaker": {"type": "string", "enum": ["protagonist", "npc", "phone", "music"]},
                     "npc": {"type": "integer"},
                     "text": {"type": "string"},
                 },
@@ -97,7 +97,8 @@ line (fix the OCR noise, drop the part of the subtitle not said in this line); o
 
 Then, under subtitles, one entry per GTA subtitle listed at the end (id = its S number), even when the
 transcript missed it (Whisper drops game lines the streamer talks over): who says it (protagonist, npc
-with its number, or phone) and its words with the OCR noise fixed.
+with its number, phone — or "music" when it is a song's lyrics, as in a club or on the radio: GTA
+subtitles those too and they must not be captioned) and its words with the OCR noise fixed.
 
 {stretches}{subtitles}"""
 
@@ -415,6 +416,7 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
     if not lines:
         return words
     verdict = {int(v["id"]): v for v in verdicts if isinstance(v.get("id"), int)}
+    lyric = {k for k, v in verdict.items() if v.get("speaker") == "music"}
     tokens = [(_token_list(str(w.get("text", ""))) or [""])[0] for w in words]
     owner: dict[int, int] = {}  # word -> the subtitle line it was
 
@@ -440,6 +442,8 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
                 owner[i] = k
     blocks: list[tuple[float, int, list[dict[str, Any]]]] = []
     for k, (a, b, line) in enumerate(lines):
+        if k in lyric:
+            continue  # a song's lyrics: neither the line nor the words Whisper heard of it are captions
         mine = sorted(i for i, o in owner.items() if o == k)
         start, end = (float(words[mine[0]]["start"]), float(words[mine[-1]]["end"])) if mine else (a, b + 1 / 3)
         v = verdict.get(k, {})
@@ -470,7 +474,9 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
         blocks.append((start, k, [{**(base if j == 0 else {kk: vv for kk, vv in base.items() if kk != "break_before"}),
                                    "text": token, "start": spans[j][0], "end": spans[j][1]}
                                   for j, token in enumerate(text)]))
-    kept = [(float(w["start"]), i, w) for i, w in enumerate(words) if i not in owner]
+    kept = [(float(w["start"]), i, w) for i, w in enumerate(words)
+            if i not in owner or owner[i] in lyric]
+    kept = [(t, i, w) for t, i, w in kept if i not in owner or w["role"] != "game"]
     out: list[dict[str, Any]] = []
     # a line's words stay together; the streamer's words said meanwhile follow it
     items = sorted([(start, 0, k, ws) for start, k, ws in blocks] + [(t, 1, i, [w]) for t, i, w in kept],

@@ -242,3 +242,12 @@ def test_a_subtitle_never_swallows_words_that_sound_nothing_like_it():
     texts = [w["text"] for w in out]
     assert "oh" in texts and "my" in texts and "god" in texts  # kept, not absorbed
     assert "dunno" in texts  # the unheard line still renders on its own
+
+
+def test_a_subtitle_claude_calls_music_is_not_captioned():
+    # GTA subtitles club songs too; lyrics must not become an NPC line
+    said = _words((35.5, 36.0, "get"), (36.0, 36.5, "in"))
+    subs = [(35.5, 36.5, ["get", "in", "bae", "luxe's"])]
+    out = vj.with_subtitles([{**w, "role": "game"} for w in said], subs,
+                            [{"id": 0, "speaker": "music", "text": "Get in, Bae Luxe's"}])
+    assert out == []

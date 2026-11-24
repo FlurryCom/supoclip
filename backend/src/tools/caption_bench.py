@@ -57,6 +57,10 @@ def grade(words: list[dict[str, Any]], lines: list[list]) -> dict[str, Any]:
     for k, (a, b, text, speaker, _sure) in enumerate(lines):
         mine = per_line[k]
         if speaker == "lixo":
+            for word in mine:  # music or noise: captioning it at all is the mistake
+                wrong += 1
+                by_line[k]["wrong"] += 1
+                confusion[("lixo", spoken(word))] = confusion.get(("lixo", spoken(word)), 0) + 1
             continue
         if not mine:
             missed.append(text)
