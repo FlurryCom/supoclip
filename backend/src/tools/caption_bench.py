@@ -90,7 +90,8 @@ def main() -> None:
         words = [{"text": w["text"], "start": w["start"] / 1000, "end": w["end"] / 1000}
                  for w in cache["words"] if w["end"] / 1000 <= end]
         face = plan_catclips3(clip, 1920, 1080, "x")[3]
-        labelled = label_words(clip, words, 1920, 1080, face, keep_game_lines=True)
+        labelled = label_words(clip, words, 1920, 1080, face, keep_game_lines=True,
+                               title=info.get("titulo", ""))
         report = grade(labelled, info["linhas"])
         totals["right"] += report["right"]
         totals["wrong"] += report["wrong"]
