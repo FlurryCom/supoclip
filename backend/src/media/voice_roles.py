@@ -453,7 +453,13 @@ def label_words(clip: Path, words: list[dict[str, Any]], width: int, height: int
         except Exception as exc:
             logger.warning("Claude couldn't judge the caption voices (%s); keeping the subtitle match", exc)
             # still: every GTA subtitle is a game line, and a game line in a call is the phone
-            return with_subtitles(apply_verdict(words, {}, fallback, set(), calls), lines, [], calls)
+            from .voice_judge import make_timer
+            try:
+                timer = make_timer(_audio(clip), RATE)
+            except Exception:
+                timer = None
+            return with_subtitles(apply_verdict(words, {}, fallback, set(), calls), lines, [], calls,
+                                  timer=timer)
     try:
         segments = speech_segments(words)
         if len(segments) < 2:

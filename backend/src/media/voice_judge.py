@@ -298,11 +298,20 @@ def judge(words: list[dict[str, Any]], audio: Optional[np.ndarray], rate: int,
     answer = run(prompt(words, groups, facts, subtitle_block(lines, letters[len(spans):], louds, calls)),
                  [], SCHEMA, model=MODEL, timeout=TIMEOUT)
     out = with_subtitles(apply_verdict(words, answer, fallback, subtitled, calls), lines,
-                         answer.get("subtitles") or [], calls)
+                         answer.get("subtitles") or [], calls, timer=make_timer(audio, rate))
     logger.info("Caption voices by Claude: %d streamer, %d protagonist, %d npc, %d phone words (calls: %s)",
                 sum(w["role"] == "streamer" for w in out),
                 *(sum(w.get("voice") == v for w in out) for v in GAME_VOICES), calls or "none")
     return out
+
+
+def make_timer(audio: Optional[np.ndarray], rate: int) -> Optional[Callable[[str, float, float], list[tuple[str, float, float]]]]:
+    """A line-timer over this clip's audio (None without audio): when the words of an unheard line start."""
+    if audio is None or not getattr(audio, "size", 0):
+        return None
+    from .align import line_times
+
+    return lambda text, a, b: line_times(audio, rate, text, a, b)
 
 
 def _median_db(audio: Optional[np.ndarray], rate: int, spans: list[tuple[float, float]]) -> float:
@@ -323,13 +332,14 @@ def _matched_span(line: list[str], said: list[str]) -> Optional[tuple[int, int]]
 
 
 def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, list[str]]],
-                   verdicts: list[dict[str, Any]], calls: Sequence[tuple[float, float, str]] = ()) -> list[dict[str, Any]]:
+                   verdicts: list[dict[str, Any]], calls: Sequence[tuple[float, float, str]] = (),
+                   timer: Optional[Callable[[str, float, float], list[tuple[str, float, float]]]] = None) -> list[dict[str, Any]]:
     """Every GTA subtitle becomes a game caption line (owner's rule: the subtitle is proof of who talks
     and what is said), even when Whisper missed it or heard it mixed into the streamer's talk.
 
     The words that were the subtitle's (game words near it, or words that match it) give way to the
-    subtitle's own words over their time; a subtitle nobody heard gets its words over the time GTA showed
-    it. The streamer's words around stay; when they overlap a line, both show.
+    subtitle's own words over their time; a subtitle nobody heard gets its words timed by ``timer`` (the audio's own
+    alignment: GTA draws a line before its voice starts), or over the drawn time without one. The streamer's words around stay; when they overlap a line, both show.
     """
     from .voice_roles import _token_list
 
@@ -365,6 +375,7 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
         text = str(v.get("text") or "").split()
         if not text or not 0.6 <= len(text) / max(1, len(line)) <= 1.6:
             text = line  # Claude's clean-up must stay the subtitle's words
+        timed = timer(" ".join(text), a, b) if timer is not None and not mine else None
         voice = v.get("speaker") if v.get("speaker") in GAME_VOICES else next(
             (words[i].get("voice") for i in mine if words[i].get("voice")), "npc")
         caller = _caller_at(calls, start, end)
@@ -379,9 +390,14 @@ def with_subtitles(words: list[dict[str, Any]], lines: list[tuple[float, float, 
             base["caller"] = caller
         if voice == "npc" and isinstance(v.get("npc"), int):
             base["npc"] = v["npc"]
-        step = (end - start) / len(text)
+        if timed and len(timed) == len(text):
+            spans = [(ts, te) for _, ts, te in timed]
+            start = spans[0][0]
+        else:
+            step = (end - start) / len(text)
+            spans = [(start + j * step, start + (j + 1) * step) for j in range(len(text))]
         blocks.append((start, k, [{**(base if j == 0 else {kk: vv for kk, vv in base.items() if kk != "break_before"}),
-                                   "text": token, "start": start + j * step, "end": start + (j + 1) * step}
+                                   "text": token, "start": spans[j][0], "end": spans[j][1]}
                                   for j, token in enumerate(text)]))
     kept = [(float(w["start"]), i, w) for i, w in enumerate(words) if i not in owner]
     out: list[dict[str, Any]] = []

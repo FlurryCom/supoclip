@@ -176,3 +176,25 @@ def test_a_subtitle_heard_mixed_into_the_streamer_s_talk_is_the_npc_s():
     game = [w for w in out if w["role"] == "game"]
     assert " ".join(w["text"] for w in game) == "I'm done, I'm straight off this music shit."
     assert game[0]["npc"] == 2 and game[-1]["end"] == 19.9
+
+
+def test_an_unheard_subtitle_waits_for_its_voice():
+    # GTA draws "hey what happened" at 41.0 s; the voice only starts at 41.9 s
+    subs = [(41.0, 41.7, ["hey", "what", "happened"])]
+
+    def timer(text, a, b):
+        words = text.split()
+        return [(w, 41.9 + k * 0.3, 42.2 + k * 0.3) for k, w in enumerate(words)]
+
+    out = vj.with_subtitles([], subs, [{"id": 0, "speaker": "npc", "text": "Hey, what happened?"}], timer=timer)
+    assert [w["text"] for w in out] == ["Hey,", "what", "happened?"]
+    assert out[0]["start"] == 41.9 and abs(out[-1]["end"] - 42.8) < 1e-6
+
+
+def test_a_heard_subtitle_keeps_the_transcript_s_times():
+    said = _words((10.0, 10.4, "so"), (10.4, 10.8, "you're"), (10.8, 11.2, "saying"), (11.2, 11.6, "you"),
+                  (11.6, 12.0, "ran"))
+    subs = [(9.7, 11.5, ["so", "you're", "saying", "you", "ran"])]
+    out = vj.with_subtitles([{**w, "role": "game"} for w in said], subs, [],
+                            timer=lambda text, a, b: [(t, 99.0, 99.5) for t in text.split()])
+    assert out[0]["start"] == 10.0 and out[-1]["end"] == 12.0  # the timer is for unheard lines only
