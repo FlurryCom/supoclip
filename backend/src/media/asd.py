@@ -234,14 +234,25 @@ def _net():
     return _session
 
 
+DURATIONS = (2, 4, 6)  # seconds; the model was trained on short windows, and chunks keep the GPU small
+
+
 def frame_scores(net, audio_feats: np.ndarray, video: np.ndarray, device: str = "cpu") -> np.ndarray:
-    """P(the face speaks) per video frame (25/s)."""
+    """P(the face speaks) per video frame (25/s): windows of a few seconds, ensembled like the demo."""
     torch, _ = _torch()
     frames = min((audio_feats.shape[0] - audio_feats.shape[0] % 4) // 4, video.shape[0])
-    with torch.no_grad():
-        scores = net(torch.from_numpy(audio_feats[:frames * 4]).float().unsqueeze(0).to(device),
-                     torch.from_numpy(video[:frames].astype(np.float32)).unsqueeze(0).to(device))
-    out = scores.detach().cpu().numpy().reshape(-1)
+
+    def one_pass(duration: int) -> np.ndarray:
+        pieces = []
+        for start in range(0, frames, duration * FPS):
+            stop = min(start + duration * FPS, frames)
+            with torch.no_grad():
+                scores = net(torch.from_numpy(audio_feats[start * 4:stop * 4]).float().unsqueeze(0).to(device),
+                             torch.from_numpy(video[start:stop].astype(np.float32)).unsqueeze(0).to(device))
+            pieces.append(scores.detach().cpu().numpy().reshape(-1))
+        return np.concatenate(pieces) if pieces else np.zeros(0, dtype=np.float32)
+
+    out = np.mean([one_pass(d) for d in DURATIONS], axis=0)
     if out.size >= 5:  # the demo's ±2-frame smoothing
         out = np.convolve(out, np.ones(5) / 5, mode="same")
     return out
@@ -283,7 +294,16 @@ def speaking_scores(clip, face, spans: Sequence[tuple[float, float]]) -> Optiona
         if video is None:
             return None
         net, device = _net()
-        per_frame = frame_scores(net, mfcc(_clip_audio(clip), 16000), video, device)
+        feats = mfcc(_clip_audio(clip), 16000)
+        try:
+            per_frame = frame_scores(net, feats, video, device)
+        except RuntimeError as exc:
+            if "out of memory" not in str(exc).lower():
+                raise
+            logger.warning("ASD fell off the GPU (%s); scoring on the CPU", exc)
+            global _session
+            per_frame = frame_scores(net.cpu(), feats, video, "cpu")
+            _session = (net, "cpu")
         out = []
         for start, end in spans:
             a = min(max(0, int(start * FPS)), len(per_frame) - 1)
